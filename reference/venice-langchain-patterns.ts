@@ -1,6 +1,6 @@
 /**
  * REFERENCE ONLY — Venice AI + Langchain Patterns
- * Source: ~/projects/another project/apps/agent/src/config.ts
+ * Source: adapted from another project's agent config
  *
  * Production-tested patterns for Venice LLM integration via Langchain.
  */
