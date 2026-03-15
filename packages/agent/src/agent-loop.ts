@@ -1,3 +1,11 @@
+/**
+ * Main agent orchestrator. Compiles intent into a delegation, then runs a monitoring
+ * loop: check drift, reason via Venice, quote and execute swaps on Uniswap, log
+ * results. Exposes singleton state for the dashboard server.
+ *
+ * @module @veil/agent/agent-loop
+ */
+import type { SwapRecord } from "@veil/common";
 import type { Address, Hex } from "viem";
 import { createWalletClient, createPublicClient, http, parseUnits } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
@@ -51,15 +59,7 @@ export interface AgentState {
   budgetTier: string;
   transactions: SwapRecord[];
   audit: AuditReport | null;
-}
-
-export interface SwapRecord {
-  txHash: string;
-  sellToken: string;
-  buyToken: string;
-  sellAmount: string;
-  status: string;
-  timestamp: string;
+  agentId: bigint | null;
 }
 
 // Singleton state for dashboard access
@@ -132,6 +132,7 @@ export async function runAgentLoop(config: AgentConfig): Promise<void> {
     budgetTier: "normal",
     transactions: [],
     audit: null,
+    agentId: null,
   };
 
   _currentState = state;
@@ -143,7 +144,10 @@ export async function runAgentLoop(config: AgentConfig): Promise<void> {
   registerAgent(`https://github.com/neilei/veil`, "base-sepolia")
     .then(({ txHash, agentId }) => {
       console.log(`[erc8004] Registered on Base Sepolia: ${txHash}`);
-      if (agentId) console.log(`[erc8004] Agent ID: ${agentId}`);
+      if (agentId) {
+        console.log(`[erc8004] Agent ID: ${agentId}`);
+        state.agentId = agentId;
+      }
       logAction("erc8004_register", {
         tool: "erc8004-identity",
         result: { txHash, agentId: agentId?.toString() },
@@ -734,13 +738,14 @@ Decide whether to rebalance. If yes, specify the swap details. Keep swap amounts
       `Status: ${receipt.status} | Gas: ${receipt.gasUsed.toString()}`,
     );
 
-    // ERC-8004: give on-chain feedback rating the Uniswap service (non-blocking)
-    giveFeedback(1n, 5, "swap-execution", "defi", "base-sepolia")
+    // ERC-8004: give on-chain feedback for the swap (non-blocking)
+    const feedbackAgentId = state.agentId ?? 1n;
+    giveFeedback(feedbackAgentId, 5, "swap-execution", "defi", "base-sepolia")
       .then((fbHash) => {
         console.log(`[erc8004] Feedback submitted: ${fbHash}`);
         logAction("erc8004_feedback", {
           tool: "erc8004-reputation",
-          result: { txHash: fbHash, agentId: "1", rating: 5, tag: "swap-execution" },
+          result: { txHash: fbHash, agentId: feedbackAgentId.toString(), rating: 5, tag: "swap-execution" },
         });
       })
       .catch((fbErr) => {

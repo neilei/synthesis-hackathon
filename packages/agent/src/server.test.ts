@@ -92,6 +92,12 @@ vi.mock("./identity/erc8004.js", () => ({
   giveFeedback: vi.fn(),
 }));
 
+// Mock @veil/common — provide real constant values so server.ts resolves cleanly
+vi.mock("@veil/common", () => ({
+  DEFAULT_AGENT_PORT: 3147,
+  API_PATHS: { state: "/api/state", deploy: "/api/deploy" },
+}));
+
 // Mock agent-loop with controllable getAgentState / getAgentConfig
 const mockGetAgentState = vi.fn().mockReturnValue(null);
 const mockGetAgentConfig = vi.fn().mockReturnValue(null);

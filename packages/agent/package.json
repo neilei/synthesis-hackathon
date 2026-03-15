@@ -13,6 +13,7 @@
     "codegen": "graphql-codegen --config codegen.ts"
   },
   "dependencies": {
+    "@veil/common": "workspace:*",
     "@langchain/core": "^1.1.0",
     "@langchain/openai": "^1.2.0",
     "@metamask/smart-accounts-kit": "0.4.0-beta.1",

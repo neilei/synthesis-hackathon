@@ -1,4 +1,11 @@
 import { z } from "zod";
+import { ParsedIntentSchema, type ParsedIntent } from "@veil/common";
+
+// Re-export under both names for backwards compatibility within the agent
+export { ParsedIntentSchema };
+export { ParsedIntentSchema as IntentParseSchema };
+export type { ParsedIntent };
+export type IntentParse = ParsedIntent;
 
 // Schema sent to the LLM via function calling. Uses an explicit array instead
 // of z.record() because Venice/Gemini's function calling drops dynamic keys
@@ -36,35 +43,6 @@ export const IntentParseLlmSchema = z.object({
 });
 
 export type IntentParseLlm = z.infer<typeof IntentParseLlmSchema>;
-
-// Canonical schema used throughout the codebase for validation. Accepts the
-// Record<string, number> format that all downstream code expects.
-export const IntentParseSchema = z.object({
-  targetAllocation: z
-    .record(z.string(), z.number())
-    .describe(
-      "Target allocation as token symbol to percentage (0-1). e.g. { ETH: 0.6, USDC: 0.4 }",
-    ),
-  dailyBudgetUsd: z
-    .number()
-    .describe("Maximum USD value of trades per day"),
-  timeWindowDays: z
-    .number()
-    .describe("How many days the delegation should last"),
-  maxTradesPerDay: z
-    .number()
-    .describe("Maximum number of trades per day"),
-  maxSlippage: z
-    .number()
-    .describe("Maximum slippage as decimal, e.g. 0.005 for 0.5%"),
-  driftThreshold: z
-    .number()
-    .describe(
-      "Minimum allocation drift to trigger rebalance, e.g. 0.05 for 5%",
-    ),
-});
-
-export type IntentParse = z.infer<typeof IntentParseSchema>;
 
 export const RebalanceDecisionSchema = z.object({
   shouldRebalance: z
