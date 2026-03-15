@@ -13,6 +13,7 @@ An autonomous DeFi agent for the Synthesis Hackathon (deadline: 2026-03-22). The
 ## Project Structure (Monorepo)
 
 ```
+packages/common/    Shared types, constants, and utilities (@veil/common)
 packages/agent/     Backend — agent loop, API server, all integrations
 apps/dashboard/     Frontend — Next.js dashboard (Configure, Audit, Monitor)
 docs/               Design docs, plans, research
@@ -61,12 +62,13 @@ Root `package.json` uses pnpm workspaces. Run everything from root:
 
 ## Key Technical Decisions
 
-- **Venice multi-model**: qwen3-4b (fast), gemini-3-flash (research/web search), gemini-3-1-pro (reasoning)
+- **Shared types**: `@veil/common` is the single source of truth for API contract types (Zod schemas + derived types), shared constants, and formatting utilities. Both `packages/agent` and `apps/dashboard` import from common — never define duplicate type interfaces.
+- **Venice multi-model**: qwen3-4b (fast), gemini-3-flash-preview (research/web search + scraping), gemini-3-1-pro-preview (reasoning). All confirmed valid via `GET /api/v1/models`. Venice model catalog changes frequently — always verify against the live API, never static docs.
 - **Structured output**: `llm.withStructuredOutput(zodSchema)` + `safeParse()` post-validation
 - **Budget tracking**: Venice `x-venice-balance-usd` response header captured via custom fetch wrapper
 - **The Graph**: Uses official Uniswap V3 Ethereum mainnet subgraph (ID: `5zvR82QoaXYFyDEKLZ9t6v9adgnptxYpKpSbxtgVENFV`). Types generated via graphql-codegen.
-- **Delegation flow**: ERC-7715 creates scoped permission (human approves once), ERC-7710 redeems server-side (no browser needed). Falls back to direct tx if delegation fails.
-- **Agent identity**: ERC-8004 NFT on Base, reputation feedback after each swap
+- **Delegation flow**: ERC-7715 creates scoped permission (human approves once), ERC-7710 redeems server-side (no browser needed). Falls back to direct tx if delegation fails. Must pass `valueLte: { maxValue }` in `functionCall` scope — SDK defaults to `maxValue: 0n` if omitted, blocking all ETH-value calls.
+- **Agent identity**: ERC-8004 NFT on Base, reputation feedback uses dynamic agentId from registration
 
 ## Current Status (updated 2026-03-15)
 
