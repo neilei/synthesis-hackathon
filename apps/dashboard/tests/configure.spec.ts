@@ -52,4 +52,91 @@ test.describe("Configure Screen", () => {
       page.getByRole("button", { name: /50\/50 split/ }),
     ).toBeVisible();
   });
+
+  test("shows loading state during deploy", async ({ page }) => {
+    // Mock deploy with a delay
+    await page.route("**/api/deploy", async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          parsed: {
+            targetAllocation: { ETH: 0.6, USDC: 0.4 },
+            dailyBudgetUsd: 200,
+            timeWindowDays: 7,
+            maxSlippage: 0.005,
+            driftThreshold: 0.05,
+            maxTradesPerDay: 10,
+          },
+          audit: {
+            allows: ["Swap ETH ↔ USDC on Uniswap V3"],
+            prevents: [],
+            worstCase: null,
+            warnings: [],
+          },
+        }),
+      });
+    });
+
+    const textarea = page.getByPlaceholder(/60\/40/);
+    await textarea.fill("60/40 ETH/USDC");
+    await page.getByRole("button", { name: /compile & deploy/i }).click();
+
+    // Loading text should appear
+    await expect(
+      page.getByText("Compiling intent via Venice AI..."),
+    ).toBeVisible();
+    // Textarea should be disabled during loading
+    await expect(textarea).toBeDisabled();
+  });
+
+  test("shows error message on deploy failure", async ({ page }) => {
+    await page.route("**/api/deploy", (route) =>
+      route.fulfill({
+        status: 500,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "Venice API rate limited" }),
+      }),
+    );
+
+    const textarea = page.getByPlaceholder(/60\/40/);
+    await textarea.fill("60/40 ETH/USDC");
+    await page.getByRole("button", { name: /compile & deploy/i }).click();
+
+    // Error message should appear
+    await expect(page.getByText(/failed|error|rate limit/i)).toBeVisible({
+      timeout: 5000,
+    });
+  });
+
+  test("Cmd+Enter triggers deploy", async ({ page }) => {
+    await page.route("**/api/deploy", async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          parsed: {
+            targetAllocation: { ETH: 0.5, USDC: 0.5 },
+            dailyBudgetUsd: 100,
+            timeWindowDays: 30,
+            maxSlippage: 0.01,
+            driftThreshold: 0.1,
+            maxTradesPerDay: 5,
+          },
+          audit: { allows: [], prevents: [], worstCase: null, warnings: [] },
+        }),
+      });
+    });
+
+    const textarea = page.getByPlaceholder(/60\/40/);
+    await textarea.fill("50/50 split");
+    await textarea.press("Meta+Enter");
+
+    // Should show loading state (proving the shortcut fired)
+    await expect(
+      page.getByText("Compiling intent via Venice AI..."),
+    ).toBeVisible({ timeout: 2000 });
+  });
 });

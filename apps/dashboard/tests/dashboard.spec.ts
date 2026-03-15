@@ -38,4 +38,28 @@ test.describe("Dashboard Navigation", () => {
     await expect(veniceLink).toHaveAttribute("target", "_blank");
     await expect(veniceLink).toHaveAttribute("rel", /noopener/);
   });
+
+  test("renders correctly at mobile viewport (375px)", async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 812 });
+    await page.goto("/");
+
+    // Core elements still visible
+    await expect(page.getByRole("heading", { name: "VEIL" })).toBeVisible();
+    await expect(page.getByPlaceholder(/60\/40/)).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /compile & deploy/i }),
+    ).toBeVisible();
+
+    // Tabs still accessible
+    await expect(
+      page.getByRole("tab", { name: /configure/i }),
+    ).toBeVisible();
+
+    // No horizontal scroll — page fits viewport
+    const scrollWidth = await page.evaluate(
+      () => document.documentElement.scrollWidth,
+    );
+    const viewportWidth = await page.evaluate(() => window.innerWidth);
+    expect(scrollWidth).toBeLessThanOrEqual(viewportWidth);
+  });
 });
