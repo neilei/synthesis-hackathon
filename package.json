@@ -12,7 +12,9 @@
     "test:e2e": "pnpm --filter @veil/agent test:e2e",
     "serve": "pnpm --filter @veil/agent serve",
     "codegen": "pnpm --filter @veil/agent codegen",
-    "lint": "turbo run lint"
+    "lint": "turbo run lint",
+    "dev:dashboard": "pnpm --filter @veil/dashboard dev",
+    "build:dashboard": "pnpm --filter @veil/dashboard build"
   },
   "devDependencies": {
     "turbo": "^2.5.0"
