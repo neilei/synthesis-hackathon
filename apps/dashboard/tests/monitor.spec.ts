@@ -1,3 +1,8 @@
+/**
+ * Playwright e2e tests for the Monitor tab: stats cards, transactions, feed.
+ *
+ * @module @veil/dashboard/tests/monitor.spec
+ */
 import { test, expect } from "@playwright/test";
 
 const MOCK_DEPLOY_RESPONSE = {

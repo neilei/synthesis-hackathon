@@ -1,3 +1,10 @@
+/**
+ * ERC-8004 on-chain agent identity (NFT registration) and reputation feedback
+ * on Base. Called at agent startup for registration and after each successful
+ * swap for feedback.
+ *
+ * @module @veil/agent/identity/erc8004
+ */
 import {
   createPublicClient,
   createWalletClient,

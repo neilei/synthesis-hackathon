@@ -1,3 +1,9 @@
+/**
+ * Home page. Manages tab state and coordinates data flow between Configure,
+ * Audit, and Monitor screens.
+ *
+ * @module @veil/dashboard/app/page
+ */
 "use client";
 
 import { useState, useCallback } from "react";

@@ -1,3 +1,9 @@
+/**
+ * Status badge with semantic color variants: positive (emerald), danger (red),
+ * warning (amber). Used in Monitor tab for transaction outcomes.
+ *
+ * @module @veil/dashboard/components/ui/badge
+ */
 type BadgeVariant = "positive" | "danger" | "warning";
 
 const VARIANT_COLORS: Record<BadgeVariant, string> = {

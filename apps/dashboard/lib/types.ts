@@ -1,3 +1,9 @@
+/**
+ * TypeScript interfaces for the dashboard: API response shapes, swap records,
+ * audit reports, log entries, and deploy payloads.
+ *
+ * @module @veil/dashboard/lib/types
+ */
 export interface AgentStateResponse {
   cycle: number;
   running: boolean;

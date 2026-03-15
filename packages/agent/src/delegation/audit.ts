@@ -1,3 +1,10 @@
+/**
+ * Generates human-readable audit reports comparing an intent to its compiled
+ * delegation. Shows what the delegation allows, prevents, worst-case damage,
+ * and warnings. Displayed in the dashboard Audit tab.
+ *
+ * @module @veil/agent/delegation/audit
+ */
 import type { IntentParse } from "../venice/schemas.js";
 import type { Delegation } from "@metamask/smart-accounts-kit";
 import { detectAdversarialIntent } from "./compiler.js";

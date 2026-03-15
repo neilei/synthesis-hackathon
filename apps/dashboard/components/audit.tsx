@@ -1,3 +1,9 @@
+/**
+ * Delegation audit display. Shows parsed intent, allocation breakdown,
+ * what the delegation allows and prevents, worst-case analysis, and safety warnings.
+ *
+ * @module @veil/dashboard/components/audit
+ */
 "use client";
 
 import { SponsorBadge } from "./sponsor-badge";

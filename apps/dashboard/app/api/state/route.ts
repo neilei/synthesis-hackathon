@@ -1,3 +1,9 @@
+/**
+ * GET /api/state proxy. Forwards to the agent server and returns current
+ * agent state for the Monitor tab.
+ *
+ * @module @veil/dashboard/app/api/state/route
+ */
 const AGENT_API_URL = process.env.AGENT_API_URL || "http://localhost:3147";
 
 export async function GET() {

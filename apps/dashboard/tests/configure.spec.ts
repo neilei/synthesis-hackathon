@@ -1,3 +1,8 @@
+/**
+ * Playwright e2e tests for the Configure tab: form input, presets, deploy flow.
+ *
+ * @module @veil/dashboard/tests/configure.spec
+ */
 import { test, expect } from "@playwright/test";
 
 test.describe("Configure Screen", () => {

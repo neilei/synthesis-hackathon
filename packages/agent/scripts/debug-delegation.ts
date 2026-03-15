@@ -1,16 +1,9 @@
 /**
- * Debug script: test delegation creation + redemption with Uniswap swap.
- *
- * Tests the full ERC-7710 flow:
- * 1. Create delegator smart account
- * 2. Deploy it on Sepolia
- * 3. Fund it with ETH from agent
- * 4. Create nativeTokenTransferAmount delegation (constrains max ETH)
- * 5. Sign it with the smart account
- * 6. Get Uniswap quote with smart account as swapper
- * 7. Redeem the delegation via DelegationManager → executes swap from smart account
- *
+ * Debug script: test the full ERC-7710 delegation flow end-to-end on Sepolia.
+ * Creates smart account, deploys, funds, delegates, quotes via Uniswap, and redeems.
  * Run: npx tsx packages/agent/scripts/debug-delegation.ts
+ *
+ * @module @veil/agent/scripts/debug-delegation
  */
 import {
   createPublicClient,

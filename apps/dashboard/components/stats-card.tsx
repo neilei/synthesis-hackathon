@@ -1,3 +1,9 @@
+/**
+ * Reusable stat display card with label, monospace value, and loading state.
+ * Used in the Monitor tab for portfolio metrics.
+ *
+ * @module @veil/dashboard/components/stats-card
+ */
 interface StatsCardProps {
   label: string;
   value: string;

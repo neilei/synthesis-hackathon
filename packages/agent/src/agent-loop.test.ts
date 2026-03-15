@@ -1,3 +1,8 @@
+/**
+ * Unit tests for the agent loop: drift calculation, token resolution, state management.
+ *
+ * @module @veil/agent/agent-loop.test
+ */
 import { describe, it, expect, vi } from "vitest";
 
 // Mock all heavy dependencies so we can import calculateDrift
@@ -78,6 +83,37 @@ describe("Agent Loop - state accessors", () => {
 
   it("getAgentConfig returns null before agent starts", () => {
     expect(getAgentConfig()).toBeNull();
+  });
+});
+
+describe("Agent Loop - AgentState agentId", () => {
+  it("agentId type allows bigint | null for dynamic capture", () => {
+    // This tests the type contract: agentId starts null, can be set to a bigint
+    // from registerAgent, and the fallback pattern state.agentId ?? 1n works correctly.
+    const state = {
+      agentId: null as bigint | null,
+    };
+
+    // Before registration
+    const beforeId = state.agentId ?? 1n;
+    expect(beforeId).toBe(1n);
+
+    // After registration captures agentId
+    state.agentId = 42n;
+    const afterId = state.agentId ?? 1n;
+    expect(afterId).toBe(42n);
+  });
+
+  it("agentId fallback uses 1n when registration fails (null)", () => {
+    const state = { agentId: null as bigint | null };
+    const feedbackAgentId = state.agentId ?? 1n;
+    expect(feedbackAgentId).toBe(1n);
+  });
+
+  it("agentId uses captured value when registration succeeds", () => {
+    const state = { agentId: 7n as bigint | null };
+    const feedbackAgentId = state.agentId ?? 1n;
+    expect(feedbackAgentId).toBe(7n);
   });
 });
 

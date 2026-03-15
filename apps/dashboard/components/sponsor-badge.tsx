@@ -1,3 +1,9 @@
+/**
+ * Inline sponsor credit badge with dot indicator. Used in section headers
+ * to attribute sponsor technology.
+ *
+ * @module @veil/dashboard/components/sponsor-badge
+ */
 interface SponsorBadgeProps {
   text: string;
 }

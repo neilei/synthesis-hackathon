@@ -1,3 +1,9 @@
+/**
+ * HTTP server (port 3147) exposing POST /api/deploy and GET /api/state endpoints.
+ * Serves the Next.js dashboard static build as a SPA fallback.
+ *
+ * @module @veil/agent/server
+ */
 import { createServer, type IncomingMessage, type ServerResponse } from "http";
 import { readFileSync, readFile, existsSync } from "fs";
 import { join, extname } from "path";

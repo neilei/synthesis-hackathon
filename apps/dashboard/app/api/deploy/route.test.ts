@@ -1,3 +1,8 @@
+/**
+ * Unit tests for POST /api/deploy proxy route.
+ *
+ * @module @veil/dashboard/app/api/deploy/route.test
+ */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { POST } from "./route";
 

@@ -1,3 +1,9 @@
+/**
+ * POST /api/deploy proxy. Forwards intent to the agent server at :3147
+ * and returns the parsed intent with audit report.
+ *
+ * @module @veil/dashboard/app/api/deploy/route
+ */
 const AGENT_API_URL = process.env.AGENT_API_URL || "http://localhost:3147";
 
 export async function POST(request: Request) {

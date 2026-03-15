@@ -1,3 +1,9 @@
+/**
+ * Playwright test config. UI tests (mocked API) by default; integration tests
+ * (real agent) opt-in via INTEGRATION=1.
+ *
+ * @module @veil/dashboard/playwright.config
+ */
 import { defineConfig, devices } from "@playwright/test";
 
 const isCI = !!process.env.CI;

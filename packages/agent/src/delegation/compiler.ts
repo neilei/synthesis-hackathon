@@ -1,3 +1,10 @@
+/**
+ * Intent compilation pipeline. Parses natural language via Venice LLM into structured
+ * IntentParse, detects adversarial parameters, creates a MetaMask Smart Account
+ * delegation with on-chain caveats (timestamp, limited calls, functionCall scope).
+ *
+ * @module @veil/agent/delegation/compiler
+ */
 import type { Address, Hex } from "viem";
 import { createPublicClient, encodePacked, http } from "viem";
 import { sepolia, mainnet } from "viem/chains";
@@ -192,10 +199,8 @@ export async function createDelegationFromIntent(
     },
   ];
 
-  // Use functionCall scope — constrains the agent to only call the Uniswap
-  // Universal Router's execute() function, with a max ETH value per call.
-  // The DelegationManager enforces these constraints on-chain when the agent
-  // redeems the delegation.
+  // Constrain the agent to only call the Uniswap Universal Router's execute()
+  // function, with a max ETH value per call enforced on-chain.
   const totalBudgetUsd = intent.dailyBudgetUsd * intent.timeWindowDays;
   const conservativeEthPrice = 500; // low floor so delegation stays valid if ETH drops
   const maxEth = totalBudgetUsd / conservativeEthPrice;
@@ -210,6 +215,9 @@ export async function createDelegationFromIntent(
   // execute(bytes,bytes[],uint256) selector = 0x3593564c
   const EXECUTE_SELECTOR = "0x3593564c" as Hex;
 
+  // The functionCall scope builder defaults valueLte to { maxValue: 0n } if
+  // omitted, which blocks all ETH-value calls. Pass it explicitly so the SDK
+  // encodes our actual max value into the ValueLteEnforcer caveat.
   const delegation = createDelegation({
     from: delegatorSmartAccount.address as Hex,
     to: agentAddress as Hex,

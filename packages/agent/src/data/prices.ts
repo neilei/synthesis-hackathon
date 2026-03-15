@@ -1,3 +1,9 @@
+/**
+ * Token price lookup via Venice web search LLM with 60-second caching.
+ * Returns price and citation URL. Called each cycle by the agent loop.
+ *
+ * @module @veil/agent/data/prices
+ */
 import { researchLlm } from "../venice/llm.js";
 import { PriceResponseSchema } from "../venice/schemas.js";
 

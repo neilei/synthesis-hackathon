@@ -1,3 +1,9 @@
+/**
+ * Root HTML layout. Configures Inter and JetBrains Mono fonts, sets dark theme,
+ * and provides site metadata.
+ *
+ * @module @veil/dashboard/app/layout
+ */
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";

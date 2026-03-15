@@ -1,13 +1,8 @@
 /**
- * Real end-to-end integration tests.
- *
- * These tests hit the actual agent server (no mocking).
- * Requirements:
- *   - Agent server running on $AGENT_API_URL (default http://localhost:3147)
- *   - Dashboard dev server running on port 3100
- *   - Venice API key configured in agent server's .env
- *
+ * Integration test: full deploy-to-monitor flow against a live agent server.
  * Run: INTEGRATION=1 pnpm --filter @veil/dashboard test:e2e --project integration
+ *
+ * @module @veil/dashboard/tests/integration/full-flow.spec
  */
 import { test, expect } from "@playwright/test";
 

@@ -1,18 +1,8 @@
 /**
- * REFERENCE ONLY — MetaMask ERC-7715 + ERC-7710 Complete Flow
- * Source: MetaMask Smart Accounts Kit docs (docs.metamask.io/smart-accounts-kit)
+ * REFERENCE ONLY. MetaMask ERC-7715 (grant) + ERC-7710 (redeem) complete flow.
+ * Source: MetaMask Smart Accounts Kit docs.
  *
- * ERC-7715 = GRANT permissions (user approves via MetaMask extension popup)
- * ERC-7710 = REDEEM permissions (agent executes server-side, no browser needed)
- *
- * The flow:
- * 1. Dapp calls wallet_grantPermissions (ERC-7715) → MetaMask Flask shows UI → user approves
- * 2. Dapp receives permissionsContext + delegationManager from the response
- * 3. Agent uses permissionsContext to execute transactions (ERC-7710) — no browser needed
- *
- * KEY INSIGHT: Step 1 needs a browser (MetaMask Flask extension).
- * Steps 2-3 are fully server-side / programmatic.
- * For our hackathon: human does Step 1 once via browser, agent does Steps 2-3 forever.
+ * @module @veil/reference/metamask-erc7715-flow
  */
 
 // ============================================================

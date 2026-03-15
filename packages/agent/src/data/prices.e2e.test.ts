@@ -1,3 +1,8 @@
+/**
+ * E2E tests for token price lookup against live Venice API.
+ *
+ * @module @veil/agent/data/prices.e2e.test
+ */
 import { describe, it, expect } from "vitest";
 import {
   getTokenPrice,

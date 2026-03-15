@@ -1,3 +1,8 @@
+/**
+ * E2E tests for ERC-8004 identity on live Base Sepolia contracts.
+ *
+ * @module @veil/agent/identity/erc8004.e2e.test
+ */
 import { describe, it, expect } from "vitest";
 import { createPublicClient, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";

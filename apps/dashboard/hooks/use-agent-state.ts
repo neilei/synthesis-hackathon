@@ -1,3 +1,8 @@
+/**
+ * React hook for polling agent state. Pauses when the browser tab is not visible.
+ *
+ * @module @veil/dashboard/hooks/use-agent-state
+ */
 "use client";
 
 import { useState, useEffect, useCallback } from "react";

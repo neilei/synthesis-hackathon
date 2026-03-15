@@ -1,3 +1,8 @@
+/**
+ * Unit tests for audit report generation: allows, prevents, worst-case, warnings.
+ *
+ * @module @veil/agent/delegation/audit.test
+ */
 import { describe, it, expect } from "vitest";
 import { generateAuditReport } from "./audit.js";
 import type { IntentParse } from "../venice/schemas.js";

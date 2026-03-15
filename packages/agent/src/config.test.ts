@@ -1,3 +1,8 @@
+/**
+ * Unit tests for environment config validation and contract address constants.
+ *
+ * @module @veil/agent/config.test
+ */
 import { describe, it, expect } from "vitest";
 import { env, CONTRACTS, CHAINS, UNISWAP_API_BASE } from "./config.js";
 

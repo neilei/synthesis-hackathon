@@ -1,3 +1,9 @@
+/**
+ * Animated loading placeholder components: SkeletonLine, SkeletonCard, SkeletonTable.
+ * Used by Monitor and other views during data fetching.
+ *
+ * @module @veil/dashboard/components/skeleton
+ */
 interface SkeletonProps {
   className?: string;
 }

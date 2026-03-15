@@ -1,3 +1,8 @@
+/**
+ * E2E tests for delegation redemption against live Sepolia DelegationManager.
+ *
+ * @module @veil/agent/delegation/redeemer.e2e.test
+ */
 import { describe, it, expect } from "vitest";
 import { sepolia } from "viem/chains";
 import { createPublicClient, http } from "viem";

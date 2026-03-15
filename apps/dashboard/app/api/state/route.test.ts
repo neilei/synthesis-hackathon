@@ -1,3 +1,8 @@
+/**
+ * Unit tests for GET /api/state proxy route.
+ *
+ * @module @veil/dashboard/app/api/state/route.test
+ */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { GET } from "./route";
 

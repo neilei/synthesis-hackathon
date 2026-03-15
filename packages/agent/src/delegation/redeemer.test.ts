@@ -1,3 +1,8 @@
+/**
+ * Unit tests for delegation redemption: smart account deployment, funding, and redeem encoding.
+ *
+ * @module @veil/agent/delegation/redeemer.test
+ */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Hex } from "viem";
 

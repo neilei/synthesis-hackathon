@@ -1,3 +1,9 @@
+/**
+ * Fetches ETH and USDC on-chain balances via viem, computes USD values and
+ * allocation percentages. Called each cycle by the agent loop.
+ *
+ * @module @veil/agent/data/portfolio
+ */
 import {
   createPublicClient,
   http,

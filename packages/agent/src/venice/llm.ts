@@ -1,3 +1,10 @@
+/**
+ * Venice AI LLM instances via LangChain. Three tiers: fast (qwen3-4b),
+ * research (gemini-3-flash-preview with web search), reasoning (gemini-3-1-pro-preview).
+ * Custom fetch wrapper captures billing headers for budget tracking.
+ *
+ * @module @veil/agent/venice/llm
+ */
 import { ChatOpenAI, type ChatOpenAIFields } from "@langchain/openai";
 import { env } from "../config.js";
 import { updateBudget } from "../logging/budget.js";
@@ -40,7 +47,7 @@ const researchVeniceParams = {
   venice_parameters: {
     disable_thinking: false,
     enable_web_search: "on" as const,
-    enable_web_scraping: false,
+    enable_web_scraping: true,
     enable_web_citations: true,
     include_search_results_in_stream: true,
     return_search_results_as_documents: false,
