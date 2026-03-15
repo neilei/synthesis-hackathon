@@ -52,6 +52,7 @@ export interface AgentState {
   budgetTier: string;
   transactions: SwapRecord[];
   audit: AuditReport | null;
+  agentId: bigint | null;
 }
 
 export interface SwapRecord {
@@ -133,6 +134,7 @@ export async function runAgentLoop(config: AgentConfig): Promise<void> {
     budgetTier: "normal",
     transactions: [],
     audit: null,
+    agentId: null,
   };
 
   _currentState = state;
@@ -144,7 +146,10 @@ export async function runAgentLoop(config: AgentConfig): Promise<void> {
   registerAgent(`https://github.com/neilei/veil`, "base-sepolia")
     .then(({ txHash, agentId }) => {
       logger.info(`[erc8004] Registered on Base Sepolia: ${txHash}`);
-      if (agentId) logger.info(`[erc8004] Agent ID: ${agentId}`);
+      if (agentId) {
+        logger.info(`[erc8004] Agent ID: ${agentId}`);
+        state.agentId = agentId;
+      }
       logAction("erc8004_register", {
         tool: "erc8004-identity",
         result: { txHash, agentId: agentId?.toString() },
@@ -737,13 +742,13 @@ async function executeSwap(
     );
 
     // ERC-8004: give on-chain feedback rating the Uniswap service (non-blocking)
-    // TODO: use dynamic state.agentId once main's agentId tracking is merged
-    giveFeedback(1n, 5, "swap-execution", "defi", "base-sepolia")
+    const feedbackAgentId = state.agentId ?? 1n;
+    giveFeedback(feedbackAgentId, 5, "swap-execution", "defi", "base-sepolia")
       .then((fbHash) => {
         logger.info(`[erc8004] Feedback submitted: ${fbHash}`);
         logAction("erc8004_feedback", {
           tool: "erc8004-reputation",
-          result: { txHash: fbHash, agentId: "1", rating: 5, tag: "swap-execution" },
+          result: { txHash: fbHash, agentId: feedbackAgentId.toString(), rating: 5, tag: "swap-execution" },
         });
       })
       .catch((fbErr) => {
