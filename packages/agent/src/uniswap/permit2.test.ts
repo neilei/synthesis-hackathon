@@ -1,3 +1,8 @@
+/**
+ * Unit tests for Permit2 approval and signing utilities.
+ *
+ * @module @veil/agent/uniswap/permit2.test
+ */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Address, Hex } from "viem";
 

@@ -1,3 +1,9 @@
+/**
+ * Permit2 ERC-20 approval and EIP-712 signing utilities for Uniswap swaps.
+ * Handles allowance checks, max-approval transactions, and permit data signing.
+ *
+ * @module @veil/agent/uniswap/permit2
+ */
 import {
   type Address,
   type Hex,

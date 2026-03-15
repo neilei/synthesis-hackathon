@@ -1,3 +1,5 @@
+# Uniswap V3 pool data query for The Graph subgraph.
+# Used by src/data/thegraph.ts via generated SDK.
 query GetPools($token0: String!, $token1: String!) {
   pools(
     first: 5

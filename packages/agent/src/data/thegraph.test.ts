@@ -1,3 +1,8 @@
+/**
+ * Unit tests for The Graph Uniswap V3 pool data queries.
+ *
+ * @module @veil/agent/data/thegraph.test
+ */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { PoolData } from "./thegraph.js";
 

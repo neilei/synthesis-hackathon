@@ -1,3 +1,9 @@
+/**
+ * React hook for deploy state management. Wraps the deploy API call with
+ * loading, error, and reset state.
+ *
+ * @module @veil/dashboard/hooks/use-deploy
+ */
 "use client";
 
 import { useState, useCallback } from "react";

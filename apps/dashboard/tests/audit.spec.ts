@@ -1,3 +1,8 @@
+/**
+ * Playwright e2e tests for the Audit tab: delegation report display.
+ *
+ * @module @veil/dashboard/tests/audit.spec
+ */
 import { test, expect } from "@playwright/test";
 
 const MOCK_DEPLOY_RESPONSE = {

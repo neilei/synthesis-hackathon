@@ -1,3 +1,10 @@
+/**
+ * ERC-7710 delegation redemption. Deploys the delegator smart account if needed,
+ * funds it with ETH, and sends the redeemDelegations transaction to the
+ * DelegationManager from the agent EOA.
+ *
+ * @module @veil/agent/delegation/redeemer
+ */
 import {
   createWalletClient,
   createPublicClient,

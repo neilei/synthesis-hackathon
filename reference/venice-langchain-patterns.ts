@@ -1,8 +1,12 @@
 /**
- * REFERENCE ONLY — Venice AI + Langchain Patterns
- * Source: adapted from another project's agent config
+ * REFERENCE ONLY. Venice AI + LangChain integration patterns.
  *
- * Production-tested patterns for Venice LLM integration via Langchain.
+ * WARNING: Model names in this file may be outdated. Venice's model catalog
+ * changes frequently. Always verify against the live API:
+ *   GET https://api.venice.ai/api/v1/models
+ * Do NOT copy model IDs from this file without checking the API first.
+ *
+ * @module @veil/reference/venice-langchain-patterns
  */
 
 import { ChatOpenAI, type ChatOpenAIFields } from "@langchain/openai";
@@ -58,6 +62,7 @@ const researchVeniceParams = {
 // ============================================================
 
 // Fast: qwen3-4b or qwen3-5-35b-a3b
+// NOTE: Verify model IDs via GET https://api.venice.ai/api/v1/models
 const fastLlm = getVeniceLlm({
   model: "qwen3-4b",
   temperature: 0.3,
@@ -67,6 +72,7 @@ const fastLlm = getVeniceLlm({
 });
 
 // Research: gemini-3-flash-preview (balanced speed/quality)
+// NOTE: Verify model IDs via GET https://api.venice.ai/api/v1/models
 const researchLlm = getVeniceLlm({
   model: "gemini-3-flash-preview",
   temperature: 0.5,
@@ -76,6 +82,7 @@ const researchLlm = getVeniceLlm({
 });
 
 // Complex reasoning: gemini-3-1-pro-preview or kimi-k2-thinking
+// NOTE: Verify model IDs via GET https://api.venice.ai/api/v1/models
 const reasoningLlm = getVeniceLlm({
   model: "gemini-3-1-pro-preview",
   temperature: 0,

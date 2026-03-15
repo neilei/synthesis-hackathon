@@ -1,14 +1,8 @@
 /**
- * REFERENCE ONLY — GraphQL Codegen Configuration
- * Source: ~/projects/private-streams/apps/insider-streams-frontend/codegen.ts
- *        ~/projects/private-streams/scripts/codegen.ts
+ * REFERENCE ONLY. GraphQL Code Generator configuration patterns for frontend
+ * and backend.
  *
- * Two codegen patterns:
- * 1. Frontend: TypedDocumentNode (for React/Apollo) + SDK (for graphql-request)
- * 2. Backend: SDK only (for server-side graphql-request calls)
- *
- * For Veil, we likely only need the backend pattern (SDK for graphql-request)
- * since the agent queries The Graph subgraph server-side.
+ * @module @veil/reference/graphql-codegen-pattern
  */
 
 // ============================================================

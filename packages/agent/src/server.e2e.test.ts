@@ -1,3 +1,8 @@
+/**
+ * E2E tests for the HTTP server against a live agent instance.
+ *
+ * @module @veil/agent/server.e2e.test
+ */
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { spawn, type ChildProcess } from "child_process";
 import { join, dirname } from "path";

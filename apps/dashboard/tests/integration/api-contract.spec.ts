@@ -1,11 +1,8 @@
 /**
- * API contract tests — verify dashboard type expectations match agent server responses.
- *
- * These tests validate that the agent server's actual JSON responses
- * conform to the shapes declared in lib/types.ts. If the agent changes
- * its response format, these tests catch it before the UI breaks.
- *
+ * Integration tests: verify dashboard type expectations match agent server responses.
  * Run: INTEGRATION=1 pnpm --filter @veil/dashboard test:e2e --project integration
+ *
+ * @module @veil/dashboard/tests/integration/api-contract.spec
  */
 import { test, expect } from "@playwright/test";
 

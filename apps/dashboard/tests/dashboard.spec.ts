@@ -1,3 +1,8 @@
+/**
+ * Playwright e2e tests for dashboard navigation and tab behavior.
+ *
+ * @module @veil/dashboard/tests/dashboard.spec
+ */
 import { test, expect } from "@playwright/test";
 
 test.describe("Dashboard Navigation", () => {

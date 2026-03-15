@@ -1,3 +1,7 @@
+/**
+ * Global CSS variables defining the dark finance theme: zinc backgrounds,
+ * emerald/indigo/red/amber accents, and utility classes for tabular numbers.
+ */
 @import "tailwindcss";
 
 :root {

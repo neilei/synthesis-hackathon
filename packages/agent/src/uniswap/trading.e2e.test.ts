@@ -1,3 +1,8 @@
+/**
+ * E2E tests for Uniswap Trading API against live gateway.
+ *
+ * @module @veil/agent/uniswap/trading.e2e.test
+ */
 import { describe, it, expect } from "vitest";
 import { getQuote } from "./trading.js";
 import { env, CONTRACTS } from "../config.js";

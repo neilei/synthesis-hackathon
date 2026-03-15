@@ -1,3 +1,9 @@
+/**
+ * Core domain types for intent, portfolio state, rebalance decisions, and log entries.
+ * Consumed by agent-loop, delegation, and logging modules.
+ *
+ * @module @veil/agent/types
+ */
 import type { Address } from "viem";
 
 export interface Intent {

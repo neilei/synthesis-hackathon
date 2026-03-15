@@ -1,3 +1,8 @@
+/**
+ * Client-side fetch wrappers for /api/state and /api/deploy endpoints.
+ *
+ * @module @veil/dashboard/lib/api
+ */
 import type { AgentStateResponse, DeployResponse } from "./types";
 
 export async function fetchAgentState(): Promise<AgentStateResponse> {

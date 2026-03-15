@@ -1,3 +1,9 @@
+/**
+ * Tab navigation bar for the three dashboard screens: Configure, Audit, Monitor.
+ * Disables Audit and Monitor tabs until the agent has been deployed.
+ *
+ * @module @veil/dashboard/components/tabs
+ */
 "use client";
 
 export type TabId = "configure" | "audit" | "monitor";

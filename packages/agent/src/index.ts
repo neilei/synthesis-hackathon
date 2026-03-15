@@ -1,3 +1,8 @@
+/**
+ * CLI entry point. Parses --intent and --cycles args, then starts the agent loop.
+ *
+ * @module @veil/agent/index
+ */
 import { env } from "./config.js";
 import { privateKeyToAccount } from "viem/accounts";
 import { startFromCli } from "./agent-loop.js";

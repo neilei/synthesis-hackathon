@@ -1,3 +1,9 @@
+/**
+ * Intent input form with preset strategies. Submits to /api/deploy and
+ * transitions to the Audit tab on success.
+ *
+ * @module @veil/dashboard/components/configure
+ */
 "use client";
 
 import { useState, useCallback } from "react";

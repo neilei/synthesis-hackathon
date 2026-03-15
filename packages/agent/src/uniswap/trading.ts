@@ -1,3 +1,9 @@
+/**
+ * Uniswap Trading API client. Provides quote, approval check, swap creation,
+ * and a full swap flow helper. Used by the agent loop for all DEX interactions.
+ *
+ * @module @veil/agent/uniswap/trading
+ */
 import type { Address, Hex } from "viem";
 import { env, UNISWAP_API_BASE, CONTRACTS } from "../config.js";
 

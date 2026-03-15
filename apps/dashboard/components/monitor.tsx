@@ -1,3 +1,9 @@
+/**
+ * Real-time portfolio monitoring. Polls agent state to display stats cards,
+ * allocation comparison, AI reasoning, and transaction history.
+ *
+ * @module @veil/dashboard/components/monitor
+ */
 "use client";
 
 import { useAgentState } from "@/hooks/use-agent-state";

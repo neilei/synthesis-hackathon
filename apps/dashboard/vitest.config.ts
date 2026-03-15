@@ -1,3 +1,9 @@
+/**
+ * Vitest configuration for dashboard unit tests. Uses jsdom environment
+ * and @/ path alias.
+ *
+ * @module @veil/dashboard/vitest.config
+ */
 import { defineConfig } from "vitest/config";
 import path from "path";
 

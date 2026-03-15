@@ -41,7 +41,7 @@ The project is **substantially functional** with real on-chain proof:
 |-----------|--------|---------|
 | Agent loop (autonomous rebalancing) | **REAL** | 2 on-chain swaps on Sepolia, 4,600+ log entries |
 | Venice LLM calls (pricing, reasoning) | **REAL** | Real API calls, web search citations captured |
-| Venice model names | **BROKEN** | 2 of 3 models (`gemini-3-flash-preview`, `gemini-3-1-pro-preview`) are invalid Venice model IDs. Only work with `VENICE_MODEL_OVERRIDE` forcing `qwen3-4b` |
+| Venice model names | **VALID** | All 3 models (`qwen3-4b`, `gemini-3-flash-preview`, `gemini-3-1-pro-preview`) confirmed valid via `GET /api/v1/models`. Previous audit was wrong — these are proxied frontier models available through Venice |
 | Uniswap Trading API (quote + swap) | **REAL** | 2 confirmed txs on Sepolia |
 | Permit2 | **CODE EXISTS, NEVER EXERCISED** | All swaps were ETH sells (no ERC-20 approval needed). Zero Permit2 txs in logs |
 | MetaMask delegation (create + sign) | **REAL** | Delegations created, signed, submitted to DelegationManager |
@@ -70,28 +70,15 @@ The project is **substantially functional** with real on-chain proof:
 | Web search with citations | `src/venice/llm.ts`, `src/data/prices.ts` | REAL | `enable_web_search: "on"`, `enable_web_citations: true`. Real ETH price lookups from CoinDesk/CoinGecko. Citations captured and logged |
 | Structured output | `src/venice/schemas.ts`, `src/data/prices.ts`, `src/delegation/compiler.ts` | REAL | `.withStructuredOutput(zodSchema)` + `safeParse()` post-validation. Used for intent parsing, price lookups, rebalance decisions |
 | Budget tracking | `src/venice/llm.ts`, `src/logging/budget.ts` | REAL | Custom fetch wrapper captures `x-venice-balance-usd` header. Auto-switches to `qwen3-4b` when balance < $0.50 |
-| Multi-model routing | `src/venice/llm.ts`, `src/config.ts` | CONFIGURED BUT INVALID MODELS | 3 tiers created (fast/research/reasoning) but 2 model names don't exist in Venice |
+| Multi-model routing | `src/venice/llm.ts`, `src/config.ts` | REAL | 3 tiers: `qwen3-4b` (fast), `gemini-3-flash-preview` (research), `gemini-3-1-pro-preview` (reasoning). All confirmed valid via Venice `/models` API |
 | `include_venice_system_prompt: false` | `src/venice/llm.ts` | REAL | Set on all Venice calls |
 | Venice parameters | `src/venice/llm.ts` | REAL | `disable_thinking`, `include_search_results_in_stream`, `return_search_results_as_documents` all configured |
 
-### What's Broken
+### Previous Audit Correction
 
-**Critical: Invalid model names**
+The previous audit incorrectly stated that `gemini-3-flash-preview` and `gemini-3-1-pro-preview` were invalid Venice models. Both are confirmed valid via `GET https://api.venice.ai/api/v1/models` — they are proxied Google Gemini models available through Venice's API. The `VENICE_MODEL_OVERRIDE` env var exists for testing convenience, not as a workaround for broken models.
 
-```
-fastLlm:      "qwen3-4b"                 -- VALID
-researchLlm:  "gemini-3-flash-preview"   -- INVALID (not a Venice model)
-reasoningLlm: "gemini-3-1-pro-preview"   -- INVALID (not a Venice model)
-```
-
-These come from a reference project (`reference/venice-langchain-patterns.ts`, adapted from another project), not from Venice's actual model catalog. They only work if `VENICE_MODEL_OVERRIDE` is set in `.env`, which forces all 3 tiers to use the same model. This means:
-- Multi-model claims are false at runtime
-- The agent is actually single-model (`qwen3-4b`) in practice
-
-**Valid Venice models to use instead** (from `docs/VENICE_DEEP_RESEARCH.md`):
-- `mistral-31-24b` — vision + function calling (good for research tier)
-- `zai-org-glm-4.7` — GLM 4.7, agent planning (good for reasoning tier)
-- `qwen3-4b` — fast, cheap (current fast tier is correct)
+**NOTE:** Venice's model catalog changes frequently. Always verify model IDs against the live API rather than static documentation.
 
 ### What's Missing
 
@@ -117,9 +104,9 @@ These come from a reference project (`reference/venice-langchain-patterns.ts`, a
 
 ### Fixes Required
 
-1. **Replace model names** with real Venice models (`mistral-31-24b`, `zai-org-glm-4.7`)
+1. ~~**Replace model names**~~ DONE — All 3 model names are valid Venice IDs (confirmed via API)
 2. **Write privacy section** in README: why DeFi reasoning REQUIRES no-data-retention inference
-3. **Enable `enable_web_scraping: true`** for research calls
+3. ~~**Enable `enable_web_scraping: true`**~~ DONE — Enabled in `researchVeniceParams`
 4. **Add privacy guarantee log entry** showing Venice's no-retention policy per call
 
 ---
@@ -148,7 +135,7 @@ ERC-7715 delegation grant, ERC-7710 delegation redemption, on-chain enforcement 
 
 ### What's Weak
 
-1. **Both successful swaps used fallback path.** Delegation was submitted to DelegationManager and validated, but `ValueLteEnforcer` reverted because swap value exceeded the per-call limit. Agent correctly fell back to direct tx. The delegation DID fire — it just rejected the swap.
+1. **Both successful swaps used fallback path.** Delegation was submitted to DelegationManager and validated, but `ValueLteEnforcer` reverted because `valueLte` was omitted from the `functionCall` scope config, causing the SDK to default to `maxValue: 0n`. **FIXED**: Now passes `valueLte: { maxValue: maxValueWei }` in the scope config. E2e test confirms exactly one ValueLteEnforcer caveat with the correct encoding.
 
 2. **No browser-based ERC-7715 grant page.** Optional (`grant-page/` in plan) but would impress MetaMask judges by showing the full user experience.
 
@@ -196,7 +183,7 @@ agent-loop.ts execution path:
 
 ### Fixes Required
 
-1. **Tune `valueLte`** so at least one swap succeeds purely through delegation (not fallback). Currently the max value per call is too low for the swap amounts being attempted.
+1. ~~**Tune `valueLte`**~~ **FIXED** — Root cause was omitting `valueLte` from `functionCall` scope config, causing SDK to default to `maxValue: 0n`. Now passes `valueLte: { maxValue: maxValueWei }` in scope. E2e verified.
 2. **Surface delegation details in dashboard Audit tab** — show delegator/delegate addresses, caveat list, signature
 3. **Log "delegation enforcement" as a positive signal** — highlight that the revert proves the system works
 
@@ -375,7 +362,7 @@ With fixes applied (especially Venice models + feedback agentId + Permit2 swap):
 
 | # | Fix | Impact | Effort | Affects |
 |---|-----|--------|--------|---------|
-| 1 | **Fix Venice model names** — Replace `gemini-3-flash-preview` with `mistral-31-24b`, `gemini-3-1-pro-preview` with `zai-org-glm-4.7` | HIGH | 15 min | Venice score 5->7 |
+| 1 | ~~**Fix Venice model names**~~ DONE — Models confirmed valid via `/api/v1/models` API. Previous audit was wrong. | N/A | Done | Venice |
 | 2 | **Fix `giveFeedback` hardcoded agentId** — Store registered ID from `registerAgent()`, use it dynamically | HIGH | 30 min | Protocol Labs score 6->8 |
 | 3 | **Push to GitHub** — Nothing counts if judges can't see it | CRITICAL | 5 min | All tracks |
 
@@ -384,7 +371,7 @@ With fixes applied (especially Venice models + feedback agentId + Permit2 swap):
 | # | Fix | Impact | Effort | Affects |
 |---|-----|--------|--------|---------|
 | 4 | **Execute one USDC -> ETH swap** — Proves Permit2 flow end-to-end | MEDIUM | 1 hr | Uniswap score 7->8 |
-| 5 | **Tune delegation valueLte** — Get at least one swap to succeed purely through delegation (no fallback) | MEDIUM | 1 hr | MetaMask score 8->9 |
+| 5 | ~~**Tune delegation valueLte**~~ **FIXED** — `valueLte` now passed in `functionCall` scope config. E2e verified with correct encoding. | ~~MEDIUM~~ DONE | ~~1 hr~~ | MetaMask score 8->9 |
 | 6 | **Write privacy narrative** — 2-3 paragraphs in README explaining why Venice's no-data-retention is load-bearing for DeFi agent reasoning | MEDIUM | 30 min | Venice score 7->8 |
 
 ### P2 — Nice to Have

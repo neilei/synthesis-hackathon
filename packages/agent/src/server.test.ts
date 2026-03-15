@@ -1,3 +1,8 @@
+/**
+ * Unit tests for the HTTP server route handlers and CORS behavior.
+ *
+ * @module @veil/agent/server.test
+ */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { EventEmitter } from "events";
 import type { IncomingMessage, ServerResponse } from "http";

@@ -1,3 +1,8 @@
+/**
+ * Page footer with sponsor attribution links (Venice, MetaMask, Uniswap, Protocol Labs).
+ *
+ * @module @veil/dashboard/components/footer
+ */
 const sponsors = [
   { name: "Venice", url: "https://venice.ai" },
   { name: "MetaMask", url: "https://metamask.io" },

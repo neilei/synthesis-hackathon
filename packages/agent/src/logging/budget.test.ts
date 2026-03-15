@@ -1,3 +1,8 @@
+/**
+ * Unit tests for Venice budget tracking: tier detection and model recommendations.
+ *
+ * @module @veil/agent/logging/budget.test
+ */
 import { describe, it, expect, beforeEach } from "vitest";
 
 // Re-import fresh module for each test to reset state

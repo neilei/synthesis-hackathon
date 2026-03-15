@@ -1,3 +1,8 @@
+/**
+ * Unit tests for token price lookup and caching behavior.
+ *
+ * @module @veil/agent/data/prices.test
+ */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // Mock the Venice LLM module

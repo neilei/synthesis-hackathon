@@ -1,3 +1,8 @@
+/**
+ * E2E tests for audit report generation with real delegation objects.
+ *
+ * @module @veil/agent/delegation/audit.e2e.test
+ */
 import { describe, it, expect } from "vitest";
 import { generateAuditReport } from "./audit.js";
 import { createDelegationFromIntent } from "./compiler.js";

@@ -1,3 +1,8 @@
+/**
+ * E2E tests for Venice LLM instances against live API.
+ *
+ * @module @veil/agent/venice/llm.e2e.test
+ */
 import { describe, it, expect } from "vitest";
 import { fastLlm, researchLlm, reasoningLlm } from "./llm.js";
 import {

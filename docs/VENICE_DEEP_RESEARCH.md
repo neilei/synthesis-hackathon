@@ -41,48 +41,14 @@ Venice's track maps directly to the hackathon's "Agents that keep secrets" theme
 
 ---
 
-## 2. COMPLETE MODEL CATALOG
+## 2. MODEL CATALOG
 
-### Text/Chat Models (Venice-Native, Open Source)
+**WARNING:** Venice's model catalog changes frequently. Always verify against the live API:
+```
+GET https://api.venice.ai/api/v1/models
+```
 
-| Model ID | Context | Capabilities | Input/1M | Output/1M | Best For |
-|----------|---------|-------------|----------|-----------|----------|
-| `qwen3-4b` | 40K | Reasoning | Cheapest | Cheapest | Prototyping, simple queries |
-| `qwen3-next-80b` | -- | Reasoning | ~$0.30 | ~$0.90 | Mid-tier reasoning |
-| `qwen3-235b` / `qwen3-vl-235b-a22b` | -- | Vision + Reasoning | ~$0.50 | ~$1.50 | Vision + multimodal |
-| `venice-uncensored` | 32K | Uncensored | $0.20 | $0.90 | Unfiltered generation |
-| `mistral-31-24b` | 131K | Vision + Function Calling | ~$0.15 | ~$0.50 | Tools + vision, cheap |
-| `zai-org-glm-4.7` | 128K | Reasoning + Function Calling | ~$0.30 | ~$1.00 | Agent planning, tool use (flagship) |
-| `llama-3.3-70b` | -- | Reasoning + Code | ~$0.30 | ~$0.90 | Advanced reasoning, code |
-| `deepseek-ai-DeepSeek-R1` | -- | Deep Reasoning | ~$0.40 | ~$1.00 | Complex reasoning (think tags) |
-| `google-gemma-3-27b-it` | -- | General | $0.12 | $0.20 | Budget general purpose |
-
-### Proxied Frontier Models (via Venice)
-
-| Model ID | Input/1M | Output/1M | Notes |
-|----------|----------|-----------|-------|
-| `claude-opus-4.6` | $6.00 | $30.00 | Beta, 198K context |
-| `claude-sonnet-4.6` | $3.60 | $18.00 | Beta |
-| `gpt-5.2` | $2.19 | $17.50 | |
-| `gpt-4o` | $3.13 | $12.50 | Vision support |
-| `gpt-4o-mini` | $0.19 | $0.75 | Budget frontier |
-| `gpt-5.4-pro` | $37.50 | $225.00 | Premium tier |
-
-### Image Models
-- `nano-banana-pro` -- text-to-image, upscaling, editing
-- `flux-2-pro` -- $0.04/image
-- Budget options from $0.01/image
-
-### Audio
-- TTS: `tts-kokoro` (50+ voices, $3.50/1M chars), `tts-qwen3-0-6b`, `tts-qwen3-1-7b`
-- STT: Parakeet ASR, Whisper Large V3 ($0.0001/audio second)
-
-### Embeddings
-- `text-embedding-bge-m3` -- $0.15 input / $0.60 output per 1M tokens, 8K token max
-
-### Video & Music
-- Video generation via queue endpoint
-- Music: ACE-Step 1.5, MiniMax Music 2.0, Stable Audio 2.5
+The static tables below are a snapshot and WILL become stale. Use the API as the source of truth.
 
 ---
 
@@ -166,18 +132,33 @@ This is elegant for dynamic parameter selection without changing request structu
 
 ### F. Prompt Caching
 
-Venice automatically caches system prompts on select models with no code changes. You can also manually control caching:
+Venice supports prompt caching on select models to reduce latency and costs for repeated content. System prompts are automatically cached on supported models with no code changes.
+
+Additionally, you can use `prompt_cache_key` (a string routing hint) to improve cache hit rates by ensuring requests go to the same backend infrastructure:
 
 ```python
-{
-    "cache_control": {
-        "type": "ephemeral",
-        "ttl": "1h"
+client.chat.completions.create(
+    model="gemini-3-flash-preview",
+    messages=[...],
+    extra_body={
+        "venice_parameters": {
+            "prompt_cache_key": "veil-agent-v1"
+        }
     }
-}
+)
 ```
 
+You can also manually mark content for caching using the `cache_control` property on message content.
+
+**Source:** Venice OpenAPI spec at `docs.venice.ai/api-reference/api-spec`
+
 **Use case:** Cache the agent's system prompt (DeFi expertise, privacy rules, tool definitions) to reduce latency and cost on repeated calls.
+
+### F2. `enable_x_search`
+
+`enable_x_search: true` — Enable xAI native search (web + X/Twitter) for supported models (e.g. Grok models). Returns real-time social media context.
+
+**Use case:** Agent monitors X/Twitter for breaking DeFi news, sentiment, or protocol announcements before executing trades.
 
 ### G. `return_search_results_as_documents`
 
@@ -251,7 +232,8 @@ A Venice judge will ask: "Could this project work exactly the same with OpenAI/A
 | DIEM balance checking | Venice-exclusive token | Agent monitors compute budget |
 | `include_venice_system_prompt: false` | Override Venice defaults | Custom agent personality |
 | Model suffix syntax | Venice-unique | Dynamic parameter selection based on task |
-| Prompt caching | Venice implementation | Cache agent system prompt for cost savings |
+| Prompt caching / `prompt_cache_key` | Venice routing hint for cache hits | Cache system prompt for cost savings |
+| `enable_x_search` | xAI native search via Venice | X/Twitter social sentiment for DeFi decisions |
 | `return_search_results_as_documents` | Venice-specific format | LangChain-compatible search results |
 | E2EE | Venice privacy feature | Maximum privacy for sensitive financial reasoning |
 
@@ -394,7 +376,8 @@ For hackathon demo: Use XS/S tier models for speed. Reserve L tier for complex r
 - Privacy as architectural requirement (not decorator)
 - Private reasoning -> public on-chain action pipeline with verifiable outputs
 - Web scraping of DeFi protocol docs
-- Prompt caching for cost optimization
+- Prompt caching via `prompt_cache_key` for cost optimization
+- `enable_x_search` for social sentiment
 - Image generation for visual reports/dashboards
 - Model suffix syntax for dynamic parameter selection
 - Agent self-manages compute budget
@@ -416,7 +399,8 @@ Priority order for Venice features to implement:
 - [ ] **P1:** Structured JSON responses for on-chain action parameters
 - [ ] **P1:** Tool/function calling with Venice-supported models
 - [ ] **P2:** Billing balance monitoring (agent tracks own compute budget)
-- [ ] **P2:** Prompt caching for system prompt optimization
+- [ ] **P2:** Prompt caching via `prompt_cache_key` for system prompt optimization
+- [ ] **P2:** `enable_x_search` for social media sentiment analysis
 - [ ] **P2:** E2EE for maximum privacy demonstration
 - [ ] **P2:** Image generation for portfolio visualization
 - [ ] **P2:** VVV/DIEM references in code comments + documentation
