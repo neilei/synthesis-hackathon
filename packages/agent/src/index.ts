@@ -1,20 +1,20 @@
 import { env } from "./config.js";
 import { privateKeyToAccount } from "viem/accounts";
 import { startFromCli } from "./agent-loop.js";
+import { logger } from "./logging/logger.js";
 
 const agentAccount = privateKeyToAccount(env.AGENT_PRIVATE_KEY);
 
-console.log("=".repeat(60));
-console.log("  VEIL — Intent-Compiled Private DeFi Agent");
-console.log("=".repeat(60));
-console.log(`  Agent address:  ${agentAccount.address}`);
-console.log(`  Venice API:     ${env.VENICE_BASE_URL}`);
-console.log(`  Uniswap API:    configured`);
+logger.info("=".repeat(60));
+logger.info("  VEIL — Intent-Compiled Private DeFi Agent");
+logger.info("=".repeat(60));
+logger.info(`  Agent address:  ${agentAccount.address}`);
+logger.info(`  Venice API:     ${env.VENICE_BASE_URL}`);
+logger.info(`  Uniswap API:    configured`);
 if (env.VENICE_MODEL_OVERRIDE) {
-  console.log(`  Model override: ${env.VENICE_MODEL_OVERRIDE}`);
+  logger.info(`  Model override: ${env.VENICE_MODEL_OVERRIDE}`);
 }
-console.log("=".repeat(60));
-console.log("");
+logger.info("=".repeat(60));
 
 // Parse CLI args
 const args = process.argv.slice(2);
@@ -29,13 +29,12 @@ if (intentIdx !== -1 && args[intentIdx + 1]) {
       : undefined;
 
   startFromCli(intentText, maxCycles).catch((err) => {
-    console.error("Agent loop failed:", err);
+    logger.error({ err }, "Agent loop failed");
     process.exit(1);
   });
 } else {
-  console.log(
+  logger.info(
     'Usage: tsx src/index.ts --intent "60/40 ETH/USDC, $200/day, 7 days" [--cycles 3]',
   );
-  console.log("");
-  console.log("Veil agent ready. Provide --intent to start autonomous loop.");
+  logger.info("Veil agent ready. Provide --intent to start autonomous loop.");
 }

@@ -4,10 +4,10 @@ import { privateKeyToAccount } from "viem/accounts";
 import { sepolia, base } from "viem/chains";
 import type { Delegation, MetaMaskSmartAccount } from "@metamask/smart-accounts-kit";
 
-import { env, CONTRACTS, CHAINS } from "./config.js";
+import { env, CONTRACTS, type ChainEnv } from "./config.js";
 import type { IntentParse } from "./venice/schemas.js";
 import { RebalanceDecisionSchema } from "./venice/schemas.js";
-import { researchLlm, reasoningLlm, fastLlm } from "./venice/llm.js";
+import { reasoningLlm, fastLlm } from "./venice/llm.js";
 import { getPortfolioBalance } from "./data/portfolio.js";
 import { getTokenPrice } from "./data/prices.js";
 import { getPoolData } from "./data/thegraph.js";
@@ -22,6 +22,7 @@ import { getQuote, createSwap, checkApproval } from "./uniswap/trading.js";
 import { logAction, logStart, logStop } from "./logging/agent-log.js";
 import { getBudgetTier, getRecommendedModel } from "./logging/budget.js";
 import { registerAgent, giveFeedback } from "./identity/erc8004.js";
+import { logger } from "./logging/logger.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -142,8 +143,8 @@ export async function runAgentLoop(config: AgentConfig): Promise<void> {
   // Register on-chain identity (non-blocking)
   registerAgent(`https://github.com/neilei/veil`, "base-sepolia")
     .then(({ txHash, agentId }) => {
-      console.log(`[erc8004] Registered on Base Sepolia: ${txHash}`);
-      if (agentId) console.log(`[erc8004] Agent ID: ${agentId}`);
+      logger.info(`[erc8004] Registered on Base Sepolia: ${txHash}`);
+      if (agentId) logger.info(`[erc8004] Agent ID: ${agentId}`);
       logAction("erc8004_register", {
         tool: "erc8004-identity",
         result: { txHash, agentId: agentId?.toString() },
@@ -151,38 +152,36 @@ export async function runAgentLoop(config: AgentConfig): Promise<void> {
     })
     .catch((err) => {
       const msg = err instanceof Error ? err.message : String(err);
-      console.log(`[erc8004] Registration skipped: ${msg}`);
+      logger.info(`[erc8004] Registration skipped: ${msg}`);
     });
 
-  console.log("=== VEIL AGENT STARTING ===");
-  console.log(`Agent address: ${agentAddress}`);
-  console.log(`Chain: ${chain.name} (${config.chainId})`);
-  console.log(
+  logger.info("=== VEIL AGENT STARTING ===");
+  logger.info(`Agent address: ${agentAddress}`);
+  logger.info(`Chain: ${chain.name} (${config.chainId})`);
+  logger.info(
     `Target: ${Object.entries(config.intent.targetAllocation)
       .map(([t, v]) => `${t}: ${(v * 100).toFixed(0)}%`)
       .join(", ")}`,
   );
-  console.log(
+  logger.info(
     `Budget: $${config.intent.dailyBudgetUsd}/day × ${config.intent.timeWindowDays} days`,
   );
-  console.log(`Drift threshold: ${(config.intent.driftThreshold * 100).toFixed(1)}%`);
-  console.log("");
+  logger.info(`Drift threshold: ${(config.intent.driftThreshold * 100).toFixed(1)}%`);
 
   // --- Step 1: Adversarial check ---
   const warnings = detectAdversarialIntent(config.intent);
   if (warnings.length > 0) {
-    console.log("ADVERSARIAL WARNINGS:");
+    logger.warn("ADVERSARIAL WARNINGS:");
     for (const w of warnings) {
-      console.log(`  - ${w.message}`);
+      logger.warn(`  - ${w.message}`);
     }
-    console.log("");
     logAction("adversarial_check", {
       result: { warnings: warnings.map((w) => w.message) },
     });
   }
 
   // --- Step 2: Create delegation ---
-  console.log("Creating delegation...");
+  logger.info("Creating delegation...");
   const startDelegation = Date.now();
   try {
     const delegationResult = await createDelegationFromIntent(
@@ -206,13 +205,13 @@ export async function runAgentLoop(config: AgentConfig): Promise<void> {
             : 0,
       },
     });
-    console.log(
+    logger.info(
       `Delegation signed: ${state.delegation.signature?.slice(0, 20)}...`,
     );
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     logAction("delegation_failed", { error: msg });
-    console.error(`Failed to create delegation: ${msg}`);
+    logger.error(`Failed to create delegation: ${msg}`);
     logStop("delegation_failed");
     return;
   }
@@ -220,7 +219,7 @@ export async function runAgentLoop(config: AgentConfig): Promise<void> {
   // --- Step 3: Audit report ---
   const report = generateAuditReport(config.intent, state.delegation);
   state.audit = report;
-  console.log("\n" + report.formatted + "\n");
+  logger.info("\n" + report.formatted);
   logAction("audit_report", {
     result: {
       allows: report.allows,
@@ -231,7 +230,7 @@ export async function runAgentLoop(config: AgentConfig): Promise<void> {
   });
 
   // --- Step 4: Main loop ---
-  console.log("Entering monitoring loop...\n");
+  logger.info("Entering monitoring loop...");
 
   while (state.running) {
     state.cycle++;
@@ -241,7 +240,7 @@ export async function runAgentLoop(config: AgentConfig): Promise<void> {
       await runCycle(config, state, agentAddress, chain);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error(`Cycle ${state.cycle} error: ${msg}`);
+      logger.error(`Cycle ${state.cycle} error: ${msg}`);
       logAction("cycle_error", {
         parameters: { cycle: state.cycle },
         error: msg,
@@ -262,7 +261,7 @@ export async function runAgentLoop(config: AgentConfig): Promise<void> {
     const maxBudget =
       config.intent.dailyBudgetUsd * config.intent.timeWindowDays;
     if (state.totalSpentUsd >= maxBudget) {
-      console.log("Budget exhausted. Stopping agent.");
+      logger.info("Budget exhausted. Stopping agent.");
       state.running = false;
       break;
     }
@@ -271,48 +270,52 @@ export async function runAgentLoop(config: AgentConfig): Promise<void> {
     const maxTrades =
       config.intent.maxTradesPerDay * config.intent.timeWindowDays;
     if (state.tradesExecuted >= maxTrades) {
-      console.log("Trade limit reached. Stopping agent.");
+      logger.info("Trade limit reached. Stopping agent.");
       state.running = false;
       break;
     }
 
     // Max cycles guard (demo mode)
     if (config.maxCycles && state.cycle >= config.maxCycles) {
-      console.log(`Demo mode: completed ${config.maxCycles} cycle(s). Stopping.`);
+      logger.info(`Demo mode: completed ${config.maxCycles} cycle(s). Stopping.`);
       state.running = false;
       break;
     }
 
     // Wait for next cycle
     if (state.running) {
-      console.log(
-        `Sleeping ${config.intervalMs / 1000}s until next cycle...\n`,
+      logger.info(
+        `Sleeping ${config.intervalMs / 1000}s until next cycle...`,
       );
       await sleep(config.intervalMs);
     }
   }
 
   logStop("loop_ended");
-  console.log("=== VEIL AGENT STOPPED ===");
+  logger.info("=== VEIL AGENT STOPPED ===");
 }
 
 // ---------------------------------------------------------------------------
-// Single monitoring cycle
+// Market data gathering
 // ---------------------------------------------------------------------------
 
-async function runCycle(
-  config: AgentConfig,
-  state: AgentState,
-  agentAddress: Address,
-  chain: typeof sepolia | typeof base,
-): Promise<void> {
-  console.log(`--- Cycle ${state.cycle} ---`);
+interface MarketData {
+  ethPrice: { price: number; citation: string | null };
+  portfolio: Awaited<ReturnType<typeof getPortfolioBalance>>;
+  poolContext: string;
+  drift: Record<string, number>;
+  maxDrift: number;
+  budgetTier: ReturnType<typeof getBudgetTier>;
+}
 
-  // Check budget tier — switch to cheaper models if needed
+async function gatherMarketData(
+  config: AgentConfig,
+  agentAddress: Address,
+): Promise<MarketData> {
   const budgetTier = getBudgetTier();
   const recommendedModel = getRecommendedModel();
   if (budgetTier !== "normal") {
-    console.log(`Budget tier: ${budgetTier} — using model: ${recommendedModel}`);
+    logger.info(`Budget tier: ${budgetTier} — using model: ${recommendedModel}`);
     logAction("budget_check", {
       result: { tier: budgetTier, recommendedModel },
     });
@@ -326,16 +329,15 @@ async function runCycle(
     duration_ms: Date.now() - startPrice,
     result: { price: ethPrice.price, citation: ethPrice.citation },
   });
-  state.ethPrice = ethPrice.price;
-  console.log(`ETH price: $${ethPrice.price.toFixed(2)}`);
+  logger.info(`ETH price: $${ethPrice.price.toFixed(2)}`);
 
   // 2. Get portfolio balance
-  const chainEnv =
+  const chainEnv: ChainEnv =
     config.chainId === 8453
-      ? ("base" as const)
+      ? "base"
       : config.chainId === 84532
-        ? ("base-sepolia" as const)
-        : ("sepolia" as const);
+        ? "base-sepolia"
+        : "sepolia";
 
   const startPortfolio = Date.now();
   const portfolio = await getPortfolioBalance(
@@ -352,9 +354,7 @@ async function runCycle(
     },
   });
 
-  state.allocation = portfolio.allocation;
-  state.totalValue = portfolio.totalUsdValue;
-  console.log(
+  logger.info(
     `Portfolio: $${portfolio.totalUsdValue.toFixed(2)} | ` +
       Object.entries(portfolio.allocation)
         .map(([t, v]) => `${t}: ${(v * 100).toFixed(1)}%`)
@@ -371,7 +371,7 @@ async function runCycle(
       const tvl = Number(topPool.totalValueLockedUSD) || 0;
       const volume = Number(topPool.volumeUSD) || 0;
       poolContext = `Top WETH/USDC pool: TVL $${tvl.toLocaleString()}, fee tier ${topPool.feeTier}, volume $${volume.toLocaleString()}`;
-      console.log(poolContext);
+      logger.info(poolContext);
     }
     logAction("pool_data_fetch", {
       tool: "thegraph",
@@ -380,7 +380,7 @@ async function runCycle(
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.log(`Pool data unavailable: ${msg}`);
+    logger.info(`Pool data unavailable: ${msg}`);
     logAction("pool_data_fetch", {
       tool: "thegraph",
       duration_ms: Date.now() - startPool,
@@ -394,23 +394,25 @@ async function runCycle(
     config.intent.targetAllocation,
   );
 
-  state.drift = maxDrift;
-  state.budgetTier = budgetTier;
-  console.log(
+  logger.info(
     `Drift: ${(maxDrift * 100).toFixed(1)}% (threshold: ${(config.intent.driftThreshold * 100).toFixed(1)}%)`,
   );
 
-  // 5. If no significant drift, skip
-  if (maxDrift < config.intent.driftThreshold) {
-    console.log("No significant drift. Skipping rebalance.");
-    return;
-  }
+  return { ethPrice, portfolio, poolContext, drift, maxDrift, budgetTier };
+}
 
-  // 6. Venice reasoning: should we rebalance?
-  console.log("Drift detected. Consulting Venice for rebalance decision...");
+// ---------------------------------------------------------------------------
+// Rebalance decision via Venice
+// ---------------------------------------------------------------------------
 
-  // Use cheaper model in conservation/critical mode
-  const llmForReasoning = budgetTier === "normal" ? reasoningLlm : fastLlm;
+async function getRebalanceDecision(
+  config: AgentConfig,
+  state: AgentState,
+  market: MarketData,
+): Promise<{ shouldRebalance: boolean; reasoning: string; marketContext?: string | null; targetSwap?: { sellToken: string; buyToken: string; sellAmount: string; maxSlippage: string } | null }> {
+  logger.info("Drift detected. Consulting Venice for rebalance decision...");
+
+  const llmForReasoning = market.budgetTier === "normal" ? reasoningLlm : fastLlm;
   const startReasoning = Date.now();
   const structuredReasoning =
     llmForReasoning.withStructuredOutput(RebalanceDecisionSchema, {
@@ -423,15 +425,15 @@ async function runCycle(
       content: `You are a DeFi portfolio rebalancing agent. Analyze the current portfolio state and decide if a rebalance is needed.
 
 Current portfolio:
-${JSON.stringify(portfolio.allocation, null, 2)}
+${JSON.stringify(market.portfolio.allocation, null, 2)}
 
 Target allocation:
 ${JSON.stringify(config.intent.targetAllocation, null, 2)}
 
-Current drift: ${JSON.stringify(drift, null, 2)} (max: ${(maxDrift * 100).toFixed(1)}%)
+Current drift: ${JSON.stringify(market.drift, null, 2)} (max: ${(market.maxDrift * 100).toFixed(1)}%)
 Drift threshold: ${(config.intent.driftThreshold * 100).toFixed(1)}%
-ETH price: $${ethPrice.price.toFixed(2)}
-${poolContext ? `Pool data: ${poolContext}` : ""}
+ETH price: $${market.ethPrice.price.toFixed(2)}
+${market.poolContext ? `Pool data: ${market.poolContext}` : ""}
 Daily budget: $${config.intent.dailyBudgetUsd}
 Trades executed: ${state.tradesExecuted}
 Total spent: $${state.totalSpentUsd.toFixed(2)} / $${(config.intent.dailyBudgetUsd * config.intent.timeWindowDays).toFixed(2)}
@@ -453,33 +455,60 @@ Decide whether to rebalance. If yes, specify the swap details. Keep swap amounts
       shouldRebalance: decision.shouldRebalance,
       reasoning: decision.reasoning,
       marketContext: decision.marketContext,
-      model: budgetTier === "normal" ? "gemini-3-1-pro-preview" : "qwen3-4b",
+      model: market.budgetTier === "normal" ? "gemini-3-1-pro-preview" : "qwen3-4b",
     },
   });
 
-  console.log(`Decision: ${decision.shouldRebalance ? "REBALANCE" : "HOLD"}`);
-  console.log(`Reasoning: ${decision.reasoning}`);
+  logger.info(`Decision: ${decision.shouldRebalance ? "REBALANCE" : "HOLD"}`);
+  logger.info(`Reasoning: ${decision.reasoning}`);
 
-  if (!decision.shouldRebalance || !decision.targetSwap) {
-    return;
-  }
+  return decision;
+}
 
-  // 7. Safety checks
-  const swap = decision.targetSwap;
-  // For stablecoins (USDC), sellAmount is already in USD terms.
-  // For ETH/WETH, multiply by ETH price to get USD value.
+// ---------------------------------------------------------------------------
+// EIP-712 primary type derivation
+// ---------------------------------------------------------------------------
+
+/** Derive the primaryType from an EIP-712 types object by finding the
+ *  top-level type that isn't referenced by any other type. */
+export function derivePrimaryType(
+  types: Record<string, Array<{ name: string; type: string }>>,
+): string {
+  const typeKeys = Object.keys(types).filter((k) => k !== "EIP712Domain");
+  const referencedTypes = new Set(
+    Object.values(types)
+      .flat()
+      .map((f) => f.type)
+      .filter((t) => typeKeys.includes(t)),
+  );
+  return typeKeys.find((k) => !referencedTypes.has(k)) ?? typeKeys[0]!;
+}
+
+// ---------------------------------------------------------------------------
+// Swap execution
+// ---------------------------------------------------------------------------
+
+async function executeSwap(
+  config: AgentConfig,
+  state: AgentState,
+  swap: { sellToken: string; buyToken: string; sellAmount: string; maxSlippage: string },
+  agentAddress: Address,
+  chain: typeof sepolia | typeof base,
+  ethPriceUsd: number,
+): Promise<void> {
+  // Safety checks
   const isStablecoin = ["USDC", "USDT", "DAI"].includes(
     swap.sellToken.toUpperCase(),
   );
   const swapAmountUsd = isStablecoin
     ? Number(swap.sellAmount) || 0
-    : (Number(swap.sellAmount) || 0) * ethPrice.price;
+    : (Number(swap.sellAmount) || 0) * ethPriceUsd;
 
   if (
     state.totalSpentUsd + swapAmountUsd >
     config.intent.dailyBudgetUsd * config.intent.timeWindowDays
   ) {
-    console.log("SAFETY: Swap would exceed total budget. Skipping.");
+    logger.info("SAFETY: Swap would exceed total budget. Skipping.");
     logAction("safety_block", {
       result: { reason: "budget_exceeded", swapAmountUsd },
     });
@@ -487,35 +516,27 @@ Decide whether to rebalance. If yes, specify the swap details. Keep swap amounts
   }
 
   if (state.tradesExecuted >= config.intent.maxTradesPerDay) {
-    console.log("SAFETY: Daily trade limit reached. Skipping.");
+    logger.info("SAFETY: Daily trade limit reached. Skipping.");
     logAction("safety_block", {
       result: { reason: "trade_limit_reached" },
     });
     return;
   }
 
-  // 8. Check approval & get Uniswap quote
-  console.log(
+  logger.info(
     `Quoting swap: ${swap.sellAmount} ${swap.sellToken} -> ${swap.buyToken}`,
   );
 
   const sellTokenAddress = resolveTokenAddress(swap.sellToken, config.chainId);
   const buyTokenAddress = resolveTokenAddress(swap.buyToken, config.chainId);
 
-  // Convert amount to wei/smallest unit
   const decimals = swap.sellToken.toUpperCase() === "USDC" ? 6 : 18;
   const amountRaw = parseUnits(swap.sellAmount, decimals).toString();
 
-  // Determine if we can use delegation for this swap.
-  // Delegation executes from the delegator's smart account, so:
-  // - ETH sells: smart account sends ETH value to Uniswap router → works with functionCall scope
-  // - ERC-20 sells: smart account needs token balance + Permit2 → use direct tx from agent EOA
   const isEthSell = swap.sellToken.toUpperCase() === "ETH";
   const canUseDelegation =
     isEthSell && state.delegation && state.delegatorSmartAccount;
 
-  // For delegation path: swapper is the delegator smart account
-  // For direct path: swapper is the agent EOA
   const swapperAddress = canUseDelegation
     ? state.delegatorSmartAccount!.address
     : agentAddress;
@@ -530,7 +551,7 @@ Decide whether to rebalance. If yes, specify the swap details. Keep swap amounts
     });
 
     if (approval.approval?.transactionRequest) {
-      console.log(`Sending Permit2 approval for ${swap.sellToken}...`);
+      logger.info(`Sending Permit2 approval for ${swap.sellToken}...`);
       const approvalWallet = createWalletClient({
         account: privateKeyToAccount(config.agentKey),
         chain,
@@ -545,7 +566,7 @@ Decide whether to rebalance. If yes, specify the swap details. Keep swap amounts
         account: approvalWallet.account,
       });
       await approvalClient.waitForTransactionReceipt({ hash: approvalTx });
-      console.log(`Permit2 approval confirmed: ${approvalTx}`);
+      logger.info(`Permit2 approval confirmed: ${approvalTx}`);
       logAction("permit2_approval", {
         tool: "uniswap-permit2",
         result: { txHash: approvalTx, token: swap.sellToken },
@@ -578,11 +599,10 @@ Decide whether to rebalance. If yes, specify the swap details. Keep swap amounts
       },
     });
 
-    console.log(
+    logger.info(
       `Quote: ${swap.sellAmount} ${swap.sellToken} -> ${quote.quote.output.amount} ${swap.buyToken}`,
     );
 
-    // 9. Execute swap
     const walletClient = createWalletClient({
       account: privateKeyToAccount(config.agentKey),
       chain,
@@ -604,24 +624,9 @@ Decide whether to rebalance. If yes, specify the swap details. Keep swap amounts
       // types generic rather than duplicating viem's internal type hierarchy.
       const domain = quote.permitData.domain as Parameters<typeof walletClient.signTypedData>[0]["domain"];
       const types = quote.permitData.types as Parameters<typeof walletClient.signTypedData>[0]["types"];
-
-      // Derive the primaryType from the types object. The Uniswap API returns
-      // different primary types depending on the flow:
-      //   - PermitWitnessTransferFrom (Universal Router / signature-based permits)
-      //   - PermitSingle (Permit2 allowance-based permits)
-      // The primary type is the non-EIP712Domain key in the types object.
-      const typeKeys = Object.keys(quote.permitData.types).filter(
-        (k) => k !== "EIP712Domain",
+      const primaryType = derivePrimaryType(
+        quote.permitData.types as Record<string, Array<{ name: string; type: string }>>,
       );
-      // Use the first non-nested type (one that isn't referenced by other types)
-      const referencedTypes = new Set(
-        Object.values(quote.permitData.types)
-          .flat()
-          .map((f) => (f as Record<string, string>).type)
-          .filter((t) => typeKeys.includes(t)),
-      );
-      const primaryType =
-        typeKeys.find((k) => !referencedTypes.has(k)) ?? typeKeys[0]!;
 
       permitSignature = await walletClient.signTypedData({
         account: walletClient.account,
@@ -642,9 +647,6 @@ Decide whether to rebalance. If yes, specify the swap details. Keep swap amounts
     let usedDelegation = false;
 
     if (canUseDelegation) {
-      // ERC-7710 delegation redemption: DelegationManager executes the swap
-      // from the delegator's smart account. The redeemer handles funding the
-      // smart account with the required ETH before executing.
       try {
         txHash = await redeemDelegation(config.agentKey, chain, {
           delegation: state.delegation!,
@@ -656,12 +658,11 @@ Decide whether to rebalance. If yes, specify the swap details. Keep swap amounts
           },
         });
         usedDelegation = true;
-        console.log(`Swap executed via delegation redemption (ERC-7710)`);
+        logger.info(`Swap executed via delegation redemption (ERC-7710)`);
       } catch (delegationErr) {
-        // Fallback: re-quote with agent address and execute directly
         const delegationMsg =
           delegationErr instanceof Error ? delegationErr.message : String(delegationErr);
-        console.log(
+        logger.info(
           `Delegation redemption failed (${delegationMsg}), falling back to direct tx`,
         );
         logAction("delegation_redeem_failed", {
@@ -669,7 +670,6 @@ Decide whether to rebalance. If yes, specify the swap details. Keep swap amounts
           error: delegationMsg,
         });
 
-        // Re-quote with agent address since the original quote was for the smart account
         const fallbackQuote = await getQuote({
           tokenIn: sellTokenAddress,
           tokenOut: buyTokenAddress,
@@ -689,7 +689,6 @@ Decide whether to rebalance. If yes, specify the swap details. Keep swap amounts
         });
       }
     } else {
-      // Direct tx from agent EOA (for ERC-20 sells or when no delegation)
       txHash = await walletClient.sendTransaction({
         to: swapResponse.swap.to,
         data: swapResponse.swap.data,
@@ -699,7 +698,6 @@ Decide whether to rebalance. If yes, specify the swap details. Keep swap amounts
       });
     }
 
-    // Wait for confirmation
     const receipt = await publicClient.waitForTransactionReceipt({
       hash: txHash,
     });
@@ -729,15 +727,15 @@ Decide whether to rebalance. If yes, specify the swap details. Keep swap amounts
       },
     });
 
-    console.log(`Swap executed! TX: ${txHash}`);
-    console.log(
+    logger.info(`Swap executed! TX: ${txHash}`);
+    logger.info(
       `Status: ${receipt.status} | Gas: ${receipt.gasUsed.toString()}`,
     );
 
     // ERC-8004: give on-chain feedback rating the Uniswap service (non-blocking)
     giveFeedback(1n, 5, "swap-execution", "defi", "base-sepolia")
       .then((fbHash) => {
-        console.log(`[erc8004] Feedback submitted: ${fbHash}`);
+        logger.info(`[erc8004] Feedback submitted: ${fbHash}`);
         logAction("erc8004_feedback", {
           tool: "erc8004-reputation",
           result: { txHash: fbHash, agentId: "1", rating: 5, tag: "swap-execution" },
@@ -745,22 +743,62 @@ Decide whether to rebalance. If yes, specify the swap details. Keep swap amounts
       })
       .catch((fbErr) => {
         const fbMsg = fbErr instanceof Error ? fbErr.message : String(fbErr);
-        console.log(`[erc8004] Feedback skipped: ${fbMsg}`);
+        logger.info(`[erc8004] Feedback skipped: ${fbMsg}`);
       });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error(`Swap failed: ${msg}`);
+    logger.error(`Swap failed: ${msg}`);
     logAction("swap_failed", {
       tool: "uniswap-trading-api",
       error: msg,
       duration_ms: Date.now() - startQuote,
     });
 
-    // Retry with reduced amount (self-correction)
     if (state.cycle <= 3) {
-      console.log("Will retry with adjusted params next cycle.");
+      logger.info("Will retry with adjusted params next cycle.");
     }
   }
+}
+
+// ---------------------------------------------------------------------------
+// Single monitoring cycle (orchestrator)
+// ---------------------------------------------------------------------------
+
+async function runCycle(
+  config: AgentConfig,
+  state: AgentState,
+  agentAddress: Address,
+  chain: typeof sepolia | typeof base,
+): Promise<void> {
+  logger.info(`--- Cycle ${state.cycle} ---`);
+
+  const market = await gatherMarketData(config, agentAddress);
+
+  state.ethPrice = market.ethPrice.price;
+  state.allocation = market.portfolio.allocation;
+  state.totalValue = market.portfolio.totalUsdValue;
+  state.drift = market.maxDrift;
+  state.budgetTier = market.budgetTier;
+
+  if (market.maxDrift < config.intent.driftThreshold) {
+    logger.info("No significant drift. Skipping rebalance.");
+    return;
+  }
+
+  const decision = await getRebalanceDecision(config, state, market);
+
+  if (!decision.shouldRebalance || !decision.targetSwap) {
+    return;
+  }
+
+  await executeSwap(
+    config,
+    state,
+    decision.targetSwap,
+    agentAddress,
+    chain,
+    market.ethPrice.price,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -781,13 +819,11 @@ export async function startFromCli(
 ): Promise<void> {
   const { generatePrivateKey } = await import("viem/accounts");
 
-  // Use env delegator key or generate one
   const delegatorKey = env.DELEGATOR_PRIVATE_KEY ?? generatePrivateKey();
 
-  console.log("Parsing intent via Venice...");
+  logger.info("Parsing intent via Venice...");
   const intent = await compileIntent(intentText);
-  console.log("Parsed intent:", JSON.stringify(intent, null, 2));
-  console.log("");
+  logger.info({ intent }, "Parsed intent");
 
   await runAgentLoop({
     intent,

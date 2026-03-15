@@ -20,6 +20,7 @@
     "graphql": "^16.10.0",
     "graphql-request": "^7.1.2",
     "graphql-tag": "^2.12.6",
+    "pino": "^10.3.1",
     "viem": "^2.31.4",
     "zod": "^4.3.0"
   },

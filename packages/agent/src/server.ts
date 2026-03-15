@@ -8,6 +8,7 @@ import { compileIntent } from "./delegation/compiler.js";
 import { getAgentState, getAgentConfig, runAgentLoop } from "./agent-loop.js";
 import { registerAgent } from "./identity/erc8004.js";
 import type { AgentLogEntry } from "./logging/agent-log.js";
+import { logger } from "./logging/logger.js";
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3147;
 const DASHBOARD_DIST = join(process.cwd(), "apps", "dashboard", "out");
@@ -97,7 +98,7 @@ async function handleDeploy(req: IncomingMessage, res: ServerResponse) {
   }
 
   try {
-    console.log(`[server] Parsing intent: "${intentText}"`);
+    logger.info(`[server] Parsing intent: "${intentText}"`);
     const parsed = await compileIntent(intentText);
 
     const delegatorKey = env.DELEGATOR_PRIVATE_KEY ?? generatePrivateKey();
@@ -110,7 +111,7 @@ async function handleDeploy(req: IncomingMessage, res: ServerResponse) {
       chainId: 11155111,
       intervalMs: 60_000,
     }).catch((err) => {
-      console.error("[server] Agent loop crashed:", err);
+      logger.error({ err }, "[server] Agent loop crashed");
     });
 
     // Wait briefly for delegation + audit to be generated
@@ -130,7 +131,7 @@ async function handleDeploy(req: IncomingMessage, res: ServerResponse) {
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error("[server] Deploy failed:", msg);
+    logger.error("[server] Deploy failed: %s", msg);
     sendJson(res, { error: msg }, 500);
   }
 }
@@ -256,7 +257,7 @@ const server = createServer(async (req, res) => {
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error(`[server] ${method} ${url} error:`, msg);
+    logger.error(`[server] ${method} ${url} error: ${msg}`);
     sendJson(res, { error: msg }, 500);
   }
 });
@@ -268,14 +269,13 @@ const server = createServer(async (req, res) => {
 async function startup() {
   const agentAccount = privateKeyToAccount(env.AGENT_PRIVATE_KEY);
 
-  console.log("=".repeat(60));
-  console.log("  VEIL — Dashboard Server");
-  console.log("=".repeat(60));
-  console.log(`  Agent address:  ${agentAccount.address}`);
-  console.log(`  Dashboard:      http://localhost:${PORT}`);
-  console.log(`  API:            http://localhost:${PORT}/api/state`);
-  console.log("=".repeat(60));
-  console.log("");
+  logger.info("=".repeat(60));
+  logger.info("  VEIL — Dashboard Server");
+  logger.info("=".repeat(60));
+  logger.info(`  Agent address:  ${agentAccount.address}`);
+  logger.info(`  Dashboard:      http://localhost:${PORT}`);
+  logger.info(`  API:            http://localhost:${PORT}/api/state`);
+  logger.info("=".repeat(60));
 
   // Register agent identity on Base Sepolia (non-blocking)
   registerAgent(
@@ -283,23 +283,22 @@ async function startup() {
     "base-sepolia",
   )
     .then(({ txHash, agentId }) => {
-      console.log(`[erc8004] Agent registered on Base Sepolia`);
-      console.log(`[erc8004] TX: ${txHash}`);
-      if (agentId) console.log(`[erc8004] Agent ID: ${agentId}`);
+      logger.info(`[erc8004] Agent registered on Base Sepolia`);
+      logger.info(`[erc8004] TX: ${txHash}`);
+      if (agentId) logger.info(`[erc8004] Agent ID: ${agentId}`);
     })
     .catch((err) => {
       // Non-fatal — may already be registered or Base Sepolia may be down
-      console.log(
+      logger.info(
         `[erc8004] Registration skipped: ${err instanceof Error ? err.message : String(err)}`,
       );
     });
 
   server.listen(PORT, () => {
-    console.log(`[server] Listening on http://localhost:${PORT}`);
-    console.log(
+    logger.info(`[server] Listening on http://localhost:${PORT}`);
+    logger.info(
       `[server] Open dashboard or POST /api/deploy to start agent`,
     );
-    console.log("");
   });
 }
 

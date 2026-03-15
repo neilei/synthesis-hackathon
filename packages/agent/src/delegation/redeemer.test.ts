@@ -62,6 +62,9 @@ vi.mock("@metamask/smart-accounts-kit/contracts", () => ({
     },
   },
 }));
+vi.mock("../logging/logger.js", () => ({
+  logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn() },
+}));
 
 import { createExecution, ExecutionMode } from "@metamask/smart-accounts-kit";
 import { DelegationManager } from "@metamask/smart-accounts-kit/contracts";

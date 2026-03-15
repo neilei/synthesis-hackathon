@@ -5,9 +5,18 @@ import {
   formatUnits,
   type Address,
 } from "viem";
-import { sepolia, base } from "viem/chains";
+import { sepolia, baseSepolia, base } from "viem/chains";
 import { CONTRACTS, type ChainEnv } from "../config.js";
-import type { PortfolioState } from "../types.js";
+
+export interface PortfolioState {
+  address: Address;
+  balances: Record<string, { raw: bigint; formatted: string; usdValue: number }>;
+  totalUsdValue: number;
+  allocation: Record<string, number>; // percentage 0-1
+  drift: Record<string, number>; // difference from target
+  maxDrift: number;
+  timestamp: number;
+}
 
 const erc20BalanceOfAbi = [
   {
@@ -21,10 +30,10 @@ const erc20BalanceOfAbi = [
 
 const chainConfigs: Record<
   ChainEnv,
-  { chain: typeof sepolia | typeof base; usdc: Address }
+  { chain: typeof sepolia | typeof baseSepolia | typeof base; usdc: Address }
 > = {
   sepolia: { chain: sepolia, usdc: CONTRACTS.USDC_SEPOLIA },
-  "base-sepolia": { chain: sepolia, usdc: CONTRACTS.USDC_SEPOLIA }, // fallback
+  "base-sepolia": { chain: baseSepolia, usdc: CONTRACTS.USDC_SEPOLIA },
   base: { chain: base, usdc: CONTRACTS.USDC_BASE },
 };
 
