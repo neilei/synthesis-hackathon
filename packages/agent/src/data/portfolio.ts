@@ -5,7 +5,7 @@ import {
   formatUnits,
   type Address,
 } from "viem";
-import { sepolia, baseSepolia, base } from "viem/chains";
+import { sepolia, base } from "viem/chains";
 import { CONTRACTS, type ChainEnv } from "../config.js";
 
 export interface PortfolioState {
@@ -30,10 +30,11 @@ const erc20BalanceOfAbi = [
 
 const chainConfigs: Record<
   ChainEnv,
-  { chain: typeof sepolia | typeof baseSepolia | typeof base; usdc: Address }
+  { chain: typeof sepolia | typeof base; usdc: Address }
 > = {
   sepolia: { chain: sepolia, usdc: CONTRACTS.USDC_SEPOLIA },
-  "base-sepolia": { chain: baseSepolia, usdc: CONTRACTS.USDC_SEPOLIA },
+  // No USDC contract on Base Sepolia — fall back to Ethereum Sepolia for portfolio queries
+  "base-sepolia": { chain: sepolia, usdc: CONTRACTS.USDC_SEPOLIA },
   base: { chain: base, usdc: CONTRACTS.USDC_BASE },
 };
 

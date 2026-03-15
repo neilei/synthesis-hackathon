@@ -190,6 +190,7 @@ function createMockRes(): MockServerResponse {
         return null;
       }
     },
+  // Partial mock: only implements the ServerResponse methods the handler uses
   } as unknown as MockServerResponse;
 }
 

@@ -481,7 +481,11 @@ export function derivePrimaryType(
       .map((f) => f.type)
       .filter((t) => typeKeys.includes(t)),
   );
-  return typeKeys.find((k) => !referencedTypes.has(k)) ?? typeKeys[0]!;
+  const primary = typeKeys.find((k) => !referencedTypes.has(k)) ?? typeKeys[0];
+  if (!primary) {
+    throw new Error("No non-EIP712Domain types found in typed data");
+  }
+  return primary;
 }
 
 // ---------------------------------------------------------------------------
