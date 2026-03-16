@@ -223,16 +223,18 @@ describe("redeemDelegation", () => {
 
   const chain = { id: 1, name: "mainnet" } as any;
 
-  it("calls createExecution with the correct call params", async () => {
-    const params: RedeemParams = {
+  function makeRedeemParams(
+    callOverrides: Partial<RedeemParams["call"]> = {},
+  ): RedeemParams {
+    return {
       delegation: mockDelegation,
       delegatorSmartAccount: mockSmartAccount,
-      call: {
-        to: "0xTargetContract" as Hex,
-        data: "0xCalldata" as Hex,
-        value: 100n,
-      },
+      call: { to: "0xTargetContract" as Hex, ...callOverrides },
     };
+  }
+
+  it("calls createExecution with the correct call params", async () => {
+    const params = makeRedeemParams({ data: "0xCalldata" as Hex, value: 100n });
 
     await redeemDelegation("0xabc123" as `0x${string}`, chain, params);
 
@@ -244,15 +246,7 @@ describe("redeemDelegation", () => {
   });
 
   it("calls DelegationManager.encode.redeemDelegations", async () => {
-    const params: RedeemParams = {
-      delegation: mockDelegation,
-      delegatorSmartAccount: mockSmartAccount,
-      call: {
-        to: "0xTargetContract" as Hex,
-        data: "0xCalldata" as Hex,
-        value: 100n,
-      },
-    };
+    const params = makeRedeemParams({ data: "0xCalldata" as Hex, value: 100n });
 
     await redeemDelegation("0xabc123" as `0x${string}`, chain, params);
 
@@ -264,13 +258,7 @@ describe("redeemDelegation", () => {
   });
 
   it("sends tx to DelegationManager with encoded calldata", async () => {
-    const params: RedeemParams = {
-      delegation: mockDelegation,
-      delegatorSmartAccount: mockSmartAccount,
-      call: {
-        to: "0xTargetContract" as Hex,
-      },
-    };
+    const params = makeRedeemParams();
 
     await redeemDelegation("0xabc123" as `0x${string}`, chain, params);
 
@@ -283,13 +271,7 @@ describe("redeemDelegation", () => {
   });
 
   it("returns the transaction hash", async () => {
-    const params: RedeemParams = {
-      delegation: mockDelegation,
-      delegatorSmartAccount: mockSmartAccount,
-      call: {
-        to: "0xTargetContract" as Hex,
-      },
-    };
+    const params = makeRedeemParams();
 
     const txHash = await redeemDelegation(
       "0xabc123" as `0x${string}`,
@@ -300,13 +282,7 @@ describe("redeemDelegation", () => {
   });
 
   it("uses default data (0x) and value (0n) when not provided", async () => {
-    const params: RedeemParams = {
-      delegation: mockDelegation,
-      delegatorSmartAccount: mockSmartAccount,
-      call: {
-        to: "0xTargetContract" as Hex,
-      },
-    };
+    const params = makeRedeemParams();
 
     await redeemDelegation("0xabc123" as `0x${string}`, chain, params);
 
@@ -320,14 +296,7 @@ describe("redeemDelegation", () => {
   it("funds delegator if call has ETH value and balance is insufficient", async () => {
     mockGetBalance.mockResolvedValue(0n); // Smart account has no ETH
 
-    const params: RedeemParams = {
-      delegation: mockDelegation,
-      delegatorSmartAccount: mockSmartAccount,
-      call: {
-        to: "0xTargetContract" as Hex,
-        value: 1000000000000000n, // 0.001 ETH
-      },
-    };
+    const params = makeRedeemParams({ value: 1000000000000000n });
 
     await redeemDelegation("0xabc123" as `0x${string}`, chain, params);
 

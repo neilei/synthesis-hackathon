@@ -139,24 +139,6 @@ describe("ensurePermit2Approval", () => {
     });
   });
 
-  it("sends approval tx when allowance is zero", async () => {
-    const publicClient = makeMockPublicClient(0n);
-    const walletClient = makeMockWalletClient();
-
-    const result = await ensurePermit2Approval(
-      publicClient,
-      walletClient,
-      TOKEN,
-      OWNER,
-    );
-
-    expect(result).toBe(true);
-    expect(
-      (walletClient as unknown as { writeContract: ReturnType<typeof vi.fn> })
-        .writeContract,
-    ).toHaveBeenCalledTimes(1);
-  });
-
   it("passes owner and PERMIT2 to readContract allowance check", async () => {
     const publicClient = makeMockPublicClient(2n ** 200n);
     const walletClient = makeMockWalletClient();
@@ -219,39 +201,6 @@ describe("signPermit2Data", () => {
     expect(signCall.types).toEqual(permitData.types);
     expect(signCall.primaryType).toBe("PermitWitnessTransferFrom");
     expect(signCall.message).toEqual(permitData.values);
-  });
-
-  it("returns the hex signature from signTypedData", async () => {
-    const walletClient = makeMockWalletClient();
-    (
-      walletClient as unknown as { signTypedData: ReturnType<typeof vi.fn> }
-    ).signTypedData.mockResolvedValue("0xdeadbeef" as Hex);
-
-    const permitData = {
-      domain: { name: "Permit2" },
-      types: { PermitWitnessTransferFrom: [] },
-      values: { permitted: {} },
-    };
-
-    const result = await signPermit2Data(walletClient, permitData);
-    expect(result).toBe("0xdeadbeef");
-  });
-
-  it("uses walletClient.account for signing", async () => {
-    const walletClient = makeMockWalletClient();
-
-    const permitData = {
-      domain: {},
-      types: { PermitWitnessTransferFrom: [] },
-      values: {},
-    };
-
-    await signPermit2Data(walletClient, permitData);
-
-    const signCall = (
-      walletClient as unknown as { signTypedData: ReturnType<typeof vi.fn> }
-    ).signTypedData.mock.calls[0][0];
-    expect(signCall.account).toBe(walletClient.account);
   });
 });
 

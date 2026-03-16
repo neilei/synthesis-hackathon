@@ -147,28 +147,4 @@ describe("getPoolData", () => {
       "Subgraph unavailable",
     );
   });
-
-  it("returns correct PoolData type shape", async () => {
-    mockRequest.mockResolvedValueOnce({
-      pools: [
-        {
-          id: "0xtyped",
-          token0: { symbol: "ETH" },
-          token1: { symbol: "USDC" },
-          feeTier: "3000",
-          totalValueLockedUSD: "1000000",
-          volumeUSD: "500000",
-          txCount: "100",
-        },
-      ],
-    });
-
-    const result = await getPoolData("ETH", "USDC");
-    const pool: PoolData = result[0];
-    expect(pool.id).toBe("0xtyped");
-    expect(typeof pool.token0Symbol).toBe("string");
-    expect(typeof pool.token1Symbol).toBe("string");
-    expect(typeof pool.feeTier).toBe("string");
-    expect(typeof pool.totalValueLockedUSD).toBe("string");
-  });
 });

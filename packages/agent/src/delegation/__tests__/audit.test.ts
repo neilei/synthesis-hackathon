@@ -5,42 +5,7 @@
  */
 import { describe, it, expect } from "vitest";
 import { generateAuditReport } from "../audit.js";
-import type { IntentParse } from "../../venice/schemas.js";
-
-// ---------------------------------------------------------------------------
-// Helper: create sample data
-// ---------------------------------------------------------------------------
-
-function makeSampleIntent(overrides: Partial<IntentParse> = {}): IntentParse {
-  return {
-    targetAllocation: { ETH: 0.6, USDC: 0.4 },
-    dailyBudgetUsd: 200,
-    timeWindowDays: 7,
-    maxTradesPerDay: 10,
-    maxSlippage: 0.005,
-    driftThreshold: 0.05,
-    ...overrides,
-  };
-}
-
-function makeSampleDelegation(overrides: Record<string, unknown> = {}) {
-  return {
-    delegate: "0xagent",
-    delegator: "0xdelegator",
-    authority:
-      "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-    caveats: [
-      {
-        enforcer: "0x1234",
-        terms: "0x",
-        args: "0x",
-      },
-    ],
-    salt: "0x01",
-    signature: "0xsigned",
-    ...overrides,
-  };
-}
+import { makeIntent, makeSampleDelegation } from "../../__tests__/fixtures.js";
 
 // ---------------------------------------------------------------------------
 // Audit report generation
@@ -48,7 +13,7 @@ function makeSampleDelegation(overrides: Record<string, unknown> = {}) {
 
 describe("generateAuditReport", () => {
   it("returns a report with all required sections", () => {
-    const intent = makeSampleIntent();
+    const intent = makeIntent();
     const delegation = makeSampleDelegation();
     const report = generateAuditReport(intent, delegation);
 
@@ -63,7 +28,7 @@ describe("generateAuditReport", () => {
   });
 
   it("includes correct budget in ALLOWS section", () => {
-    const intent = makeSampleIntent({ dailyBudgetUsd: 500, timeWindowDays: 14 });
+    const intent = makeIntent({ dailyBudgetUsd: 500, timeWindowDays: 14 });
     const delegation = makeSampleDelegation();
     const report = generateAuditReport(intent, delegation);
 
@@ -72,7 +37,7 @@ describe("generateAuditReport", () => {
   });
 
   it("includes total budget cap in PREVENTS section", () => {
-    const intent = makeSampleIntent({ dailyBudgetUsd: 200, timeWindowDays: 7 });
+    const intent = makeIntent({ dailyBudgetUsd: 200, timeWindowDays: 7 });
     const delegation = makeSampleDelegation();
     const report = generateAuditReport(intent, delegation);
 
@@ -81,7 +46,7 @@ describe("generateAuditReport", () => {
   });
 
   it("calculates WORST CASE including slippage", () => {
-    const intent = makeSampleIntent({
+    const intent = makeIntent({
       dailyBudgetUsd: 1000,
       timeWindowDays: 10,
       maxSlippage: 0.01,
@@ -95,7 +60,7 @@ describe("generateAuditReport", () => {
   });
 
   it("includes allocation description in ALLOWS", () => {
-    const intent = makeSampleIntent({
+    const intent = makeIntent({
       targetAllocation: { ETH: 0.7, USDC: 0.3 },
     });
     const delegation = makeSampleDelegation();
@@ -106,7 +71,7 @@ describe("generateAuditReport", () => {
   });
 
   it("shows caveats present when delegation has caveats", () => {
-    const intent = makeSampleIntent();
+    const intent = makeIntent();
     const delegation = makeSampleDelegation();
     const report = generateAuditReport(intent, delegation);
 
@@ -114,7 +79,7 @@ describe("generateAuditReport", () => {
   });
 
   it("warns when delegation has no caveats", () => {
-    const intent = makeSampleIntent();
+    const intent = makeIntent();
     const delegation = makeSampleDelegation({ caveats: [] });
     const report = generateAuditReport(intent, delegation);
 
@@ -125,7 +90,7 @@ describe("generateAuditReport", () => {
   });
 
   it("includes adversarial warnings for dangerous intents", () => {
-    const intent = makeSampleIntent({
+    const intent = makeIntent({
       dailyBudgetUsd: 5000,
       timeWindowDays: 60,
       maxSlippage: 0.1,
@@ -140,7 +105,7 @@ describe("generateAuditReport", () => {
   });
 
   it("has no warnings for a safe intent with proper delegation", () => {
-    const intent = makeSampleIntent();
+    const intent = makeIntent();
     const delegation = makeSampleDelegation();
     const report = generateAuditReport(intent, delegation);
 
@@ -148,7 +113,7 @@ describe("generateAuditReport", () => {
   });
 
   it("formatted report contains proper section markers", () => {
-    const intent = makeSampleIntent();
+    const intent = makeIntent();
     const delegation = makeSampleDelegation();
     const report = generateAuditReport(intent, delegation);
 
@@ -161,7 +126,7 @@ describe("generateAuditReport", () => {
   });
 
   it("shows signature status in intent match", () => {
-    const intent = makeSampleIntent();
+    const intent = makeIntent();
 
     const signed = makeSampleDelegation({ signature: "0xabc123" });
     const reportSigned = generateAuditReport(intent, signed);
@@ -173,7 +138,7 @@ describe("generateAuditReport", () => {
   });
 
   it("shows delegate/delegator presence", () => {
-    const intent = makeSampleIntent();
+    const intent = makeIntent();
 
     const withAddrs = makeSampleDelegation();
     const report = generateAuditReport(intent, withAddrs);

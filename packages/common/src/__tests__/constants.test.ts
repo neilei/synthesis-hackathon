@@ -9,9 +9,6 @@ describe("AGENT_ADDRESS", () => {
     expect(AGENT_ADDRESS).toBe("0xf13021F02E23a8113C1bD826575a1682F6Fac927");
   });
 
-  it("starts with 0x and is 42 characters", () => {
-    expect(AGENT_ADDRESS).toMatch(/^0x[0-9a-fA-F]{40}$/);
-  });
 });
 
 describe("DEFAULT_AGENT_PORT", () => {
@@ -19,9 +16,6 @@ describe("DEFAULT_AGENT_PORT", () => {
     expect(DEFAULT_AGENT_PORT).toBe(3147);
   });
 
-  it("is a number", () => {
-    expect(typeof DEFAULT_AGENT_PORT).toBe("number");
-  });
 });
 
 describe("API_PATHS", () => {

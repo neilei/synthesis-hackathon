@@ -29,6 +29,13 @@ describe("Uniswap Trading API", () => {
     mockFetch.mockReset();
   });
 
+  const defaultApprovalParams = {
+    token: "0x1234567890abcdef1234567890abcdef12345678" as Address,
+    amount: "1000",
+    chainId: 1,
+    walletAddress: "0xwallet0000000000000000000000000000000000" as Address,
+  };
+
   describe("checkApproval", () => {
     it("sends correct request to /check_approval", async () => {
       const mockResponse = {
@@ -44,12 +51,7 @@ describe("Uniswap Trading API", () => {
         json: () => Promise.resolve(mockResponse),
       });
 
-      const result = await checkApproval({
-        token: "0x1234567890abcdef1234567890abcdef12345678" as Address,
-        amount: "1000000",
-        chainId: 11155111,
-        walletAddress: "0xwallet0000000000000000000000000000000000" as Address,
-      });
+      const result = await checkApproval({ ...defaultApprovalParams, amount: "1000000", chainId: 11155111 });
 
       expect(mockFetch).toHaveBeenCalledWith(
         "https://trade-api.gateway.uniswap.org/v1/check_approval",
@@ -76,12 +78,7 @@ describe("Uniswap Trading API", () => {
       });
 
       await expect(
-        checkApproval({
-          token: "0x1234567890abcdef1234567890abcdef12345678" as Address,
-          amount: "1000",
-          chainId: 1,
-          walletAddress: "0xwallet0000000000000000000000000000000000" as Address,
-        }),
+        checkApproval(defaultApprovalParams),
       ).rejects.toThrow("Uniswap API /check_approval failed (400)");
     });
 
@@ -92,12 +89,7 @@ describe("Uniswap Trading API", () => {
       });
 
       await expect(
-        checkApproval({
-          token: "0x1234567890abcdef1234567890abcdef12345678" as Address,
-          amount: "1000",
-          chainId: 1,
-          walletAddress: "0xwallet0000000000000000000000000000000000" as Address,
-        }),
+        checkApproval(defaultApprovalParams),
       ).rejects.toThrow("Uniswap API /check_approval response validation failed");
     });
 
@@ -132,12 +124,7 @@ describe("Uniswap Trading API", () => {
       });
 
       await expect(
-        checkApproval({
-          token: "0x1234567890abcdef1234567890abcdef12345678" as Address,
-          amount: "1000",
-          chainId: 1,
-          walletAddress: "0xwallet0000000000000000000000000000000000" as Address,
-        }),
+        checkApproval(defaultApprovalParams),
       ).rejects.toThrow("Uniswap API /check_approval response validation failed");
     });
   });

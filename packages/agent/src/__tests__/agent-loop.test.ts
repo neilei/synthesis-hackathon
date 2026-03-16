@@ -93,28 +93,6 @@ describe("Agent Loop - state accessors", () => {
   });
 });
 
-describe("Agent Loop - AgentState agentId", () => {
-  it("agentId starts null and can be set to bigint", () => {
-    const state = { agentId: null as bigint | null };
-    expect(state.agentId).toBeNull();
-
-    state.agentId = 42n;
-    expect(state.agentId).toBe(42n);
-  });
-
-  it("feedback should be skipped when agentId is null", () => {
-    const state = { agentId: null as bigint | null };
-    // Production code guards: if (state.agentId) { giveFeedback(...) }
-    // When null, feedback is skipped — no fallback to 1n
-    expect(state.agentId).toBeNull();
-  });
-
-  it("feedback should use captured agentId when available", () => {
-    const state = { agentId: 7n as bigint | null };
-    // Production code passes state.agentId directly to giveFeedback
-    expect(state.agentId).toBe(7n);
-  });
-});
 
 describe("Agent Loop - drift calculation", () => {
   it("detects zero drift when allocations match", () => {

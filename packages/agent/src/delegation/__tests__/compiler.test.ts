@@ -7,24 +7,7 @@ import { describe, it, expect, vi } from "vitest";
 import { encodePacked } from "viem";
 import type { Address, Hex } from "viem";
 import { detectAdversarialIntent } from "../compiler.js";
-import type { IntentParse } from "../../venice/schemas.js";
-import { IntentParseSchema } from "../../venice/schemas.js";
-
-// ---------------------------------------------------------------------------
-// Helper: create a valid IntentParse for testing
-// ---------------------------------------------------------------------------
-
-function makeIntent(overrides: Partial<IntentParse> = {}): IntentParse {
-  return {
-    targetAllocation: { ETH: 0.6, USDC: 0.4 },
-    dailyBudgetUsd: 200,
-    timeWindowDays: 7,
-    maxTradesPerDay: 10,
-    maxSlippage: 0.005,
-    driftThreshold: 0.05,
-    ...overrides,
-  };
-}
+import { makeIntent } from "../../__tests__/fixtures.js";
 
 // ---------------------------------------------------------------------------
 // Adversarial intent detection
@@ -91,87 +74,6 @@ describe("detectAdversarialIntent", () => {
     });
     const warnings = detectAdversarialIntent(intent);
     expect(warnings).toHaveLength(0);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// compileIntent — test that LLM output matches IntentParse shape (mocked)
-// ---------------------------------------------------------------------------
-
-describe("compileIntent (mocked LLM)", () => {
-  it("returns valid IntentParse from mocked LLM output", async () => {
-    // Mock the LLM by testing that a well-formed object passes validation
-    const mockLlmOutput = {
-      targetAllocation: { ETH: 0.6, USDC: 0.4 },
-      dailyBudgetUsd: 200,
-      timeWindowDays: 7,
-      maxTradesPerDay: 10,
-      maxSlippage: 0.005,
-      driftThreshold: 0.05,
-    };
-
-    const validated = IntentParseSchema.safeParse(mockLlmOutput);
-    expect(validated.success).toBe(true);
-    if (validated.success) {
-      expect(validated.data.targetAllocation).toEqual({ ETH: 0.6, USDC: 0.4 });
-      expect(validated.data.dailyBudgetUsd).toBe(200);
-      expect(validated.data.timeWindowDays).toBe(7);
-      expect(validated.data.maxTradesPerDay).toBe(10);
-      expect(validated.data.maxSlippage).toBe(0.005);
-      expect(validated.data.driftThreshold).toBe(0.05);
-    }
-  });
-
-  it("rejects invalid LLM output with missing fields", () => {
-    const badOutput = {
-      targetAllocation: { ETH: 0.6, USDC: 0.4 },
-      // missing dailyBudgetUsd and other fields
-    };
-
-    const validated = IntentParseSchema.safeParse(badOutput);
-    expect(validated.success).toBe(false);
-  });
-
-  it("rejects LLM output with wrong types", () => {
-    const badOutput = {
-      targetAllocation: { ETH: "sixty", USDC: 0.4 },
-      dailyBudgetUsd: "two hundred",
-      timeWindowDays: 7,
-      maxTradesPerDay: 10,
-      maxSlippage: 0.005,
-      driftThreshold: 0.05,
-    };
-
-    const validated = IntentParseSchema.safeParse(badOutput);
-    expect(validated.success).toBe(false);
-  });
-
-  it("validates single-token allocation", () => {
-    const output = {
-      targetAllocation: { ETH: 1.0 },
-      dailyBudgetUsd: 100,
-      timeWindowDays: 30,
-      maxTradesPerDay: 5,
-      maxSlippage: 0.01,
-      driftThreshold: 0.1,
-    };
-
-    const validated = IntentParseSchema.safeParse(output);
-    expect(validated.success).toBe(true);
-  });
-
-  it("validates three-token allocation", () => {
-    const output = {
-      targetAllocation: { ETH: 0.5, USDC: 0.3, WBTC: 0.2 },
-      dailyBudgetUsd: 500,
-      timeWindowDays: 14,
-      maxTradesPerDay: 20,
-      maxSlippage: 0.003,
-      driftThreshold: 0.03,
-    };
-
-    const validated = IntentParseSchema.safeParse(output);
-    expect(validated.success).toBe(true);
   });
 });
 

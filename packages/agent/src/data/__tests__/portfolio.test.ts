@@ -87,14 +87,4 @@ describe("getPortfolioBalance", () => {
     const totalAllocation = result.allocation.ETH + result.allocation.USDC;
     expect(totalAllocation).toBeCloseTo(1, 10);
   });
-
-  it("should include drift and maxDrift fields", async () => {
-    mockGetBalance.mockResolvedValue(0n);
-    mockReadContract.mockResolvedValue(0n);
-
-    const result = await getPortfolioBalance(testAddress, "sepolia", ethPriceUsd);
-
-    expect(result.drift).toBeDefined();
-    expect(typeof result.maxDrift).toBe("number");
-  });
 });

@@ -94,25 +94,20 @@ describe("giveFeedback", () => {
     ); // feedbackHash
   });
 
-  it("scales value correctly for integer input", async () => {
-    mockWriteContract.mockResolvedValue("0xhash" as Hex);
-    mockWaitForTransactionReceipt.mockResolvedValue({ status: "success" });
-
-    await giveFeedback(1n, 3, "quality");
-
-    const args = mockWriteContract.mock.calls[0][0].args;
-    expect(args[1]).toBe(300n); // 3 * 10^2 = 300
-  });
-
-  it("scales value correctly for negative input", async () => {
-    mockWriteContract.mockResolvedValue("0xhash" as Hex);
-    mockWaitForTransactionReceipt.mockResolvedValue({ status: "success" });
-
-    await giveFeedback(1n, -2.5, "reliability");
-
-    const args = mockWriteContract.mock.calls[0][0].args;
-    expect(args[1]).toBe(-250n); // -2.5 * 10^2 = -250
-  });
+  it.each([
+    [3, 300n, "integer"],
+    [-2.5, -250n, "negative"],
+    [4.555, 456n, "fractional with rounding"],
+  ] as const)(
+    "scales value %f to %s (%s)",
+    async (input, expected, _label) => {
+      mockWriteContract.mockResolvedValue("0xhash" as Hex);
+      mockWaitForTransactionReceipt.mockResolvedValue({ status: "success" });
+      await giveFeedback(1n, input, "tag");
+      const args = mockWriteContract.mock.calls[0][0].args;
+      expect(args[1]).toBe(expected);
+    },
+  );
 
   it("defaults tag2 to empty string", async () => {
     mockWriteContract.mockResolvedValue("0xhash" as Hex);
@@ -146,16 +141,6 @@ describe("giveFeedback", () => {
     expect(call.address).toBe("0x8004BAa17C55a88189AE136b182e5fdA19dE9b63"); // REPUTATION_BASE_MAINNET
   });
 
-  it("handles fractional values with rounding", async () => {
-    mockWriteContract.mockResolvedValue("0xhash" as Hex);
-    mockWaitForTransactionReceipt.mockResolvedValue({ status: "success" });
-
-    // 4.555 * 100 = 455.5, Math.round => 456
-    await giveFeedback(1n, 4.555, "precision");
-
-    const args = mockWriteContract.mock.calls[0][0].args;
-    expect(args[1]).toBe(456n);
-  });
 });
 
 // ---------------------------------------------------------------------------
