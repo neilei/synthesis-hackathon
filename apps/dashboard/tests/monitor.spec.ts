@@ -52,7 +52,34 @@ function mockAgentState(
             timestamp: new Date().toISOString(),
           },
         ],
-        feed: [],
+        feed: [
+          {
+            timestamp: new Date().toISOString(),
+            sequence: 0,
+            action: "rebalance_decision",
+            cycle: 1,
+            result: {
+              shouldRebalance: false,
+              reasoning: "Portfolio within threshold",
+              marketContext: "Stable market conditions",
+            },
+          },
+          {
+            timestamp: new Date().toISOString(),
+            sequence: 1,
+            action: "cycle_complete",
+            cycle: 1,
+            result: {
+              allocation: { ETH: 0.58, USDC: 0.42 },
+              drift: 0.02,
+              totalValue: 1500,
+              ethPrice: 2000,
+              tradesExecuted: 1,
+              totalSpentUsd: 45,
+              budgetTier: "$200",
+            },
+          },
+        ],
         ...overrides,
       }),
     }),
@@ -90,7 +117,7 @@ test.describe("Monitor Screen", () => {
     await navigateToMonitor(page);
 
     await expect(page.getByText("Portfolio Value")).toBeVisible();
-    await expect(page.getByText("$1,500.00")).toBeVisible();
+    await expect(page.getByText("$1,500.00").first()).toBeVisible();
     await expect(page.getByText("Current Drift")).toBeVisible();
     await expect(
       page.getByText("2.0%", { exact: true }).first(),
@@ -288,5 +315,65 @@ test.describe("Monitor Screen", () => {
     await expect(
       page.getByRole("button", { name: /go to configure/i }),
     ).toBeVisible({ timeout: 5000 });
+  });
+
+  test("shows activity feed with cycle header", async ({ page }) => {
+    await mockAgentState(page);
+    await navigateToMonitor(page);
+
+    await expect(page.getByText("Activity Feed")).toBeVisible();
+    await expect(page.getByText("Cycle 1")).toBeVisible();
+  });
+
+  test("shows rebalance decision in expanded cycle", async ({ page }) => {
+    await mockAgentState(page);
+    await navigateToMonitor(page);
+
+    // Last cycle is expanded by default, so reasoning should be visible
+    await expect(page.getByText("Portfolio within threshold")).toBeVisible();
+  });
+
+  test("shows error entries in feed", async ({ page }) => {
+    await mockAgentState(page, {
+      feed: [
+        {
+          timestamp: new Date().toISOString(),
+          sequence: 0,
+          action: "cycle_error",
+          cycle: 1,
+          error: "Uniswap API validation failed",
+        },
+        {
+          timestamp: new Date().toISOString(),
+          sequence: 1,
+          action: "cycle_complete",
+          cycle: 1,
+          result: {
+            allocation: { ETH: 0.58, USDC: 0.42 },
+            drift: 0.02,
+            totalValue: 1500,
+            ethPrice: 2000,
+            tradesExecuted: 0,
+            totalSpentUsd: 0,
+            budgetTier: "$200",
+          },
+        },
+      ],
+    });
+    await navigateToMonitor(page);
+
+    // Cycle should be expanded by default (it's the last/only one)
+    await expect(
+      page.getByText("Uniswap API validation failed"),
+    ).toBeVisible();
+  });
+
+  test("shows empty feed state before first cycle", async ({ page }) => {
+    await mockAgentState(page, { feed: [] });
+    await navigateToMonitor(page);
+
+    await expect(
+      page.getByText("Waiting for the agent's first cycle..."),
+    ).toBeVisible();
   });
 });
