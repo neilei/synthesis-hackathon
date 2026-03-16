@@ -30,7 +30,7 @@ function createTestDb() {
 const FUTURE = Math.floor(Date.now() / 1000) + 86400;
 const PAST = Math.floor(Date.now() / 1000) - 100;
 
-const makeIntent = (id: string, expiresAt: number, status = "active" as const) => ({
+const makeIntent = (id: string, expiresAt: number, status: "active" | "paused" | "completed" | "expired" | "cancelled" = "active") => ({
   id,
   walletAddress: "0x1234",
   intentText: "test",
