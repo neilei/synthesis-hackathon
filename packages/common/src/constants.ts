@@ -8,6 +8,9 @@ export const AGENT_ADDRESS = "0xf13021F02E23a8113C1bD826575a1682F6Fac927";
 /** Default port for the agent API server. */
 export const DEFAULT_AGENT_PORT = 3147;
 
+/** Seconds in a day (for delegation expiry calculations). */
+export const SECONDS_PER_DAY = 86400;
+
 /** Canonical API route paths used by both the agent server and dashboard client. */
 export const API_PATHS = Object.freeze({
   state: "/api/state",

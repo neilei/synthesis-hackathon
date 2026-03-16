@@ -13,8 +13,9 @@ import { env } from "./config.js";
 import { compileIntent } from "./delegation/compiler.js";
 import { getAgentState, getAgentConfig, runAgentLoop } from "./agent-loop.js";
 import { registerAgent } from "./identity/erc8004.js";
-import { DEFAULT_AGENT_PORT, API_PATHS, type AgentLogEntry, type AgentStateResponse, type DeployResponse } from "@veil/common";
+import { DEFAULT_AGENT_PORT, API_PATHS, DeployRequestSchema, AgentLogEntrySchema, type AgentLogEntry, type AgentStateResponse, type DeployResponse } from "@veil/common";
 import { logger } from "./logging/logger.js";
+import { withRetry } from "./utils/retry.js";
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : DEFAULT_AGENT_PORT;
 const DASHBOARD_DIST = join(process.cwd(), "apps", "dashboard", "out");
@@ -43,7 +44,14 @@ function readLogFeed(): AgentLogEntry[] {
       .trim()
       .split("\n")
       .filter(Boolean)
-      .map((line) => JSON.parse(line) as AgentLogEntry);
+      .flatMap((line) => {
+        try {
+          const parsed = AgentLogEntrySchema.safeParse(JSON.parse(line));
+          return parsed.success ? [parsed.data] : [];
+        } catch {
+          return [];
+        }
+      });
   } catch {
     return [];
   }
@@ -90,11 +98,12 @@ function sendJson(res: ServerResponse, data: unknown, status = 200) {
 
 async function handleDeploy(req: IncomingMessage, res: ServerResponse) {
   const body = await parseBody(req);
-  const intentText = body.intent as string;
-  if (!intentText) {
-    sendJson(res, { error: "Missing intent" }, 400);
+  const validated = DeployRequestSchema.safeParse(body);
+  if (!validated.success) {
+    sendJson(res, { error: validated.error.issues[0]?.message ?? "Invalid request" }, 400);
     return;
   }
+  const intentText = validated.data.intent;
 
   // Check if agent is already running
   const existing = getAgentState();
@@ -120,10 +129,24 @@ async function handleDeploy(req: IncomingMessage, res: ServerResponse) {
       logger.error({ err }, "[server] Agent loop crashed");
     });
 
-    // Wait briefly for delegation + audit to be generated
-    await new Promise((r) => setTimeout(r, 3000));
+    // Poll for delegation result instead of blind setTimeout
+    const POLL_INTERVAL_MS = 200;
+    const POLL_TIMEOUT_MS = 10_000;
+    const pollStart = Date.now();
+
+    while (Date.now() - pollStart < POLL_TIMEOUT_MS) {
+      const s = getAgentState();
+      if (s?.audit || s?.deployError) break;
+      await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
+    }
 
     const state = getAgentState();
+
+    if (state?.deployError) {
+      sendJson(res, { error: state.deployError }, 500);
+      return;
+    }
+
     const deployResponse: DeployResponse = {
       parsed,
       audit: state?.audit
@@ -138,7 +161,7 @@ async function handleDeploy(req: IncomingMessage, res: ServerResponse) {
     sendJson(res, deployResponse);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    logger.error("[server] Deploy failed: %s", msg);
+    logger.error({ err }, "Deploy failed");
     sendJson(res, { error: msg }, 500);
   }
 }
@@ -162,6 +185,7 @@ function handleState(_req: IncomingMessage, res: ServerResponse) {
       feed: readLogFeed(),
       transactions: [],
       audit: null,
+      deployError: null,
     };
     sendJson(res, defaultState);
     return;
@@ -188,6 +212,7 @@ function handleState(_req: IncomingMessage, res: ServerResponse) {
           warnings: state.audit.warnings,
         }
       : null,
+    deployError: state.deployError ?? null,
   };
   sendJson(res, response);
 }
@@ -266,7 +291,7 @@ const server = createServer(async (req, res) => {
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    logger.error(`[server] ${method} ${url} error: ${msg}`);
+    logger.error({ err, method, url }, "Request handler error");
     sendJson(res, { error: msg }, 500);
   }
 });
@@ -286,29 +311,23 @@ async function startup() {
   logger.info(`  API:            http://localhost:${PORT}/api/state`);
   logger.info("=".repeat(60));
 
-  // Register agent identity on Base Sepolia (non-blocking)
-  registerAgent(
-    `https://github.com/neilei/veil`,
-    "base-sepolia",
-  )
-    .then(({ txHash, agentId }) => {
-      logger.info(`[erc8004] Agent registered on Base Sepolia`);
-      logger.info(`[erc8004] TX: ${txHash}`);
-      if (agentId) logger.info(`[erc8004] Agent ID: ${agentId}`);
-    })
-    .catch((err) => {
-      // Non-fatal — may already be registered or Base Sepolia may be down
-      logger.info(
-        `[erc8004] Registration skipped: ${err instanceof Error ? err.message : String(err)}`,
-      );
-    });
-
   server.listen(PORT, () => {
     logger.info(`[server] Listening on http://localhost:${PORT}`);
     logger.info(
       `[server] Open dashboard or POST /api/deploy to start agent`,
     );
   });
+
+  // Register agent identity on Base Sepolia (non-blocking — server is already listening)
+  try {
+    const { txHash, agentId } = await withRetry(
+      () => registerAgent(`https://github.com/neilei/veil`, "base-sepolia"),
+      { label: "erc8004:register", maxRetries: 3 },
+    );
+    logger.info({ txHash, agentId: agentId?.toString() }, "ERC-8004 agent registered");
+  } catch (err) {
+    logger.error({ err }, "ERC-8004 registration failed after retries");
+  }
 }
 
 startup();

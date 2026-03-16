@@ -26,6 +26,10 @@ vi.mock("../config.js", () => ({
   },
 }));
 
+vi.mock("../logging/logger.js", () => ({
+  logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+}));
+
 import { getPoolData } from "./thegraph.js";
 
 beforeEach(() => {
@@ -135,8 +139,9 @@ describe("getPoolData", () => {
     expect(keys).not.toContain("token1");
   });
 
-  it("propagates GraphQL errors", async () => {
-    mockRequest.mockRejectedValueOnce(new Error("Subgraph unavailable"));
+  it("propagates GraphQL errors after retry exhaustion", async () => {
+    // withRetry uses maxRetries: 2 for thegraph, so 3 total attempts
+    mockRequest.mockRejectedValue(new Error("Subgraph unavailable"));
 
     await expect(getPoolData("WETH", "USDC")).rejects.toThrow(
       "Subgraph unavailable",

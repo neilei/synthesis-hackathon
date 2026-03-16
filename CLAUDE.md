@@ -52,13 +52,11 @@ Root `package.json` uses pnpm workspaces. Run everything from root:
 ## Coding Standards
 
 - **TypeScript strict mode** — no `any` types, no unsafe casts
-- **Zod validation** on all external data (API responses, user input, env vars)
 - **No stubs or TODOs in committed code** — if something isn't done, don't pretend it is
 - **Tests required** — every module needs unit tests. E2e tests for external service calls.
 - **Vitest** for testing (not Jest). Config at `packages/agent/vitest.config.ts`
 - **ESM only** — `"type": "module"` in package.json, `.js` extensions in imports
 - **dotenv** loads from project root `.env` (not package-level)
-- **No Express** — server uses Node.js `http` module directly
 
 ## Key Technical Decisions
 
@@ -70,16 +68,10 @@ Root `package.json` uses pnpm workspaces. Run everything from root:
 - **Delegation flow**: ERC-7715 creates scoped permission (human approves once), ERC-7710 redeems server-side (no browser needed). Falls back to direct tx if delegation fails. Must pass `valueLte: { maxValue }` in `functionCall` scope — SDK defaults to `maxValue: 0n` if omitted, blocking all ETH-value calls.
 - **Agent identity**: ERC-8004 NFT on Base, reputation feedback uses dynamic agentId from registration
 
-## Current Status (updated 2026-03-15)
-
-- Phase 1 (Graph codegen fix): COMPLETE
-- Phase 2 (Monorepo): COMPLETE
-- Phase 3 (Agent e2e run): COMPLETE (2 real swaps on Sepolia, 3 ERC-8004 txs on Base Sepolia)
-- Phase 4 (Git push): NOT STARTED
-- Phase 5 (Next.js frontend): IN PROGRESS — all 3 screens built, 14 Playwright e2e tests passing, polish pass done. Remaining: Storybook (optional), integration test with agent server, Vercel deploy.
-- See `docs/plans/2026-03-14-full-project-plan.md` for full plan
-
 ## Design Context
+
+NOTE: THE BELOW IS BEING WORKED ON AND MAY BE OBSOLETE
+TRUST THE IMPECCABLE SKILL
 
 ### Users
 

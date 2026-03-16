@@ -90,7 +90,6 @@ vi.mock("./logging/agent-log.js", () => ({
 }));
 vi.mock("./logging/budget.js", () => ({
   getBudgetTier: vi.fn().mockReturnValue("normal"),
-  getRecommendedModel: vi.fn().mockReturnValue("auto"),
 }));
 vi.mock("./identity/erc8004.js", () => ({
   registerAgent: vi.fn().mockResolvedValue({ txHash: "0xabc", agentId: 1 }),
@@ -104,12 +103,33 @@ vi.mock("./logging/logger.js", () => ({
     debug: vi.fn(),
   },
 }));
-
-// Mock @veil/common — provide real constant values so server.ts resolves cleanly
-vi.mock("@veil/common", () => ({
-  DEFAULT_AGENT_PORT: 3147,
-  API_PATHS: { state: "/api/state", deploy: "/api/deploy" },
+vi.mock("./utils/retry.js", () => ({
+  withRetry: vi.fn((fn: () => Promise<unknown>) => fn()),
 }));
+
+// Mock @veil/common — provide real constant values so server.ts resolves cleanly.
+// DeployRequestSchema and AgentLogEntrySchema must be real Zod schemas since
+// server.ts calls safeParse() on both.
+vi.mock("@veil/common", async () => {
+  const { z } = await import("zod");
+  return {
+    DEFAULT_AGENT_PORT: 3147,
+    API_PATHS: { state: "/api/state", deploy: "/api/deploy" },
+    DeployRequestSchema: z.object({
+      intent: z.string().min(1, "Intent cannot be empty"),
+    }),
+    AgentLogEntrySchema: z.object({
+      timestamp: z.string(),
+      sequence: z.number(),
+      action: z.string(),
+      tool: z.string().optional(),
+      parameters: z.record(z.string(), z.unknown()).optional(),
+      result: z.record(z.string(), z.unknown()).optional(),
+      duration_ms: z.number().optional(),
+      error: z.string().optional(),
+    }),
+  };
+});
 
 // Mock agent-loop with controllable getAgentState / getAgentConfig
 const mockGetAgentState = vi.fn().mockReturnValue(null);
@@ -301,13 +321,13 @@ describe("readLogFeed (via /api/state)", () => {
     expect(feed[1].action).toBe("cycle_complete");
   });
 
-  it("handles malformed lines gracefully (returns empty array)", async () => {
+  it("skips malformed JSON lines and keeps valid entries", async () => {
+    const valid1 = { timestamp: "2026-03-14T00:00:00Z", sequence: 0, action: "agent_start" };
+    const valid2 = { timestamp: "2026-03-14T00:01:00Z", sequence: 2, action: "cycle_complete" };
     mockExistsSync.mockReturnValue(true);
-    // readFileSync will throw when JSON.parse encounters bad data — the catch
-    // block in readLogFeed returns [].  But actually the map with JSON.parse
-    // will throw on the first bad line, so the whole thing falls into catch.
+    // Line 2 is invalid JSON — it should be skipped, not crash the whole feed
     mockReadFileSync.mockReturnValue(
-      '{"action":"ok"}\nNOT_JSON\n{"action":"also_ok"}\n',
+      JSON.stringify(valid1) + "\nNOT_JSON\n" + JSON.stringify(valid2) + "\n",
     );
     mockGetAgentState.mockReturnValue(null);
     mockGetAgentConfig.mockReturnValue(null);
@@ -317,8 +337,33 @@ describe("readLogFeed (via /api/state)", () => {
     await callHandler(req, res);
 
     const data = res.parsedBody();
-    // The server catches the JSON.parse error and returns []
-    expect(data.feed).toEqual([]);
+    const feed = data.feed as Record<string, unknown>[];
+    // Two valid entries survive; the malformed line is dropped
+    expect(feed).toHaveLength(2);
+    expect(feed[0].action).toBe("agent_start");
+    expect(feed[1].action).toBe("cycle_complete");
+  });
+
+  it("skips entries that fail Zod schema validation", async () => {
+    // Valid JSON but missing required fields (no timestamp, no sequence)
+    const invalid = { action: "bad_entry" };
+    const valid = { timestamp: "2026-03-14T00:00:00Z", sequence: 0, action: "agent_start" };
+    mockExistsSync.mockReturnValue(true);
+    mockReadFileSync.mockReturnValue(
+      JSON.stringify(invalid) + "\n" + JSON.stringify(valid) + "\n",
+    );
+    mockGetAgentState.mockReturnValue(null);
+    mockGetAgentConfig.mockReturnValue(null);
+
+    const req = createMockReq("GET", "/api/state");
+    const res = createMockRes();
+    await callHandler(req, res);
+
+    const data = res.parsedBody();
+    const feed = data.feed as Record<string, unknown>[];
+    // Only the schema-valid entry survives
+    expect(feed).toHaveLength(1);
+    expect(feed[0].action).toBe("agent_start");
   });
 
   it("handles readFileSync throwing an error", async () => {
@@ -517,7 +562,8 @@ describe("handleDeploy (POST /api/deploy)", () => {
 
     expect(res.statusCode).toBe(400);
     const data = res.parsedBody();
-    expect(data.error).toBe("Missing intent");
+    expect(data.error).toBeDefined();
+    expect(typeof data.error).toBe("string");
   });
 
   it("returns 400 when intent is empty string", async () => {
@@ -527,7 +573,18 @@ describe("handleDeploy (POST /api/deploy)", () => {
 
     expect(res.statusCode).toBe(400);
     const data = res.parsedBody();
-    expect(data.error).toBe("Missing intent");
+    expect(data.error).toBe("Intent cannot be empty");
+  });
+
+  it("returns 400 when intent is non-string type", async () => {
+    const req = createMockReq("POST", "/api/deploy", { intent: 42 });
+    const res = createMockRes();
+    await callHandler(req, res);
+
+    expect(res.statusCode).toBe(400);
+    const data = res.parsedBody();
+    expect(data.error).toBeDefined();
+    expect(typeof data.error).toBe("string");
   });
 
   it("returns 409 when agent is already running", async () => {
@@ -558,21 +615,21 @@ describe("handleDeploy (POST /api/deploy)", () => {
       maxTradesPerDay: 5,
     });
 
-    // After the 3s wait, getAgentState will be called again for audit
+    // First call checks running status; subsequent poll calls return audit
     mockGetAgentState
       .mockReturnValueOnce({ running: false, cycle: 5 }) // first call in handler
-      .mockReturnValue({ running: true, cycle: 0, audit: null }); // after wait
+      .mockReturnValue({ running: true, cycle: 0, audit: null, deployError: null }); // poll calls + final read
 
     const req = createMockReq("POST", "/api/deploy", {
       intent: "60/40 ETH/USDC",
     });
     const res = createMockRes();
 
-    // Use fake timers to avoid waiting 3 real seconds
+    // Use fake timers to avoid waiting for real polling delays
     vi.useFakeTimers();
     const promise = callHandler(req, res);
-    // Advance past the 3000ms setTimeout in handleDeploy
-    await vi.advanceTimersByTimeAsync(3100);
+    // Advance past the full poll timeout (10s)
+    await vi.advanceTimersByTimeAsync(11_000);
     await promise;
     vi.useRealTimers();
 
@@ -612,9 +669,9 @@ describe("handleDeploy (POST /api/deploy)", () => {
     };
     mockCompile.mockResolvedValue(parsedIntent);
 
-    // After the 3s wait, getAgentState returns state with audit
+    // First check returns null, then poll finds audit set
     mockGetAgentState
-      .mockReturnValueOnce(null) // first check
+      .mockReturnValueOnce(null) // first check (running?)
       .mockReturnValue({
         running: true,
         audit: {
@@ -624,6 +681,7 @@ describe("handleDeploy (POST /api/deploy)", () => {
           warnings: [],
           formatted: "...",
         },
+        deployError: null,
       });
 
     const req = createMockReq("POST", "/api/deploy", {
@@ -633,7 +691,8 @@ describe("handleDeploy (POST /api/deploy)", () => {
 
     vi.useFakeTimers();
     const promise = callHandler(req, res);
-    await vi.advanceTimersByTimeAsync(3100);
+    // Advance past the first poll interval (200ms) so the loop finds audit
+    await vi.advanceTimersByTimeAsync(300);
     await promise;
     vi.useRealTimers();
 
@@ -659,10 +718,10 @@ describe("handleDeploy (POST /api/deploy)", () => {
       targetAllocation: { ETH: 0.5, USDC: 0.5 },
     });
 
-    // After the 3s wait, state exists but no audit
+    // Neither audit nor deployError is set, so poll times out
     mockGetAgentState
       .mockReturnValueOnce(null)
-      .mockReturnValue({ running: true, audit: null });
+      .mockReturnValue({ running: true, audit: null, deployError: null });
 
     const req = createMockReq("POST", "/api/deploy", {
       intent: "50/50 split",
@@ -671,12 +730,53 @@ describe("handleDeploy (POST /api/deploy)", () => {
 
     vi.useFakeTimers();
     const promise = callHandler(req, res);
-    await vi.advanceTimersByTimeAsync(3100);
+    // Advance past the full poll timeout (10s)
+    await vi.advanceTimersByTimeAsync(11_000);
     await promise;
     vi.useRealTimers();
 
     const data = res.parsedBody();
     expect(data.audit).toBeNull();
+  });
+
+  it("returns 500 when deployError is set during polling", async () => {
+    mockGetAgentState.mockReturnValue(null);
+
+    const { compileIntent } = await import("./delegation/compiler.js");
+    const mockCompile = compileIntent as ReturnType<typeof vi.fn>;
+    mockCompile.mockResolvedValue({
+      targetAllocation: { ETH: 0.6, USDC: 0.4 },
+      dailyBudgetUsd: 200,
+      timeWindowDays: 7,
+      driftThreshold: 0.05,
+      maxSlippage: 0.01,
+      maxTradesPerDay: 5,
+    });
+
+    // First call returns null (not running), then poll finds deployError
+    mockGetAgentState
+      .mockReturnValueOnce(null) // first check
+      .mockReturnValue({
+        running: false,
+        audit: null,
+        deployError: "MetaMask SDK timeout",
+      });
+
+    const req = createMockReq("POST", "/api/deploy", {
+      intent: "60/40 ETH/USDC",
+    });
+    const res = createMockRes();
+
+    vi.useFakeTimers();
+    const promise = callHandler(req, res);
+    // Advance past the first poll interval so the loop finds deployError
+    await vi.advanceTimersByTimeAsync(300);
+    await promise;
+    vi.useRealTimers();
+
+    expect(res.statusCode).toBe(500);
+    const data = res.parsedBody();
+    expect(data.error).toBe("MetaMask SDK timeout");
   });
 });
 

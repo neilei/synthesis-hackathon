@@ -88,6 +88,7 @@ export const AgentStateResponseSchema = z.object({
   feed: z.array(AgentLogEntrySchema),
   transactions: z.array(SwapRecordSchema),
   audit: AuditReportSchema.nullable(),
+  deployError: z.string().nullable(),
 });
 
 export type AgentStateResponse = z.infer<typeof AgentStateResponseSchema>;
@@ -102,3 +103,13 @@ export const DeployResponseSchema = z.object({
 });
 
 export type DeployResponse = z.infer<typeof DeployResponseSchema>;
+
+// ---------------------------------------------------------------------------
+// DeployRequest — the /api/deploy request body
+// ---------------------------------------------------------------------------
+
+export const DeployRequestSchema = z.object({
+  intent: z.string().min(1, "Intent cannot be empty"),
+});
+
+export type DeployRequest = z.infer<typeof DeployRequestSchema>;

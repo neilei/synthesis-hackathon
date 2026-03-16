@@ -5,10 +5,22 @@
  * @module @veil/agent/uniswap/trading
  */
 import type { Address, Hex } from "viem";
+import { z } from "zod";
 import { env, UNISWAP_API_BASE, CONTRACTS } from "../config.js";
+import {
+  ApprovalResponseSchema,
+  QuoteResponseSchema,
+  SwapResponseSchema,
+} from "./schemas.js";
+import type { ApprovalResponse, QuoteResponse, SwapResponse } from "./schemas.js";
+
+export type { ApprovalResponse, QuoteResponse, SwapResponse };
+
+/** Default slippage tolerance in percent (0.5 = 0.5%). */
+const DEFAULT_SLIPPAGE_TOLERANCE = 0.5;
 
 // ---------------------------------------------------------------------------
-// Types
+// Types (request shapes — constructed by the agent, not validated from API)
 // ---------------------------------------------------------------------------
 
 export interface ApprovalRequest {
@@ -16,19 +28,6 @@ export interface ApprovalRequest {
   amount: string;
   chainId: number;
   walletAddress: Address;
-}
-
-export interface ApprovalResponse {
-  approval: {
-    tokenAddress: Address;
-    spender: Address;
-    amount: string;
-    transactionRequest?: {
-      to: Address;
-      data: Hex;
-      value: string;
-    };
-  };
 }
 
 export interface QuoteRequest {
@@ -41,39 +40,11 @@ export interface QuoteRequest {
   slippageTolerance?: number;
 }
 
-export interface QuoteResponse {
-  requestId: string;
-  quote: {
-    chainId: number;
-    input: { token: Address; amount: string };
-    output: { token: Address; amount: string };
-    swapper: Address;
-    slippage: { tolerance: number };
-  };
-  routing: string;
-  permitData?: {
-    domain: Record<string, unknown>;
-    types: Record<string, unknown[]>;
-    values: Record<string, unknown>;
-  };
-}
-
 export interface SwapRequest {
   quote: QuoteResponse["quote"];
   signature?: Hex;
   permitData?: QuoteResponse["permitData"];
   simulateTransaction?: boolean;
-}
-
-export interface SwapResponse {
-  swap: {
-    chainId: number;
-    to: Address;
-    data: Hex;
-    value: string;
-    gasLimit?: string;
-  };
-  requestId: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -83,6 +54,7 @@ export interface SwapResponse {
 async function uniswapFetch<T>(
   endpoint: string,
   body: Record<string, unknown>,
+  schema: z.ZodType<T>,
 ): Promise<T> {
   const res = await fetch(`${UNISWAP_API_BASE}${endpoint}`, {
     method: "POST",
@@ -100,7 +72,14 @@ async function uniswapFetch<T>(
     );
   }
 
-  return res.json() as Promise<T>;
+  const json: unknown = await res.json();
+  const parsed = schema.safeParse(json);
+  if (!parsed.success) {
+    throw new Error(
+      `Uniswap API ${endpoint} response validation failed: ${parsed.error.message}`,
+    );
+  }
+  return parsed.data;
 }
 
 // ---------------------------------------------------------------------------
@@ -110,12 +89,16 @@ async function uniswapFetch<T>(
 export async function checkApproval(
   params: ApprovalRequest,
 ): Promise<ApprovalResponse> {
-  return uniswapFetch<ApprovalResponse>("/check_approval", {
-    token: params.token,
-    amount: params.amount,
-    chainId: params.chainId,
-    walletAddress: params.walletAddress,
-  });
+  return uniswapFetch<ApprovalResponse>(
+    "/check_approval",
+    {
+      token: params.token,
+      amount: params.amount,
+      chainId: params.chainId,
+      walletAddress: params.walletAddress,
+    },
+    ApprovalResponseSchema,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -123,16 +106,20 @@ export async function checkApproval(
 // ---------------------------------------------------------------------------
 
 export async function getQuote(params: QuoteRequest): Promise<QuoteResponse> {
-  return uniswapFetch<QuoteResponse>("/quote", {
-    tokenInChainId: params.chainId,
-    tokenOutChainId: params.chainId,
-    tokenIn: params.tokenIn,
-    tokenOut: params.tokenOut,
-    amount: params.amount,
-    type: params.type,
-    swapper: params.swapper,
-    slippageTolerance: params.slippageTolerance ?? 0.5,
-  });
+  return uniswapFetch<QuoteResponse>(
+    "/quote",
+    {
+      tokenInChainId: params.chainId,
+      tokenOutChainId: params.chainId,
+      tokenIn: params.tokenIn,
+      tokenOut: params.tokenOut,
+      amount: params.amount,
+      type: params.type,
+      swapper: params.swapper,
+      slippageTolerance: params.slippageTolerance ?? DEFAULT_SLIPPAGE_TOLERANCE,
+    },
+    QuoteResponseSchema,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -158,82 +145,6 @@ export async function createSwap(
     body.signature = signature;
   }
 
-  return uniswapFetch<SwapResponse>("/swap", body);
+  return uniswapFetch<SwapResponse>("/swap", body, SwapResponseSchema);
 }
 
-// ---------------------------------------------------------------------------
-// Full swap flow helper
-// ---------------------------------------------------------------------------
-
-export interface ExecuteSwapParams {
-  tokenIn: Address;
-  tokenOut: Address;
-  amount: string;
-  chainId: number;
-  walletAddress: Address;
-  signTypedData: (params: {
-    domain: Record<string, unknown>;
-    types: Record<string, unknown[]>;
-    primaryType: string;
-    message: Record<string, unknown>;
-  }) => Promise<Hex>;
-  sendTransaction: (params: {
-    to: Address;
-    data: Hex;
-    value: bigint;
-  }) => Promise<Hex>;
-}
-
-export async function executeFullSwap(
-  params: ExecuteSwapParams,
-): Promise<{ txHash: Hex; quote: QuoteResponse }> {
-  // 1. Check approval — send approval tx if needed
-  const approval = await checkApproval({
-    token: params.tokenIn,
-    amount: params.amount,
-    chainId: params.chainId,
-    walletAddress: params.walletAddress,
-  });
-
-  if (approval.approval.transactionRequest) {
-    const approvalTx = approval.approval.transactionRequest;
-    await params.sendTransaction({
-      to: approvalTx.to,
-      data: approvalTx.data,
-      value: BigInt(approvalTx.value || "0"),
-    });
-  }
-
-  // 2. Get quote
-  const quote = await getQuote({
-    tokenIn: params.tokenIn,
-    tokenOut: params.tokenOut,
-    amount: params.amount,
-    type: "EXACT_INPUT",
-    chainId: params.chainId,
-    swapper: params.walletAddress,
-  });
-
-  // 3. Sign permit2 data if present
-  let permitSignature: Hex | undefined;
-  if (quote.permitData) {
-    permitSignature = await params.signTypedData({
-      domain: quote.permitData.domain,
-      types: quote.permitData.types,
-      primaryType: "PermitWitnessTransferFrom",
-      message: quote.permitData.values,
-    });
-  }
-
-  // 4. Create swap
-  const swap = await createSwap(quote, permitSignature);
-
-  // 5. Send the swap transaction
-  const txHash = await params.sendTransaction({
-    to: swap.swap.to,
-    data: swap.swap.data,
-    value: BigInt(swap.swap.value || "0"),
-  });
-
-  return { txHash, quote };
-}

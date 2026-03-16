@@ -1,6 +1,6 @@
 /**
  * Venice API budget tracker. Captures x-venice-balance-usd headers to determine
- * budget tier (normal/conservation/critical) and recommend cheaper models.
+ * budget tier (normal/conservation/critical).
  *
  * @module @veil/agent/logging/budget
  */
@@ -33,19 +33,6 @@ export function getBudgetTier(): BudgetTier {
   if (lastKnownBalance < 0.5) return "critical";
   if (lastKnownBalance < 2) return "conservation";
   return "normal";
-}
-
-export function getRecommendedModel(): string {
-  const tier = getBudgetTier();
-  switch (tier) {
-    case "critical":
-      return "qwen3-4b"; // cheapest, no web search
-    case "conservation":
-      return "qwen3-4b"; // cheap model only
-    case "normal":
-    default:
-      return "auto"; // use whatever the caller wants
-  }
 }
 
 export function resetBudgetState() {

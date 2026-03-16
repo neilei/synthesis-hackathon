@@ -29,7 +29,7 @@ vi.mock("viem", async () => {
   };
 });
 
-import { ensurePermit2Approval, signPermit2Data } from "./permit2.js";
+import { ensurePermit2Approval, signPermit2Data, derivePrimaryType } from "./permit2.js";
 
 // ---------------------------------------------------------------------------
 // Shared mock factories
@@ -242,7 +242,7 @@ describe("signPermit2Data", () => {
 
     const permitData = {
       domain: {},
-      types: {},
+      types: { PermitWitnessTransferFrom: [] },
       values: {},
     };
 
@@ -252,5 +252,58 @@ describe("signPermit2Data", () => {
       walletClient as unknown as { signTypedData: ReturnType<typeof vi.fn> }
     ).signTypedData.mock.calls[0][0];
     expect(signCall.account).toBe(walletClient.account);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// derivePrimaryType
+// ---------------------------------------------------------------------------
+
+describe("derivePrimaryType", () => {
+  it("returns PermitWitnessTransferFrom for Universal Router types", () => {
+    const types = {
+      EIP712Domain: [{ name: "name", type: "string" }],
+      PermitWitnessTransferFrom: [
+        { name: "permitted", type: "TokenPermissions" },
+        { name: "spender", type: "address" },
+      ],
+      TokenPermissions: [
+        { name: "token", type: "address" },
+        { name: "amount", type: "uint256" },
+      ],
+    };
+    expect(derivePrimaryType(types)).toBe("PermitWitnessTransferFrom");
+  });
+
+  it("returns PermitSingle for allowance-based types", () => {
+    const types = {
+      EIP712Domain: [{ name: "name", type: "string" }],
+      PermitSingle: [
+        { name: "details", type: "PermitDetails" },
+        { name: "spender", type: "address" },
+      ],
+      PermitDetails: [
+        { name: "token", type: "address" },
+        { name: "amount", type: "uint160" },
+      ],
+    };
+    expect(derivePrimaryType(types)).toBe("PermitSingle");
+  });
+
+  it("returns the single non-EIP712Domain key", () => {
+    const types = {
+      EIP712Domain: [{ name: "name", type: "string" }],
+      SimpleType: [{ name: "value", type: "uint256" }],
+    };
+    expect(derivePrimaryType(types)).toBe("SimpleType");
+  });
+
+  it("throws when no non-EIP712Domain types exist", () => {
+    const types = {
+      EIP712Domain: [{ name: "name", type: "string" }],
+    };
+    expect(() => derivePrimaryType(types)).toThrow(
+      "No non-EIP712Domain types found in typed data",
+    );
   });
 });

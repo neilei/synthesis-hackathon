@@ -7,6 +7,7 @@
  */
 import type { IntentParse } from "../venice/schemas.js";
 import type { Delegation } from "@metamask/smart-accounts-kit";
+import { SECONDS_PER_DAY } from "@veil/common";
 import { detectAdversarialIntent } from "./compiler.js";
 
 // ---------------------------------------------------------------------------
@@ -42,7 +43,7 @@ export function generateAuditReport(
   const totalBudget = intent.dailyBudgetUsd * intent.timeWindowDays;
   const totalTrades = intent.maxTradesPerDay * intent.timeWindowDays;
   const expiryDate = new Date(
-    Date.now() + intent.timeWindowDays * 86400 * 1000,
+    Date.now() + intent.timeWindowDays * SECONDS_PER_DAY * 1000,
   );
 
   // --- ALLOWS ---

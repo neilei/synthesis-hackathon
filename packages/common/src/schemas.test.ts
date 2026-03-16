@@ -10,6 +10,7 @@ import {
   AgentLogEntrySchema,
   AgentStateResponseSchema,
   DeployResponseSchema,
+  DeployRequestSchema,
   type ParsedIntent,
   type SwapRecord,
   type AuditReport,
@@ -232,6 +233,7 @@ describe("AgentStateResponseSchema", () => {
       worstCase: "Loss",
       warnings: [],
     },
+    deployError: null,
   };
 
   it("accepts a valid agent state response", () => {
@@ -258,6 +260,20 @@ describe("AgentStateResponseSchema", () => {
 
   it("rejects missing cycle", () => {
     const { cycle: _, ...rest } = valid;
+    const result = AgentStateResponseSchema.safeParse(rest);
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts deployError as a string", () => {
+    const result = AgentStateResponseSchema.safeParse({
+      ...valid,
+      deployError: "MetaMask SDK timeout",
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects missing deployError", () => {
+    const { deployError: _, ...rest } = valid;
     const result = AgentStateResponseSchema.safeParse(rest);
     expect(result.success).toBe(false);
   });
@@ -302,5 +318,39 @@ describe("DeployResponseSchema", () => {
     const { parsed: _, ...rest } = valid;
     const result = DeployResponseSchema.safeParse(rest);
     expect(result.success).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// DeployRequestSchema
+// ---------------------------------------------------------------------------
+
+describe("DeployRequestSchema", () => {
+  it("accepts valid deploy request", () => {
+    const result = DeployRequestSchema.safeParse({ intent: "60/40 ETH/USDC" });
+    expect(result.success).toBe(true);
+  });
+
+  it("rejects missing intent", () => {
+    const result = DeployRequestSchema.safeParse({});
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects empty intent", () => {
+    const result = DeployRequestSchema.safeParse({ intent: "" });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects non-string intent", () => {
+    const result = DeployRequestSchema.safeParse({ intent: 123 });
+    expect(result.success).toBe(false);
+  });
+
+  it("returns parsed data with intent field", () => {
+    const result = DeployRequestSchema.safeParse({ intent: "80/20 ETH/USDC, $100/day" });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.intent).toBe("80/20 ETH/USDC, $100/day");
+    }
   });
 });
