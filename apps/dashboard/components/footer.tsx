@@ -13,23 +13,21 @@ const sponsors = [
 export function Footer() {
   return (
     <footer className="border-t border-border px-6 py-4">
-      <div className="mx-auto flex max-w-6xl items-center justify-between">
-        <p className="text-xs text-text-tertiary">
-          Built with
-        </p>
-        <div className="flex items-center gap-4">
-          {sponsors.map((s) => (
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-1 gap-y-1 text-xs text-text-tertiary">
+        <span>Built with</span>
+        {sponsors.map((s, i) => (
+          <span key={s.name}>
             <a
-              key={s.name}
               href={s.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-xs text-text-tertiary hover:text-text-secondary transition-colors"
+              className="text-text-tertiary hover:text-text-secondary transition-colors"
             >
               {s.name}
             </a>
-          ))}
-        </div>
+            {i < sponsors.length - 1 && <span className="mx-0.5">·</span>}
+          </span>
+        ))}
       </div>
     </footer>
   );

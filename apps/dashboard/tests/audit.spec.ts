@@ -43,10 +43,10 @@ test.describe("Audit Screen", () => {
     await page.goto("/");
     const textarea = page.getByPlaceholder(/60\/40/);
     await textarea.fill("60/40 ETH/USDC, $200/day, 7 days");
-    await page.getByRole("button", { name: /compile & deploy/i }).click();
+    await page.getByRole("button", { name: /deploy agent/i }).click();
 
     // Wait for audit screen to render
-    await expect(page.getByText("Parsed Intent")).toBeVisible({
+    await expect(page.getByText("Your Strategy")).toBeVisible({
       timeout: 5000,
     });
   });
@@ -112,7 +112,7 @@ test.describe("Audit Screen", () => {
 
   test("shows status bar with View Monitor button", async ({ page }) => {
     await expect(
-      page.getByText("Agent is now monitoring your portfolio"),
+      page.getByText("Agent deployed and monitoring your portfolio"),
     ).toBeVisible();
     await expect(
       page.getByRole("button", { name: /view monitor/i }),

@@ -26,14 +26,14 @@ test.describe("Configure Screen", () => {
   });
 
   test("deploy button disabled when textarea empty", async ({ page }) => {
-    const deployBtn = page.getByRole("button", { name: /compile & deploy/i });
+    const deployBtn = page.getByRole("button", { name: /deploy agent/i });
     await expect(deployBtn).toBeDisabled();
   });
 
   test("deploy button enabled when textarea has text", async ({ page }) => {
     const textarea = page.getByPlaceholder(/60\/40/);
     await textarea.fill("60/40 ETH/USDC");
-    const deployBtn = page.getByRole("button", { name: /compile & deploy/i });
+    const deployBtn = page.getByRole("button", { name: /deploy agent/i });
     await expect(deployBtn).toBeEnabled();
   });
 
@@ -86,11 +86,11 @@ test.describe("Configure Screen", () => {
 
     const textarea = page.getByPlaceholder(/60\/40/);
     await textarea.fill("60/40 ETH/USDC");
-    await page.getByRole("button", { name: /compile & deploy/i }).click();
+    await page.getByRole("button", { name: /deploy agent/i }).click();
 
     // Loading text should appear
     await expect(
-      page.getByText("Compiling intent via Venice AI..."),
+      page.getByText("Analyzing your strategy..."),
     ).toBeVisible();
     // Textarea should be disabled during loading
     await expect(textarea).toBeDisabled();
@@ -107,7 +107,7 @@ test.describe("Configure Screen", () => {
 
     const textarea = page.getByPlaceholder(/60\/40/);
     await textarea.fill("60/40 ETH/USDC");
-    await page.getByRole("button", { name: /compile & deploy/i }).click();
+    await page.getByRole("button", { name: /deploy agent/i }).click();
 
     // Error message should appear
     await expect(page.getByText(/failed|error|rate limit/i)).toBeVisible({
@@ -141,7 +141,7 @@ test.describe("Configure Screen", () => {
 
     // Should show loading state (proving the shortcut fired)
     await expect(
-      page.getByText("Compiling intent via Venice AI..."),
+      page.getByText("Analyzing your strategy..."),
     ).toBeVisible({ timeout: 2000 });
   });
 
@@ -170,7 +170,7 @@ test.describe("Configure Screen", () => {
     await textarea.press("Control+Enter");
 
     await expect(
-      page.getByText("Compiling intent via Venice AI..."),
+      page.getByText("Analyzing your strategy..."),
     ).toBeVisible({ timeout: 2000 });
   });
 });

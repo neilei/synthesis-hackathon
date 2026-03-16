@@ -1,9 +1,3 @@
-/**
- * Real-time portfolio monitoring. Polls agent state to display stats cards,
- * allocation comparison, AI reasoning, and transaction history.
- *
- * @module @veil/dashboard/components/monitor
- */
 "use client";
 
 import { useAgentState } from "@/hooks/use-agent-state";
@@ -11,6 +5,11 @@ import { StatsCard } from "./stats-card";
 import { SponsorBadge } from "./sponsor-badge";
 import { ErrorBanner } from "./error-banner";
 import { SkeletonCard, SkeletonTable } from "./skeleton";
+import { Card } from "./ui/card";
+import { Badge } from "./ui/badge";
+import { SectionHeading } from "./ui/section-heading";
+import { PulsingDot } from "./ui/pulsing-dot";
+import { AllocationBar } from "./allocation-bar";
 import type { AgentLogEntry, SwapRecord } from "@veil/common";
 import {
   AGENT_ADDRESS,
@@ -18,8 +17,6 @@ import {
   truncateAddress,
   formatCurrency,
   formatTimestamp,
-  getTokenBg,
-  getTokenLabel,
 } from "@veil/common";
 
 function parseBudgetMax(budgetTier: string): number | null {
@@ -63,60 +60,7 @@ interface MonitorProps {
   onNavigateConfigure: () => void;
 }
 
-function AllocationBar({
-  allocation,
-  label,
-  ghost,
-}: {
-  allocation: Record<string, number>;
-  label: string;
-  ghost?: boolean;
-}) {
-  const entries = Object.entries(allocation);
-  const total = entries.reduce((sum, [, val]) => sum + val, 0);
-
-  return (
-    <div>
-      <p className="mb-1.5 text-xs text-text-secondary">{label}</p>
-      <div
-        className={`flex h-6 w-full overflow-hidden rounded ${ghost ? "border border-dashed border-border" : ""}`}
-      >
-        {entries.map(([token, value]) => {
-          const pct = total > 0 ? (value / total) * 100 : 0;
-          if (pct <= 0) return null;
-          return (
-            <div
-              key={token}
-              className={`${getTokenBg(token)} ${ghost ? "opacity-25" : "opacity-90"} flex items-center justify-center text-[10px] font-medium text-white transition-all duration-500`}
-              style={{ width: `${pct}%` }}
-              title={`${getTokenLabel(token)}: ${pct.toFixed(1)}%`}
-            >
-              {pct >= 12 ? `${getTokenLabel(token)} ${pct.toFixed(0)}%` : ""}
-            </div>
-          );
-        })}
-      </div>
-      <div className="mt-1 flex gap-3">
-        {entries.map(([token, value]) => {
-          const pct = total > 0 ? (value / total) * 100 : 0;
-          return (
-            <span key={token} className="flex items-center gap-1 text-[10px] text-text-tertiary">
-              <span className={`inline-block h-2 w-2 rounded-sm ${getTokenBg(token)}`} />
-              {getTokenLabel(token)} {pct.toFixed(1)}%
-            </span>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 function TransactionRow({ tx }: { tx: SwapRecord }) {
-  const statusColor =
-    tx.status === "confirmed"
-      ? "bg-accent-positive-dim text-accent-positive"
-      : "bg-accent-warning-dim text-accent-warning";
-
   return (
     <tr className="border-b border-border-subtle last:border-0">
       <td className="py-2.5 pr-4">
@@ -136,11 +80,9 @@ function TransactionRow({ tx }: { tx: SwapRecord }) {
         {tx.sellAmount}
       </td>
       <td className="py-2.5 pr-4">
-        <span
-          className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${statusColor}`}
-        >
+        <Badge variant={tx.status === "confirmed" ? "positive" : "warning"}>
           {tx.status}
-        </span>
+        </Badge>
       </td>
       <td className="py-2.5 text-xs text-text-tertiary">
         {formatTimestamp(tx.timestamp)}
@@ -150,11 +92,6 @@ function TransactionRow({ tx }: { tx: SwapRecord }) {
 }
 
 function TransactionCard({ tx }: { tx: SwapRecord }) {
-  const statusColor =
-    tx.status === "confirmed"
-      ? "bg-accent-positive-dim text-accent-positive"
-      : "bg-accent-warning-dim text-accent-warning";
-
   return (
     <div className="rounded-lg border border-border-subtle bg-bg-primary p-3">
       <div className="flex items-center justify-between">
@@ -166,11 +103,9 @@ function TransactionCard({ tx }: { tx: SwapRecord }) {
         >
           {truncateHash(tx.txHash)}
         </a>
-        <span
-          className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${statusColor}`}
-        >
+        <Badge variant={tx.status === "confirmed" ? "positive" : "warning"}>
           {tx.status}
-        </span>
+        </Badge>
       </div>
       <div className="mt-2 flex items-center justify-between text-sm">
         <span className="text-text-primary">
@@ -200,16 +135,16 @@ export function Monitor({ onNavigateConfigure }: MonitorProps) {
           ))}
         </div>
         <div className="grid gap-6 lg:grid-cols-2">
-          <div className="rounded-lg border border-border bg-bg-surface p-5">
+          <Card className="p-5">
             <SkeletonTable rows={2} />
-          </div>
-          <div className="rounded-lg border border-border bg-bg-surface p-5">
+          </Card>
+          <Card className="p-5">
             <SkeletonTable rows={3} />
-          </div>
+          </Card>
         </div>
-        <div className="rounded-lg border border-border bg-bg-surface p-5">
+        <Card className="p-5">
           <SkeletonTable rows={3} />
-        </div>
+        </Card>
       </div>
     );
   }
@@ -231,15 +166,14 @@ export function Monitor({ onNavigateConfigure }: MonitorProps) {
           <div className="h-3 w-3 rounded-full bg-accent-danger" />
         </div>
         <h2 className="text-lg font-medium text-text-primary">
-          Agent not deployed
+          No agent running
         </h2>
         <p className="max-w-md text-sm text-text-secondary">
-          No agent is currently running. Configure your portfolio intent and
-          deploy the agent to start monitoring.
+          Deploy an agent from the Configure tab to start autonomous portfolio monitoring.
         </p>
         <button
           onClick={onNavigateConfigure}
-          className="mt-2 cursor-pointer rounded-lg bg-accent-positive px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-600 active:bg-emerald-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-positive focus-visible:ring-offset-2 focus-visible:ring-offset-bg-primary"
+          className="mt-2 cursor-pointer rounded-lg bg-accent-positive px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-600 active:bg-emerald-700 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive"
         >
           Go to Configure
         </button>
@@ -286,10 +220,8 @@ export function Monitor({ onNavigateConfigure }: MonitorProps) {
       {/* Middle row */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Allocation card */}
-        <div className="rounded-lg border border-border bg-bg-surface p-5">
-          <h3 className="mb-4 text-sm font-medium text-text-primary">
-            Allocation
-          </h3>
+        <Card className="p-5">
+          <SectionHeading className="mb-4">Allocation</SectionHeading>
           <div className="space-y-4">
             <AllocationBar
               allocation={data.allocation}
@@ -301,62 +233,45 @@ export function Monitor({ onNavigateConfigure }: MonitorProps) {
               ghost
             />
           </div>
-        </div>
+        </Card>
 
         {/* AI Reasoning card */}
-        <div className="flex flex-col rounded-lg border border-border bg-bg-surface p-5">
-          <h3 className="mb-4 text-sm font-medium text-text-primary">
-            AI Reasoning
-          </h3>
+        <Card className="flex flex-col p-5">
+          <SectionHeading className="mb-4">AI Reasoning</SectionHeading>
           {latestReasoning ? (
             <div className="flex flex-1 flex-col gap-3">
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-text-secondary">Decision:</span>
+              <div>
                 {latestReasoning.shouldRebalance ? (
-                  <span className="inline-flex items-center rounded-full bg-accent-positive-dim px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-accent-positive">
-                    Rebalance
-                  </span>
+                  <Badge variant="positive">Rebalance</Badge>
                 ) : (
-                  <span className="inline-flex items-center rounded-full bg-accent-danger-dim px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-accent-danger">
-                    Hold
-                  </span>
+                  <Badge variant="danger">Hold</Badge>
                 )}
               </div>
-              <div>
-                <p className="mb-1 text-xs text-text-secondary">Reasoning</p>
-                <p className="text-sm leading-relaxed text-text-primary">
-                  {latestReasoning.reasoning}
-                </p>
-              </div>
+              <p className="text-sm leading-relaxed text-text-primary">
+                {latestReasoning.reasoning}
+              </p>
               {latestReasoning.marketContext && (
-                <div>
-                  <p className="mb-1 text-xs text-text-secondary">
-                    Market Context
-                  </p>
-                  <p className="text-sm leading-relaxed text-text-secondary">
-                    {latestReasoning.marketContext}
-                  </p>
-                </div>
+                <p className="text-sm leading-relaxed text-text-tertiary">
+                  {latestReasoning.marketContext}
+                </p>
               )}
             </div>
           ) : (
             <div className="flex flex-1 items-center justify-center">
               <p className="text-sm text-text-tertiary">
-                Waiting for first analysis cycle...
+                Waiting for the agent&apos;s first decision...
               </p>
             </div>
           )}
-          <div className="mt-4 border-t border-border-subtle pt-3">
+          <div className="mt-5 border-t border-border-subtle pt-3">
             <SponsorBadge text="Powered by Venice" />
           </div>
-        </div>
+        </Card>
       </div>
 
       {/* Bottom row — Transactions */}
-      <div className="rounded-lg border border-border bg-bg-surface p-5">
-        <h3 className="mb-4 text-sm font-medium text-text-primary">
-          Transactions
-        </h3>
+      <Card className="p-5">
+        <SectionHeading className="mb-4">Transactions</SectionHeading>
         {data.transactions.length > 0 ? (
           <>
             {/* Desktop table */}
@@ -399,23 +314,20 @@ export function Monitor({ onNavigateConfigure }: MonitorProps) {
         ) : (
           <div className="flex items-center justify-center py-8">
             <p className="text-sm text-text-tertiary">
-              No trades yet — agent is monitoring for drift
+              No trades yet — watching for rebalance opportunities
             </p>
           </div>
         )}
-        <div className="mt-4 border-t border-border-subtle pt-3">
+        <div className="mt-5 border-t border-border-subtle pt-3">
           <SponsorBadge text="Trades via Uniswap" />
         </div>
-      </div>
+      </Card>
 
       {/* Status bar */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-border bg-bg-surface px-4 py-3 text-xs">
+      <Card className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 text-xs">
         {data.running ? (
           <span className="flex items-center gap-2 text-text-primary">
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent-positive opacity-75" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-accent-positive" />
-            </span>
+            <PulsingDot size="sm" />
             Cycle {data.cycle}
           </span>
         ) : (
@@ -431,7 +343,7 @@ export function Monitor({ onNavigateConfigure }: MonitorProps) {
         <span className="ml-auto hidden sm:inline-flex">
           <SponsorBadge text="Identity via ERC-8004" />
         </span>
-      </div>
+      </Card>
     </div>
   );
 }

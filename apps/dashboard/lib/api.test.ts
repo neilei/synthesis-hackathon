@@ -50,7 +50,7 @@ describe("fetchAgentState", () => {
     });
 
     await expect(fetchAgentState()).rejects.toThrow(
-      "Failed to fetch state: 502",
+      "Failed to fetch state: unable to reach the agent server",
     );
   });
 

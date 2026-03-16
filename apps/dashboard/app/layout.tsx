@@ -21,7 +21,7 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "Veil — Intent-Compiled Private DeFi Agent",
   description:
-    "Autonomous portfolio rebalancing with on-chain delegation constraints",
+    "An autonomous DeFi agent that rebalances your portfolio within safe, on-chain constraints",
 };
 
 export default function RootLayout({
