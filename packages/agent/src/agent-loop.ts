@@ -27,10 +27,12 @@ import {
 import { generateAuditReport, type AuditReport } from "./delegation/audit.js";
 import { redeemDelegation } from "./delegation/redeemer.js";
 import { getQuote, createSwap, checkApproval } from "./uniswap/trading.js";
+import { signPermit2Data } from "./uniswap/permit2.js";
 import { logAction, logStart, logStop } from "./logging/agent-log.js";
-import { getBudgetTier, getRecommendedModel } from "./logging/budget.js";
+import { getBudgetTier } from "./logging/budget.js";
 import { registerAgent, giveFeedback } from "./identity/erc8004.js";
 import { logger } from "./logging/logger.js";
+import { withRetry } from "./utils/retry.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -61,6 +63,7 @@ export interface AgentState {
   transactions: SwapRecord[];
   audit: AuditReport | null;
   agentId: bigint | null;
+  deployError: string | null;
 }
 
 // Singleton state for dashboard access
@@ -134,6 +137,7 @@ export async function runAgentLoop(config: AgentConfig): Promise<void> {
     transactions: [],
     audit: null,
     agentId: null,
+    deployError: null,
   };
 
   _currentState = state;
@@ -141,23 +145,25 @@ export async function runAgentLoop(config: AgentConfig): Promise<void> {
 
   logStart();
 
-  // Register on-chain identity (non-blocking)
-  registerAgent(`https://github.com/neilei/veil`, "base-sepolia")
-    .then(({ txHash, agentId }) => {
-      logger.info(`[erc8004] Registered on Base Sepolia: ${txHash}`);
-      if (agentId) {
-        logger.info(`[erc8004] Agent ID: ${agentId}`);
-        state.agentId = agentId;
-      }
-      logAction("erc8004_register", {
-        tool: "erc8004-identity",
-        result: { txHash, agentId: agentId?.toString() },
-      });
-    })
-    .catch((err) => {
-      const msg = err instanceof Error ? err.message : String(err);
-      logger.info(`[erc8004] Registration skipped: ${msg}`);
+  // Register on-chain identity (awaited with retry)
+  try {
+    const { txHash, agentId } = await withRetry(
+      () => registerAgent(`https://github.com/neilei/veil`, "base-sepolia"),
+      { label: "erc8004:register", maxRetries: 3 },
+    );
+    logger.info({ txHash, agentId: agentId?.toString() }, "ERC-8004 agent registered");
+    if (agentId) state.agentId = agentId;
+    logAction("erc8004_register", {
+      tool: "erc8004-identity",
+      result: { txHash, agentId: agentId?.toString() },
     });
+  } catch (err) {
+    logger.error({ err }, "ERC-8004 registration failed after retries");
+    logAction("erc8004_register_failed", {
+      tool: "erc8004-identity",
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
 
   logger.info("=== VEIL AGENT STARTING ===");
   logger.info(`Agent address: ${agentAddress}`);
@@ -215,7 +221,8 @@ export async function runAgentLoop(config: AgentConfig): Promise<void> {
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     logAction("delegation_failed", { error: msg });
-    logger.error(`Failed to create delegation: ${msg}`);
+    logger.error({ err }, "Failed to create delegation");
+    state.deployError = msg;
     logStop("delegation_failed");
     return;
   }
@@ -244,7 +251,7 @@ export async function runAgentLoop(config: AgentConfig): Promise<void> {
       await runCycle(config, state, agentAddress, chain);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      logger.error(`Cycle ${state.cycle} error: ${msg}`);
+      logger.error({ err, cycle: state.cycle }, "Cycle error");
       logAction("cycle_error", {
         parameters: { cycle: state.cycle },
         error: msg,
@@ -317,11 +324,10 @@ async function gatherMarketData(
   agentAddress: Address,
 ): Promise<MarketData> {
   const budgetTier = getBudgetTier();
-  const recommendedModel = getRecommendedModel();
   if (budgetTier !== "normal") {
-    logger.info(`Budget tier: ${budgetTier} — using model: ${recommendedModel}`);
+    logger.info({ budgetTier }, "Budget tier is not normal");
     logAction("budget_check", {
-      result: { tier: budgetTier, recommendedModel },
+      result: { tier: budgetTier },
     });
   }
 
@@ -384,7 +390,7 @@ async function gatherMarketData(
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    logger.info(`Pool data unavailable: ${msg}`);
+    logger.warn({ err }, "Pool data unavailable");
     logAction("pool_data_fetch", {
       tool: "thegraph",
       duration_ms: Date.now() - startPool,
@@ -467,29 +473,6 @@ Decide whether to rebalance. If yes, specify the swap details. Keep swap amounts
   logger.info(`Reasoning: ${decision.reasoning}`);
 
   return decision;
-}
-
-// ---------------------------------------------------------------------------
-// EIP-712 primary type derivation
-// ---------------------------------------------------------------------------
-
-/** Derive the primaryType from an EIP-712 types object by finding the
- *  top-level type that isn't referenced by any other type. */
-export function derivePrimaryType(
-  types: Record<string, Array<{ name: string; type: string }>>,
-): string {
-  const typeKeys = Object.keys(types).filter((k) => k !== "EIP712Domain");
-  const referencedTypes = new Set(
-    Object.values(types)
-      .flat()
-      .map((f) => f.type)
-      .filter((t) => typeKeys.includes(t)),
-  );
-  const primary = typeKeys.find((k) => !referencedTypes.has(k)) ?? typeKeys[0];
-  if (!primary) {
-    throw new Error("No non-EIP712Domain types found in typed data");
-  }
-  return primary;
 }
 
 // ---------------------------------------------------------------------------
@@ -625,24 +608,7 @@ async function executeSwap(
     // Sign permit data if present (only for direct tx path — smart account can't sign)
     let permitSignature: Hex | undefined;
     if (quote.permitData && !canUseDelegation) {
-      // Uniswap Trading API returns permitData as opaque JSON (Record<string, unknown>).
-      // viem's signTypedData expects narrower types (TypedDataDomain, mapped type objects).
-      // The actual runtime shapes match — Uniswap's API produces valid EIP-712 typed data —
-      // but the TypeScript types don't align because we intentionally keep the Uniswap response
-      // types generic rather than duplicating viem's internal type hierarchy.
-      const domain = quote.permitData.domain as Parameters<typeof walletClient.signTypedData>[0]["domain"];
-      const types = quote.permitData.types as Parameters<typeof walletClient.signTypedData>[0]["types"];
-      const primaryType = derivePrimaryType(
-        quote.permitData.types as Record<string, Array<{ name: string; type: string }>>,
-      );
-
-      permitSignature = await walletClient.signTypedData({
-        account: walletClient.account,
-        domain,
-        types,
-        primaryType,
-        message: quote.permitData.values as Record<string, unknown>,
-      });
+      permitSignature = await signPermit2Data(walletClient, quote.permitData);
     }
 
     const swapResponse = await createSwap(quote, permitSignature, {
@@ -670,9 +636,7 @@ async function executeSwap(
       } catch (delegationErr) {
         const delegationMsg =
           delegationErr instanceof Error ? delegationErr.message : String(delegationErr);
-        logger.info(
-          `Delegation redemption failed (${delegationMsg}), falling back to direct tx`,
-        );
+        logger.warn({ err: delegationErr }, "Delegation redemption failed, falling back to direct tx");
         logAction("delegation_redeem_failed", {
           tool: "metamask-delegation",
           error: delegationMsg,
@@ -741,22 +705,24 @@ async function executeSwap(
     );
 
     // ERC-8004: give on-chain feedback for the swap (non-blocking)
-    const feedbackAgentId = state.agentId ?? 1n;
-    giveFeedback(feedbackAgentId, 5, "swap-execution", "defi", "base-sepolia")
-      .then((fbHash) => {
-        logger.info(`[erc8004] Feedback submitted: ${fbHash}`);
-        logAction("erc8004_feedback", {
-          tool: "erc8004-reputation",
-          result: { txHash: fbHash, agentId: feedbackAgentId.toString(), rating: 5, tag: "swap-execution" },
+    if (state.agentId) {
+      giveFeedback(state.agentId, 5, "swap-execution", "defi", "base-sepolia")
+        .then((fbHash) => {
+          logger.info({ txHash: fbHash, agentId: state.agentId?.toString() }, "ERC-8004 feedback submitted");
+          logAction("erc8004_feedback", {
+            tool: "erc8004-reputation",
+            result: { txHash: fbHash, agentId: state.agentId?.toString(), rating: 5, tag: "swap-execution" },
+          });
+        })
+        .catch((fbErr) => {
+          logger.warn({ err: fbErr }, "ERC-8004 feedback failed");
         });
-      })
-      .catch((fbErr) => {
-        const fbMsg = fbErr instanceof Error ? fbErr.message : String(fbErr);
-        logger.info(`[erc8004] Feedback skipped: ${fbMsg}`);
-      });
+    } else {
+      logger.warn("Skipping ERC-8004 feedback — no agent ID registered");
+    }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    logger.error(`Swap failed: ${msg}`);
+    logger.error({ err }, "Swap failed");
     logAction("swap_failed", {
       tool: "uniswap-trading-api",
       error: msg,

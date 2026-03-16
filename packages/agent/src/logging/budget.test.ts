@@ -8,7 +8,6 @@ import {
   updateBudget,
   getBudgetState,
   getBudgetTier,
-  getRecommendedModel,
   resetBudgetState,
 } from "./budget.js";
 
@@ -78,27 +77,6 @@ describe("budget tracker", () => {
     it("returns conservation at exact 0.5 boundary", () => {
       updateBudget({ "x-venice-balance-usd": "0.5" });
       expect(getBudgetTier()).toBe("conservation");
-    });
-  });
-
-  describe("getRecommendedModel", () => {
-    it("returns auto for normal tier", () => {
-      updateBudget({ "x-venice-balance-usd": "10.0" });
-      expect(getRecommendedModel()).toBe("auto");
-    });
-
-    it("returns qwen3-4b for conservation tier", () => {
-      updateBudget({ "x-venice-balance-usd": "1.5" });
-      expect(getRecommendedModel()).toBe("qwen3-4b");
-    });
-
-    it("returns qwen3-4b for critical tier", () => {
-      updateBudget({ "x-venice-balance-usd": "0.1" });
-      expect(getRecommendedModel()).toBe("qwen3-4b");
-    });
-
-    it("returns auto when no data (defaults to normal)", () => {
-      expect(getRecommendedModel()).toBe("auto");
     });
   });
 

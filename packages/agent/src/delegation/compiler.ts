@@ -17,6 +17,7 @@ import {
   type Delegation,
   type MetaMaskSmartAccount,
 } from "@metamask/smart-accounts-kit";
+import { SECONDS_PER_DAY } from "@veil/common";
 import { reasoningLlm } from "../venice/llm.js";
 import {
   IntentParseLlmSchema,
@@ -24,6 +25,15 @@ import {
   type IntentParse,
 } from "../venice/schemas.js";
 import { CONTRACTS } from "../config.js";
+
+// ---------------------------------------------------------------------------
+// Safety thresholds for adversarial intent detection
+// ---------------------------------------------------------------------------
+
+const SAFETY_MAX_DAILY_BUDGET_USD = 1000;
+const SAFETY_MAX_TIME_WINDOW_DAYS = 30;
+const SAFETY_MAX_SLIPPAGE = 0.02;
+const CONSERVATIVE_ETH_PRICE_USD = 500;
 
 // ---------------------------------------------------------------------------
 // Adversarial intent detection
@@ -41,30 +51,30 @@ export function detectAdversarialIntent(
 ): AdversarialWarning[] {
   const warnings: AdversarialWarning[] = [];
 
-  if (intent.dailyBudgetUsd > 1000) {
+  if (intent.dailyBudgetUsd > SAFETY_MAX_DAILY_BUDGET_USD) {
     warnings.push({
       field: "dailyBudgetUsd",
       value: intent.dailyBudgetUsd,
-      threshold: 1000,
-      message: `Daily budget $${intent.dailyBudgetUsd} exceeds $1,000 safety threshold`,
+      threshold: SAFETY_MAX_DAILY_BUDGET_USD,
+      message: `Daily budget $${intent.dailyBudgetUsd} exceeds $${SAFETY_MAX_DAILY_BUDGET_USD.toLocaleString()} safety threshold`,
     });
   }
 
-  if (intent.timeWindowDays > 30) {
+  if (intent.timeWindowDays > SAFETY_MAX_TIME_WINDOW_DAYS) {
     warnings.push({
       field: "timeWindowDays",
       value: intent.timeWindowDays,
-      threshold: 30,
-      message: `Time window ${intent.timeWindowDays} days exceeds 30-day safety threshold`,
+      threshold: SAFETY_MAX_TIME_WINDOW_DAYS,
+      message: `Time window ${intent.timeWindowDays} days exceeds ${SAFETY_MAX_TIME_WINDOW_DAYS}-day safety threshold`,
     });
   }
 
-  if (intent.maxSlippage > 0.02) {
+  if (intent.maxSlippage > SAFETY_MAX_SLIPPAGE) {
     warnings.push({
       field: "maxSlippage",
       value: intent.maxSlippage,
-      threshold: 0.02,
-      message: `Max slippage ${(intent.maxSlippage * 100).toFixed(1)}% exceeds 2% safety threshold`,
+      threshold: SAFETY_MAX_SLIPPAGE,
+      message: `Max slippage ${(intent.maxSlippage * 100).toFixed(1)}% exceeds ${SAFETY_MAX_SLIPPAGE * 100}% safety threshold`,
     });
   }
 
@@ -176,7 +186,7 @@ export async function createDelegationFromIntent(
 
   // Timestamp caveat: delegation expires after timeWindowDays
   const expiryTimestamp = BigInt(
-    Math.floor(Date.now() / 1000) + intent.timeWindowDays * 86400,
+    Math.floor(Date.now() / 1000) + intent.timeWindowDays * SECONDS_PER_DAY,
   );
 
   // Limited calls caveat: max trades per day * days
@@ -202,8 +212,7 @@ export async function createDelegationFromIntent(
   // Constrain the agent to only call the Uniswap Universal Router's execute()
   // function, with a max ETH value per call enforced on-chain.
   const totalBudgetUsd = intent.dailyBudgetUsd * intent.timeWindowDays;
-  const conservativeEthPrice = 500; // low floor so delegation stays valid if ETH drops
-  const maxEth = totalBudgetUsd / conservativeEthPrice;
+  const maxEth = totalBudgetUsd / CONSERVATIVE_ETH_PRICE_USD;
   const maxValueWei = BigInt(Math.ceil(maxEth * 1e18));
 
   // Resolve Uniswap router for this chain

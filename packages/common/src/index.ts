@@ -9,18 +9,21 @@ export {
   AgentLogEntrySchema,
   AgentStateResponseSchema,
   DeployResponseSchema,
+  DeployRequestSchema,
   type ParsedIntent,
   type SwapRecord,
   type AuditReport,
   type AgentLogEntry,
   type AgentStateResponse,
   type DeployResponse,
+  type DeployRequest,
 } from "./schemas.js";
 
 export {
   AGENT_ADDRESS,
   DEFAULT_AGENT_PORT,
   API_PATHS,
+  SECONDS_PER_DAY,
 } from "./constants.js";
 
 export {

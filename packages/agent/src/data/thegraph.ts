@@ -7,8 +7,9 @@
 import { GraphQLClient } from "graphql-request";
 import { THEGRAPH_UNISWAP_V3_BASE, env } from "../config.js";
 import { getSdk } from "../../__generated__/graphql.js";
+import { withRetry } from "../utils/retry.js";
 
-export const graphClient = new GraphQLClient(THEGRAPH_UNISWAP_V3_BASE, {
+const graphClient = new GraphQLClient(THEGRAPH_UNISWAP_V3_BASE, {
   ...(env.THEGRAPH_API_KEY
     ? { headers: { Authorization: `Bearer ${env.THEGRAPH_API_KEY}` } }
     : {}),
@@ -34,10 +35,10 @@ export async function getPoolData(
   token0Symbol: string,
   token1Symbol: string,
 ): Promise<PoolData[]> {
-  const data = await sdk.GetPools({
-    token0: token0Symbol,
-    token1: token1Symbol,
-  });
+  const data = await withRetry(
+    () => sdk.GetPools({ token0: token0Symbol, token1: token1Symbol }),
+    { label: "thegraph:GetPools", maxRetries: 2 },
+  );
 
   return data.pools.map((pool) => ({
     id: pool.id,

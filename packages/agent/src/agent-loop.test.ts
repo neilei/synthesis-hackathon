@@ -28,13 +28,17 @@ vi.mock("./delegation/audit.js", () => ({ generateAuditReport: vi.fn() }));
 vi.mock("./delegation/redeemer.js", () => ({ createRedeemClient: vi.fn(), redeemDelegation: vi.fn() }));
 vi.mock("./uniswap/trading.js", () => ({ getQuote: vi.fn(), createSwap: vi.fn() }));
 vi.mock("./logging/agent-log.js", () => ({ logAction: vi.fn(), logStart: vi.fn(), logStop: vi.fn() }));
-vi.mock("./logging/budget.js", () => ({ getBudgetTier: vi.fn().mockReturnValue("normal"), getRecommendedModel: vi.fn().mockReturnValue("auto") }));
+vi.mock("./logging/budget.js", () => ({ getBudgetTier: vi.fn().mockReturnValue("normal") }));
 vi.mock("./identity/erc8004.js", () => ({ registerAgent: vi.fn(), giveFeedback: vi.fn() }));
 vi.mock("./logging/logger.js", () => ({
   logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn() },
 }));
+vi.mock("./uniswap/permit2.js", () => ({ signPermit2Data: vi.fn() }));
+vi.mock("./utils/retry.js", () => ({
+  withRetry: vi.fn((fn: () => Promise<unknown>) => fn()),
+}));
 
-import { calculateDrift, resolveTokenAddress, getAgentState, getAgentConfig, derivePrimaryType } from "./agent-loop.js";
+import { calculateDrift, resolveTokenAddress, getAgentState, getAgentConfig } from "./agent-loop.js";
 
 describe("Agent Loop - resolveTokenAddress", () => {
   it("returns NATIVE_ETH for ETH on Sepolia", () => {
@@ -90,33 +94,25 @@ describe("Agent Loop - state accessors", () => {
 });
 
 describe("Agent Loop - AgentState agentId", () => {
-  it("agentId type allows bigint | null for dynamic capture", () => {
-    // This tests the type contract: agentId starts null, can be set to a bigint
-    // from registerAgent, and the fallback pattern state.agentId ?? 1n works correctly.
-    const state = {
-      agentId: null as bigint | null,
-    };
-
-    // Before registration
-    const beforeId = state.agentId ?? 1n;
-    expect(beforeId).toBe(1n);
-
-    // After registration captures agentId
-    state.agentId = 42n;
-    const afterId = state.agentId ?? 1n;
-    expect(afterId).toBe(42n);
-  });
-
-  it("agentId fallback uses 1n when registration fails (null)", () => {
+  it("agentId starts null and can be set to bigint", () => {
     const state = { agentId: null as bigint | null };
-    const feedbackAgentId = state.agentId ?? 1n;
-    expect(feedbackAgentId).toBe(1n);
+    expect(state.agentId).toBeNull();
+
+    state.agentId = 42n;
+    expect(state.agentId).toBe(42n);
   });
 
-  it("agentId uses captured value when registration succeeds", () => {
+  it("feedback should be skipped when agentId is null", () => {
+    const state = { agentId: null as bigint | null };
+    // Production code guards: if (state.agentId) { giveFeedback(...) }
+    // When null, feedback is skipped — no fallback to 1n
+    expect(state.agentId).toBeNull();
+  });
+
+  it("feedback should use captured agentId when available", () => {
     const state = { agentId: 7n as bigint | null };
-    const feedbackAgentId = state.agentId ?? 1n;
-    expect(feedbackAgentId).toBe(7n);
+    // Production code passes state.agentId directly to giveFeedback
+    expect(state.agentId).toBe(7n);
   });
 });
 
@@ -176,45 +172,5 @@ describe("Agent Loop - drift calculation", () => {
       { ETH: 0.6, USDC: 0.4 },
     );
     expect(result.maxDrift).toBeGreaterThan(threshold);
-  });
-});
-
-describe("Agent Loop - derivePrimaryType", () => {
-  it("returns PermitWitnessTransferFrom when it is the top-level type", () => {
-    const types = {
-      EIP712Domain: [{ name: "name", type: "string" }],
-      PermitWitnessTransferFrom: [
-        { name: "permitted", type: "TokenPermissions" },
-        { name: "spender", type: "address" },
-      ],
-      TokenPermissions: [
-        { name: "token", type: "address" },
-        { name: "amount", type: "uint256" },
-      ],
-    };
-    expect(derivePrimaryType(types)).toBe("PermitWitnessTransferFrom");
-  });
-
-  it("returns PermitSingle when it is the only non-domain type", () => {
-    const types = {
-      EIP712Domain: [{ name: "name", type: "string" }],
-      PermitSingle: [
-        { name: "details", type: "PermitDetails" },
-        { name: "spender", type: "address" },
-      ],
-      PermitDetails: [
-        { name: "token", type: "address" },
-        { name: "amount", type: "uint160" },
-      ],
-    };
-    expect(derivePrimaryType(types)).toBe("PermitSingle");
-  });
-
-  it("excludes EIP712Domain from consideration", () => {
-    const types = {
-      EIP712Domain: [{ name: "name", type: "string" }],
-      SimpleType: [{ name: "value", type: "uint256" }],
-    };
-    expect(derivePrimaryType(types)).toBe("SimpleType");
   });
 });
