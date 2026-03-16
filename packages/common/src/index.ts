@@ -46,3 +46,12 @@ export {
   IDENTITY_REGISTRY_ABI_HUMAN,
   REPUTATION_REGISTRY_ABI_HUMAN,
 } from "./erc8004-abi.js";
+
+export {
+  computeMaxValueWei,
+  computeExpiryTimestamp,
+  computeMaxCalls,
+  detectAdversarialIntent,
+  generateAuditReport,
+  type AdversarialWarning,
+} from "./delegation.js";
