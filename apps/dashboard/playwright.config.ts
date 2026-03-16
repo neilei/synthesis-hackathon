@@ -42,7 +42,7 @@ export default defineConfig({
       : []),
   ],
   webServer: {
-    command: `pnpm dev --port ${dashPort}`,
+    command: `npx next dev --webpack --port ${dashPort}`,
     url: `http://localhost:${dashPort}`,
     reuseExistingServer: !isCI,
   },

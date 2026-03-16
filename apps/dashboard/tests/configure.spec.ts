@@ -117,7 +117,7 @@ test.describe("Configure Screen", () => {
     await expect(page.getByText("ETH 60%")).toBeVisible();
     await expect(page.getByText("USDC 40%")).toBeVisible();
     await expect(page.getByText("$200", { exact: true })).toBeVisible();
-    await expect(page.getByText("7 days")).toBeVisible();
+    await expect(page.getByText("7 days", { exact: true })).toBeVisible();
   });
 
   test("shows audit report after parsing", async ({ page }) => {

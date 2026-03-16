@@ -62,10 +62,10 @@ test.describe("Audit Report (via Configure Preview)", () => {
     await expect(page.getByText("Daily Budget")).toBeVisible();
     await expect(page.getByText("$200", { exact: true })).toBeVisible();
     await expect(page.getByText("Time Window")).toBeVisible();
-    await expect(page.getByText("7 days")).toBeVisible();
+    await expect(page.getByText("7 days", { exact: true })).toBeVisible();
     await expect(page.getByText("Max Slippage")).toBeVisible();
     await expect(page.getByText("0.5%")).toBeVisible();
-    await expect(page.getByText("Drift Threshold")).toBeVisible();
+    await expect(page.getByText("Drift Threshold", { exact: true })).toBeVisible();
     await expect(page.getByText("5.0%")).toBeVisible();
     await expect(page.getByText("Max Trades/Day")).toBeVisible();
     await expect(page.getByText("10")).toBeVisible();
