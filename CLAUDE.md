@@ -8,7 +8,7 @@ An autonomous DeFi agent for the Synthesis Hackathon (deadline: 2026-03-22). The
 2. Compiles it into an ERC-7715 delegation with on-chain caveats the agent cannot violate
 3. Privately reasons about when to rebalance (Venice AI, no data retention)
 4. Executes trades on Uniswap via ERC-7710 delegation redemption
-5. Logs every decision to agent_log.jsonl and ERC-8004 reputation registry
+5. Logs every decision to per-intent JSONL logs and ERC-8004 reputation registry
 
 ## Project Structure (Monorepo)
 
@@ -67,6 +67,11 @@ Root `package.json` uses pnpm workspaces. Run everything from root:
 - **The Graph**: Uses official Uniswap V3 Ethereum mainnet subgraph (ID: `5zvR82QoaXYFyDEKLZ9t6v9adgnptxYpKpSbxtgVENFV`). Types generated via graphql-codegen.
 - **Delegation flow**: ERC-7715 creates scoped permission (human approves once), ERC-7710 redeems server-side (no browser needed). Falls back to direct tx if delegation fails. Must pass `valueLte: { maxValue }` in `functionCall` scope — SDK defaults to `maxValue: 0n` if omitted, blocking all ETH-value calls.
 - **Agent identity**: ERC-8004 NFT on Base, reputation feedback uses dynamic agentId from registration
+- **Intent persistence**: SQLite via drizzle-orm + better-sqlite3. DB at `data/veil.db` (WAL mode). Schema: intents, swaps, auth_nonces tables. Repository pattern in `packages/agent/src/db/`.
+- **Multi-wallet agent**: WorkerPool manages concurrent AgentWorker instances (max 5). Each intent gets its own worker. Active intents resume on server restart with staggered 2-3s delays.
+- **Wallet-scoped API**: Nonce-signing auth flow: `GET /api/auth/nonce?wallet=` → sign message → `POST /api/auth/verify` → HMAC bearer token. All intent CRUD endpoints require auth. No `/api/deploy` endpoint — replaced by `POST /api/intents`.
+- **Dashboard wagmi integration**: wagmi v2 + custom ConnectWallet component (no RainbowKit). Wallet connection required for intent management. ERC-7715 delegation signing mocked browser-side; ERC-7710 redemption is real server-side.
+- **Per-intent logging**: Each intent gets `data/logs/{intentId}.jsonl`. Downloadable via `GET /api/intents/:id/logs`.
 
 ## Design Context
 

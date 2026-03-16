@@ -95,7 +95,7 @@ MemoryMax=1G
 # Security hardening
 NoNewPrivileges=true
 ProtectSystem=strict
-ReadWritePaths=${APP_DIR}
+ReadWritePaths=${APP_DIR} ${APP_DIR}/data
 PrivateTmp=true
 
 [Install]
@@ -105,7 +105,11 @@ UNITEOF
   ssh_run "sudo systemctl daemon-reload"
   ssh_run "sudo systemctl enable ${SERVICE_NAME}"
 
-  # 4. Open firewall port if ufw is active
+  # 4. Create data directories for SQLite and per-intent logs
+  log "Creating data directories..."
+  ssh_run "mkdir -p ${APP_DIR}/data/logs"
+
+  # 5. Open firewall port if ufw is active
   ssh_run "which ufw >/dev/null 2>&1 && sudo ufw allow ${PORT}/tcp || true"
 
   log "Setup complete."
@@ -134,6 +138,10 @@ cmd_deploy() {
     log "Cloning repository..."
     ssh_run "git clone ${REPO_URL} ${APP_DIR}"
   fi
+
+  # Ensure data directory exists (SQLite DB + per-intent JSONL logs)
+  log "Creating data directories..."
+  ssh_run "mkdir -p ${APP_DIR}/data/logs"
 
   # Install dependencies
   log "Installing dependencies..."
