@@ -15,28 +15,18 @@ import {
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { baseSepolia, base } from "viem/chains";
+import {
+  IDENTITY_REGISTRY_ABI_HUMAN,
+  REPUTATION_REGISTRY_ABI_HUMAN,
+} from "@veil/common";
 import { env, CONTRACTS } from "../config.js";
 
 // ---------------------------------------------------------------------------
-// ABI fragments for ERC-8004 registries
+// ABI fragments for ERC-8004 registries (sourced from @veil/common)
 // ---------------------------------------------------------------------------
 
-const identityRegistryAbi = parseAbi([
-  "function register(string agentURI) external returns (uint256 agentId)",
-  "function register() external returns (uint256 agentId)",
-  "function setAgentURI(uint256 agentId, string calldata newURI) external",
-  "function getMetadata(uint256 agentId, string memory metadataKey) external view returns (bytes memory)",
-  "function setMetadata(uint256 agentId, string memory metadataKey, bytes memory metadataValue) external",
-]);
-
-const reputationRegistryAbi = parseAbi([
-  "function giveFeedback(uint256 agentId, int128 value, uint8 valueDecimals, string calldata tag1, string calldata tag2, string calldata endpoint, string calldata feedbackURI, bytes32 feedbackHash) external",
-  "function revokeFeedback(uint256 agentId, uint64 feedbackIndex) external",
-  "function getSummary(uint256 agentId, address[] calldata clientAddresses, string tag1, string tag2) external view returns (uint64 count, int128 summaryValue, uint8 summaryValueDecimals)",
-  "function readFeedback(uint256 agentId, address clientAddress, uint64 feedbackIndex) external view returns (int128 value, uint8 valueDecimals, string tag1, string tag2, bool isRevoked)",
-  "function getClients(uint256 agentId) external view returns (address[] memory)",
-  "function getLastIndex(uint256 agentId, address clientAddress) external view returns (uint64)",
-]);
+const identityRegistryAbi = parseAbi(IDENTITY_REGISTRY_ABI_HUMAN);
+const reputationRegistryAbi = parseAbi(REPUTATION_REGISTRY_ABI_HUMAN);
 
 // ---------------------------------------------------------------------------
 // Client helpers

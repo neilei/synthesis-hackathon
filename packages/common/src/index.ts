@@ -41,3 +41,8 @@ export {
   getTokenLabel,
   type TokenMeta,
 } from "./tokens.js";
+
+export {
+  IDENTITY_REGISTRY_ABI_HUMAN,
+  REPUTATION_REGISTRY_ABI_HUMAN,
+} from "./erc8004-abi.js";
