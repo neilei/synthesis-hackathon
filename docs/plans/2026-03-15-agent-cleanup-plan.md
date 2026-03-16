@@ -302,6 +302,95 @@ Constants stay co-located with usage in each module, except `SECONDS_PER_DAY` wh
 
 ---
 
+## Phase 6: Resilience & Observability
+
+### Step 16: Preserve stack traces in pino error logging
+
+**Why:** Every catch block does `err instanceof Error ? err.message : String(err)`, discarding stack traces. Pino natively serializes full Error objects (message + stack + custom props) when passed as `{ err }`. Since we're already migrating to pino in Step 4, this is a matter of using the right calling convention.
+
+**Actions:**
+1. In every catch block across `agent-loop.ts`, `server.ts`, `delegation/redeemer.ts`: replace `logger.error({ error: msg }, "...")` with `logger.error({ err }, "...")`
+2. Remove the `const msg = err instanceof Error ? err.message : String(err)` pattern — pass the raw error to pino
+3. Where the error message is also used in a return value (e.g., `state.deployError = msg`), keep `msg` extraction for that purpose but still log the full error: `logger.error({ err }, "..."); state.deployError = err instanceof Error ? err.message : String(err);`
+4. Update `logAction()` calls that pass `error: msg` to pass `error: err instanceof Error ? err.message : String(err)` (agent_log.jsonl is a string-based format, so keep message-only there)
+
+**Files changed:** `agent-loop.ts`, `server.ts`, `delegation/redeemer.ts`
+
+---
+
+### Step 17: Add retry wrapper for Uniswap and Graph APIs
+
+**Why:** Uniswap `fetch` and `graphql-request` have zero built-in retry. A single 429 or network timeout aborts the entire swap. LangChain and viem already have retry built in, so only the unprotected APIs need a wrapper.
+
+**Actions:**
+1. Create `packages/agent/src/utils/retry.ts` — a single generic retry utility:
+   ```typescript
+   export async function withRetry<T>(
+     fn: () => Promise<T>,
+     opts?: { maxRetries?: number; baseDelayMs?: number; label?: string },
+   ): Promise<T>
+   ```
+   - Exponential backoff: `baseDelay * 2^attempt` (default: 3 retries, 500ms base = 500ms, 1s, 2s)
+   - Only retry on retryable errors (network errors, 429, 500-503). Throw immediately on 400, 401, 403.
+   - Log retries via pino logger
+2. Wrap `uniswapFetch` in `trading.ts` with `withRetry`:
+   ```typescript
+   const json = await withRetry(
+     () => fetch(...).then(res => { if (!res.ok) throw ...; return res.json(); }),
+     { label: `uniswap:${endpoint}` },
+   );
+   ```
+3. Wrap `getPoolData` in `thegraph.ts`:
+   ```typescript
+   const data = await withRetry(
+     () => sdk.GetPools({ ... }),
+     { label: "thegraph:GetPools", maxRetries: 2 },
+   );
+   ```
+4. Do NOT wrap LangChain calls (already has `maxRetries`) or viem calls (already has `retryCount: 3` by default)
+5. Add unit tests for `withRetry` (success, failure after retries, non-retryable error skips retry)
+
+**Files changed:** `utils/retry.ts` (new), `uniswap/trading.ts`, `data/thegraph.ts`, `utils/retry.test.ts` (new)
+
+---
+
+### Step 18: Fix ERC-8004 registration — await with retry, no fallback ID
+
+**Why:** `registerAgent()` is fire-and-forget with `.catch()`. If it fails, `state.agentId` stays `null`, and all `giveFeedback()` calls fall back to `feedbackAgentId = state.agentId ?? 1n` — attributing reputation feedback to the **wrong agent** (whoever owns ID 1 on the registry). This corrupts on-chain reputation data.
+
+**Actions:**
+1. In `agent-loop.ts` `runAgentLoop()`, replace the fire-and-forget `.then()/.catch()` pattern (lines 143-159) with `await` + retry:
+   ```typescript
+   try {
+     const { txHash, agentId } = await withRetry(
+       () => registerAgent("https://github.com/neilei/veil", "base-sepolia"),
+       { label: "erc8004:register", maxRetries: 3 },
+     );
+     logger.info({ txHash, agentId }, "ERC-8004 agent registered");
+     if (agentId) state.agentId = agentId;
+     logAction("erc8004_register", { ... });
+   } catch (err) {
+     logger.error({ err }, "ERC-8004 registration failed after retries");
+     logAction("erc8004_register_failed", { error: ... });
+     // Continue without agentId — but don't submit feedback with wrong ID
+   }
+   ```
+2. Same fix in `server.ts` `startup()` (lines 289-304) — await with retry instead of fire-and-forget
+3. In `agent-loop.ts` line 742, change `giveFeedback` to **skip feedback entirely** if `state.agentId` is null:
+   ```typescript
+   if (state.agentId) {
+     giveFeedback(state.agentId, 5, "swap-execution", "defi", "base-sepolia")
+       .then(...).catch(...);
+   } else {
+     logger.warn("Skipping ERC-8004 feedback — no agent ID registered");
+   }
+   ```
+4. Add test verifying feedback is skipped when agentId is null
+
+**Files changed:** `agent-loop.ts`, `server.ts`, `agent-loop.test.ts`, `server.test.ts`
+
+---
+
 ## Execution Order & Dependencies
 
 ```
@@ -326,21 +415,24 @@ Phase 4 (after Phase 3):
 Phase 5 (independent, lowest priority):
   Step 14
   Step 15
+
+Phase 6 (after Step 4 for logger, after Step 10 for retry wrapper):
+  Step 16 (after Step 4)
+  Step 17 (independent)
+  Step 18 (after Step 17 for withRetry)
 ```
 
 ---
 
 ## Out of Scope (explicitly not doing)
 
-- **Retry/backoff logic:** Not needed for demo. Agent handles errors per-cycle.
 - **Circuit breaker patterns:** Over-engineering for hackathon timeline.
 - **Custom error types:** (`SwapFailedError`, `VeniceTimeoutError`, etc.) — would be nice but not worth the churn.
-- **Structured error context / stack trace preservation:** Current `err instanceof Error ? err.message : String(err)` pattern works for logging.
-- **Rate limit handling:** Uniswap 429 responses are unlikely in demo usage.
 - **The Graph response validation:** Generated SDK provides types; runtime validation is over-engineering.
-- **ERC-8004 registration retry:** Non-critical, fire-and-forget is acceptable.
 - **Price fetch stale-price fallback:** Cycle just retries next interval.
 - **Adding pino to devDependencies / test infrastructure:** Tests mock the logger.
+- **Retry for LangChain/viem:** Already have built-in retry with backoff.
+- **Multi-endpoint RPC fallback:** Overkill for demo with a single testnet.
 
 ---
 
