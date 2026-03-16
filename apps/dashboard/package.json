@@ -14,11 +14,14 @@
     "test:integration": "INTEGRATION=1 playwright test --project integration"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.90.21",
     "@veil/common": "workspace:*",
     "next": "16.1.6",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "recharts": "^2.15.0"
+    "recharts": "^2.15.0",
+    "viem": "^2.47.4",
+    "wagmi": "^3.5.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2",
