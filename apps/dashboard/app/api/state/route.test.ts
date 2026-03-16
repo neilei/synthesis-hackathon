@@ -69,7 +69,7 @@ describe("GET /api/state", () => {
 
     expect(response.status).toBe(502);
     const data = await response.json();
-    expect(data.error).toBe("Agent server unreachable");
+    expect(data.error).toBe("Could not connect to the agent server. Make sure it's running.");
   });
 
   it("returns 502 when agent server returns invalid JSON", async () => {

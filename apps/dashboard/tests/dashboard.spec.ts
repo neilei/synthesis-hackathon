@@ -52,7 +52,7 @@ test.describe("Dashboard Navigation", () => {
     await expect(page.getByRole("heading", { name: "VEIL" })).toBeVisible();
     await expect(page.getByPlaceholder(/60\/40/)).toBeVisible();
     await expect(
-      page.getByRole("button", { name: /compile & deploy/i }),
+      page.getByRole("button", { name: /deploy agent/i }),
     ).toBeVisible();
 
     // Tabs still accessible

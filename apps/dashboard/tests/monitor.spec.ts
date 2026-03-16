@@ -70,8 +70,8 @@ async function navigateToMonitor(page: import("@playwright/test").Page) {
   await page.goto("/");
   const textarea = page.getByPlaceholder(/60\/40/);
   await textarea.fill("60/40 ETH/USDC");
-  await page.getByRole("button", { name: /compile & deploy/i }).click();
-  await expect(page.getByText("Parsed Intent")).toBeVisible({ timeout: 5000 });
+  await page.getByRole("button", { name: /deploy agent/i }).click();
+  await expect(page.getByText("Your Strategy")).toBeVisible({ timeout: 5000 });
   await page.getByRole("button", { name: /view monitor/i }).click();
   await expect(page.getByText("Portfolio Value")).toBeVisible({
     timeout: 5000,
@@ -131,7 +131,7 @@ test.describe("Monitor Screen", () => {
     await navigateToMonitor(page);
 
     await expect(
-      page.getByText("No trades yet — agent is monitoring for drift"),
+      page.getByText("No trades yet — watching for rebalance opportunities"),
     ).toBeVisible();
   });
 
@@ -185,15 +185,15 @@ test.describe("Monitor Screen", () => {
       return route.fulfill({
         status: 502,
         contentType: "application/json",
-        body: JSON.stringify({ error: "Agent server unreachable" }),
+        body: JSON.stringify({ error: "Could not connect to the agent server. Make sure it's running." }),
       });
     });
 
     await page.goto("/");
     const textarea = page.getByPlaceholder(/60\/40/);
     await textarea.fill("60/40 ETH/USDC");
-    await page.getByRole("button", { name: /compile & deploy/i }).click();
-    await expect(page.getByText("Parsed Intent")).toBeVisible({ timeout: 5000 });
+    await page.getByRole("button", { name: /deploy agent/i }).click();
+    await expect(page.getByText("Your Strategy")).toBeVisible({ timeout: 5000 });
     await page.getByRole("button", { name: /view monitor/i }).click();
 
     // Initial data shows fine
@@ -255,8 +255,8 @@ test.describe("Monitor Screen", () => {
     await page.goto("/");
     const textarea = page.getByPlaceholder(/60\/40/);
     await textarea.fill("60/40 ETH/USDC");
-    await page.getByRole("button", { name: /compile & deploy/i }).click();
-    await expect(page.getByText("Parsed Intent")).toBeVisible({
+    await page.getByRole("button", { name: /deploy agent/i }).click();
+    await expect(page.getByText("Your Strategy")).toBeVisible({
       timeout: 5000,
     });
 

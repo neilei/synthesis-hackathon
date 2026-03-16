@@ -7,7 +7,7 @@ import type { AgentStateResponse, DeployResponse } from "@veil/common";
 
 export async function fetchAgentState(): Promise<AgentStateResponse> {
   const res = await fetch("/api/state");
-  if (!res.ok) throw new Error(`Failed to fetch state: ${res.status}`);
+  if (!res.ok) throw new Error("Failed to fetch state: unable to reach the agent server");
   return res.json();
 }
 

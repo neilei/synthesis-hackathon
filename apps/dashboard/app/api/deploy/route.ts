@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     return Response.json(data, { status: res.status });
   } catch {
     return Response.json(
-      { error: "Agent server unreachable" },
+      { error: "Could not connect to the agent server. Make sure it's running." },
       { status: 502 },
     );
   }

@@ -8,6 +8,8 @@
 
 import { useState, useCallback } from "react";
 import { useDeploy } from "@/hooks/use-deploy";
+import { Card } from "./ui/card";
+import { Spinner } from "./ui/icons";
 import type { DeployResponse } from "@veil/common";
 
 interface ConfigureProps {
@@ -55,12 +57,12 @@ export function Configure({ onSuccess }: ConfigureProps) {
             VEIL
           </h1>
           <p className="mt-3 text-sm uppercase tracking-widest text-text-secondary">
-            Intent-Compiled Private DeFi Agent
+            Describe your portfolio. The agent handles the rest.
           </p>
         </div>
 
         {/* Card */}
-        <div className="rounded-lg border border-border bg-bg-surface p-6">
+        <Card className="p-5">
           {/* Textarea */}
           <textarea
             value={intent}
@@ -80,29 +82,11 @@ export function Configure({ onSuccess }: ConfigureProps) {
           >
             {loading ? (
               <>
-                <svg
-                  className="mr-2 h-4 w-4 animate-spin"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                >
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="3"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                  />
-                </svg>
-                Compiling intent via Venice AI...
+                <Spinner className="mr-2 h-4 w-4 animate-spin" />
+                Analyzing your strategy...
               </>
             ) : (
-              "Compile & Deploy"
+              "Deploy Agent"
             )}
           </button>
 
@@ -110,7 +94,7 @@ export function Configure({ onSuccess }: ConfigureProps) {
           {error && (
             <p className="mt-3 text-sm text-accent-danger">{error}</p>
           )}
-        </div>
+        </Card>
 
         {/* Preset pills */}
         <div className="mt-6 flex flex-wrap items-center justify-center gap-2">

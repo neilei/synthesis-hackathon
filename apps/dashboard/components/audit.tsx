@@ -1,110 +1,32 @@
-/**
- * Delegation audit display. Shows parsed intent, allocation breakdown,
- * what the delegation allows and prevents, worst-case analysis, and safety warnings.
- *
- * @module @veil/dashboard/components/audit
- */
 "use client";
 
 import { SponsorBadge } from "./sponsor-badge";
+import { Card } from "./ui/card";
+import { SectionHeading } from "./ui/section-heading";
+import { AuditListItem } from "./ui/audit-list-item";
+import { WarningIcon } from "./ui/icons";
+import { PulsingDot } from "./ui/pulsing-dot";
+import { AllocationBar } from "./allocation-bar";
 import type { DeployResponse } from "@veil/common";
-import { getTokenBg, getTokenLabelColor } from "@veil/common";
 
 interface AuditProps {
   data: DeployResponse;
   onViewMonitor: () => void;
 }
 
-function CheckIcon() {
-  return (
-    <svg
-      className="h-4 w-4 shrink-0 text-accent-positive"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M3.5 8.5 6.5 11.5 12.5 4.5" />
-    </svg>
-  );
-}
-
-function XIcon() {
-  return (
-    <svg
-      className="h-4 w-4 shrink-0 text-accent-danger"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M4 4 12 12M12 4 4 12" />
-    </svg>
-  );
-}
-
-function WarningIcon() {
-  return (
-    <svg
-      className="h-4 w-4 shrink-0 text-accent-warning"
-      viewBox="0 0 16 16"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M8 2 1.5 13.5h13L8 2Z" />
-      <path d="M8 6.5v3" />
-      <circle cx="8" cy="11.5" r="0.5" fill="currentColor" />
-    </svg>
-  );
-}
-
 export function Audit({ data, onViewMonitor }: AuditProps) {
   const { parsed, audit } = data;
-  const allocationEntries = Object.entries(parsed.targetAllocation);
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-6">
       {/* Two-column grid on desktop, stacked on mobile */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        {/* LEFT COLUMN — Parsed Intent */}
-        <div className="rounded-lg border border-border bg-bg-surface p-6">
-          <h2 className="text-sm font-medium uppercase tracking-wider text-text-secondary">
-            Parsed Intent
-          </h2>
+        {/* LEFT COLUMN — Your Strategy */}
+        <Card className="p-5">
+          <SectionHeading>Your Strategy</SectionHeading>
 
-          {/* Allocation bar */}
           <div className="mt-5">
-            <div className="flex h-8 w-full overflow-hidden rounded">
-              {allocationEntries.map(([token, pct]) => (
-                <div
-                  key={token}
-                  className={`${getTokenBg(token)} flex items-center justify-center text-xs font-semibold text-white transition-all`}
-                  style={{ width: `${(pct * 100).toFixed(0)}%` }}
-                  title={`${token} ${(pct * 100).toFixed(0)}%`}
-                >
-                  {pct >= 0.12 ? `${token} ${(pct * 100).toFixed(0)}%` : ""}
-                </div>
-              ))}
-            </div>
-            {/* Labels below the bar for narrow segments */}
-            <div className="mt-2 flex gap-4">
-              {allocationEntries.map(([token, pct]) => (
-                <div key={token} className="flex items-center gap-1.5 text-xs">
-                  <span
-                    className={`inline-block h-2.5 w-2.5 rounded-sm ${getTokenBg(token)}`}
-                  />
-                  <span className={getTokenLabelColor(token)}>{token}</span>
-                  <span className="font-mono text-text-secondary">{(pct * 100).toFixed(0)}%</span>
-                </div>
-              ))}
-            </div>
+            <AllocationBar allocation={parsed.targetAllocation} size="lg" />
           </div>
 
           {/* Key-value grid */}
@@ -141,65 +63,52 @@ export function Audit({ data, onViewMonitor }: AuditProps) {
             </div>
           </div>
 
-          <div className="mt-6 border-t border-border-subtle pt-3">
+          <div className="mt-5 border-t border-border-subtle pt-3">
             <SponsorBadge text="Powered by Venice" />
           </div>
-        </div>
+        </Card>
 
         {/* RIGHT COLUMN — Delegation Report */}
-        <div className="rounded-lg border border-border bg-bg-surface p-6">
-          <h2 className="text-sm font-medium uppercase tracking-wider text-text-secondary">
-            Delegation Report
-          </h2>
+        <Card className="p-5">
+          <SectionHeading>Delegation Report</SectionHeading>
 
           {audit ? (
             <div className="mt-5 space-y-5">
-              {/* ALLOWS */}
               {audit.allows.length > 0 && (
                 <div>
-                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-accent-positive">
+                  <SectionHeading size="xs" className="mb-2 text-accent-positive">
                     Allows
-                  </h3>
+                  </SectionHeading>
                   <ul className="space-y-2">
                     {audit.allows.map((item, i) => (
-                      <li
-                        key={i}
-                        className="flex items-start gap-2 rounded bg-accent-positive-dim px-3 py-2 text-sm text-text-primary"
-                      >
-                        <CheckIcon />
-                        <span>{item}</span>
-                      </li>
+                      <AuditListItem key={i} variant="allows">
+                        {item}
+                      </AuditListItem>
                     ))}
                   </ul>
                 </div>
               )}
 
-              {/* PREVENTS */}
               {audit.prevents.length > 0 && (
                 <div>
-                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-accent-danger">
+                  <SectionHeading size="xs" className="mb-2 text-accent-danger">
                     Prevents
-                  </h3>
+                  </SectionHeading>
                   <ul className="space-y-2">
                     {audit.prevents.map((item, i) => (
-                      <li
-                        key={i}
-                        className="flex items-start gap-2 rounded bg-accent-danger-dim px-3 py-2 text-sm text-text-primary"
-                      >
-                        <XIcon />
-                        <span>{item}</span>
-                      </li>
+                      <AuditListItem key={i} variant="prevents">
+                        {item}
+                      </AuditListItem>
                     ))}
                   </ul>
                 </div>
               )}
 
-              {/* WORST CASE */}
               {audit.worstCase && (
                 <div>
-                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-accent-warning">
+                  <SectionHeading size="xs" className="mb-2 text-accent-warning">
                     Worst Case
-                  </h3>
+                  </SectionHeading>
                   <div className="flex items-start gap-2 rounded bg-accent-warning-dim px-3 py-2 text-sm text-text-primary">
                     <WarningIcon />
                     <span>{audit.worstCase}</span>
@@ -207,21 +116,16 @@ export function Audit({ data, onViewMonitor }: AuditProps) {
                 </div>
               )}
 
-              {/* WARNINGS */}
               {audit.warnings.length > 0 && (
                 <div>
-                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-accent-warning">
+                  <SectionHeading size="xs" className="mb-2 text-accent-warning">
                     Warnings
-                  </h3>
+                  </SectionHeading>
                   <ul className="space-y-2">
                     {audit.warnings.map((item, i) => (
-                      <li
-                        key={i}
-                        className="flex items-start gap-2 rounded bg-accent-warning-dim px-3 py-2 text-sm text-text-primary"
-                      >
-                        <WarningIcon />
-                        <span>{item}</span>
-                      </li>
+                      <AuditListItem key={i} variant="warning">
+                        {item}
+                      </AuditListItem>
                     ))}
                   </ul>
                 </div>
@@ -229,25 +133,22 @@ export function Audit({ data, onViewMonitor }: AuditProps) {
             </div>
           ) : (
             <p className="mt-5 text-sm text-text-secondary">
-              No delegation audit available.
+              No delegation audit available for this strategy. Try adjusting your intent.
             </p>
           )}
 
-          <div className="mt-6 border-t border-border-subtle pt-3">
+          <div className="mt-5 border-t border-border-subtle pt-3">
             <SponsorBadge text="Enforced by MetaMask Delegation" />
           </div>
-        </div>
+        </Card>
       </div>
 
       {/* BOTTOM — Status message + View Monitor button */}
-      <div className="flex flex-col items-center justify-between gap-4 rounded-lg border border-border bg-bg-surface px-6 py-4 sm:flex-row">
+      <Card className="flex flex-col items-center justify-between gap-4 px-5 py-4 sm:flex-row">
         <div className="flex items-center gap-2">
-          <span className="relative flex h-2.5 w-2.5">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent-positive opacity-75" />
-            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-accent-positive" />
-          </span>
+          <PulsingDot />
           <span className="text-sm text-text-secondary">
-            Agent is now monitoring your portfolio...
+            Agent deployed and monitoring your portfolio
           </span>
         </div>
         <button
@@ -257,7 +158,7 @@ export function Audit({ data, onViewMonitor }: AuditProps) {
         >
           View Monitor
         </button>
-      </div>
+      </Card>
     </div>
   );
 }
