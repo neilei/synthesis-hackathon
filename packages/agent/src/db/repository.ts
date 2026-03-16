@@ -1,4 +1,4 @@
-import { eq, and, gt, lt } from "drizzle-orm";
+import { eq, and, gt, lte } from "drizzle-orm";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import * as schema from "./schema.js";
 import { intents, swaps, nonces } from "./schema.js";
@@ -70,7 +70,7 @@ export class IntentRepository {
     const result = this.db
       .update(intents)
       .set({ status: "expired" })
-      .where(and(eq(intents.status, "active"), lt(intents.expiresAt, now)))
+      .where(and(eq(intents.status, "active"), lte(intents.expiresAt, now)))
       .run();
     return result.changes;
   }

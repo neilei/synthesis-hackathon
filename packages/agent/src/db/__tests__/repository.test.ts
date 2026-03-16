@@ -220,6 +220,17 @@ describe("IntentRepository", () => {
       expect(count).toBe(0);
       expect(repo.getIntent("test-intent-1")!.status).toBe("active");
     });
+
+    it("marks intent expiring at exactly now as expired", () => {
+      repo.createIntent({
+        ...SAMPLE_INTENT,
+        id: "exact-boundary",
+        expiresAt: NOW,
+      });
+      const count = repo.markExpiredIntents();
+      expect(count).toBe(1);
+      expect(repo.getIntent("exact-boundary")!.status).toBe("expired");
+    });
   });
 
   describe("swaps", () => {
@@ -243,6 +254,20 @@ describe("IntentRepository", () => {
     it("returns empty array for intent with no swaps", () => {
       repo.createIntent(SAMPLE_INTENT);
       expect(repo.getSwapsByIntent("test-intent-1")).toEqual([]);
+    });
+
+    it("rejects swap with invalid intent id (FK constraint)", () => {
+      expect(() =>
+        repo.insertSwap({
+          intentId: "nonexistent",
+          txHash: "0xbad",
+          sellToken: "ETH",
+          buyToken: "USDC",
+          sellAmount: "0.1",
+          status: "confirmed",
+          timestamp: new Date().toISOString(),
+        }),
+      ).toThrow();
     });
 
     it("only returns swaps for the requested intent", () => {
