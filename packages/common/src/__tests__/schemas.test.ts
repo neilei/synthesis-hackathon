@@ -183,6 +183,23 @@ describe("AgentLogEntrySchema", () => {
     expect(result.success).toBe(false);
   });
 
+  it("accepts an entry with a cycle field", () => {
+    const withCycle = { ...minimal, cycle: 3 };
+    const result = AgentLogEntrySchema.safeParse(withCycle);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.cycle).toBe(3);
+    }
+  });
+
+  it("accepts an entry without a cycle field", () => {
+    const result = AgentLogEntrySchema.safeParse(minimal);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.cycle).toBeUndefined();
+    }
+  });
+
   it("does NOT have a success field", () => {
     const withSuccess = { ...minimal, success: true };
     const result = AgentLogEntrySchema.safeParse(withSuccess);

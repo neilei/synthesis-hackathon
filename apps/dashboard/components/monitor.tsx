@@ -3,6 +3,7 @@
 import { useAgentState } from "@/hooks/use-agent-state";
 import { StatsCard } from "./stats-card";
 import { SponsorBadge } from "./sponsor-badge";
+import { ActivityFeed } from "./activity-feed";
 import { ErrorBanner } from "./error-banner";
 import { SkeletonCard, SkeletonTable } from "./skeleton";
 import { Card } from "./ui/card";
@@ -10,7 +11,7 @@ import { Badge } from "./ui/badge";
 import { SectionHeading } from "./ui/section-heading";
 import { PulsingDot } from "./ui/pulsing-dot";
 import { AllocationBar } from "./allocation-bar";
-import type { AgentLogEntry, SwapRecord } from "@veil/common";
+import type { SwapRecord } from "@veil/common";
 import {
   AGENT_ADDRESS,
   truncateHash,
@@ -23,37 +24,6 @@ function parseBudgetMax(budgetTier: string): number | null {
   const match = budgetTier.match(/\$?([\d,]+(?:\.\d+)?)/);
   if (!match) return null;
   return parseFloat(match[1].replace(/,/g, ""));
-}
-
-interface RebalanceResult {
-  shouldRebalance: boolean;
-  reasoning: string;
-  marketContext: string;
-}
-
-function findLatestRebalanceEntry(
-  feed: AgentLogEntry[]
-): RebalanceResult | null {
-  for (let i = feed.length - 1; i >= 0; i--) {
-    const entry = feed[i];
-    if (entry.action.toLowerCase().includes("rebalance") && entry.result) {
-      const result = entry.result as Record<string, unknown>;
-      if (
-        typeof result.shouldRebalance === "boolean" &&
-        typeof result.reasoning === "string"
-      ) {
-        return {
-          shouldRebalance: result.shouldRebalance,
-          reasoning: result.reasoning,
-          marketContext:
-            typeof result.marketContext === "string"
-              ? result.marketContext
-              : "",
-        };
-      }
-    }
-  }
-  return null;
 }
 
 interface MonitorProps {
@@ -192,8 +162,6 @@ export function Monitor({ onNavigateConfigure }: MonitorProps) {
     ? `${formatCurrency(data.totalSpent)} / ${formatCurrency(budgetMax)}`
     : formatCurrency(data.totalSpent);
 
-  const latestReasoning = findLatestRebalanceEntry(data.feed);
-
   return (
     <div className="space-y-6 p-6">
       {/* Error banner (non-fatal, shown with stale data) */}
@@ -235,38 +203,8 @@ export function Monitor({ onNavigateConfigure }: MonitorProps) {
           </div>
         </Card>
 
-        {/* AI Reasoning card */}
-        <Card className="flex flex-col p-5">
-          <SectionHeading className="mb-4">AI Reasoning</SectionHeading>
-          {latestReasoning ? (
-            <div className="flex flex-1 flex-col gap-3">
-              <div>
-                {latestReasoning.shouldRebalance ? (
-                  <Badge variant="positive">Rebalance</Badge>
-                ) : (
-                  <Badge variant="danger">Hold</Badge>
-                )}
-              </div>
-              <p className="text-sm leading-relaxed text-text-primary">
-                {latestReasoning.reasoning}
-              </p>
-              {latestReasoning.marketContext && (
-                <p className="text-sm leading-relaxed text-text-tertiary">
-                  {latestReasoning.marketContext}
-                </p>
-              )}
-            </div>
-          ) : (
-            <div className="flex flex-1 items-center justify-center">
-              <p className="text-sm text-text-tertiary">
-                Waiting for the agent&apos;s first decision...
-              </p>
-            </div>
-          )}
-          <div className="mt-5 border-t border-border-subtle pt-3">
-            <SponsorBadge text="Powered by Venice" />
-          </div>
-        </Card>
+        {/* Activity Feed */}
+        <ActivityFeed feed={data.feed} />
       </div>
 
       {/* Bottom row — Transactions */}

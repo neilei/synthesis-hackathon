@@ -80,6 +80,25 @@ describe("logAction", () => {
     expect(entry.error).toBeUndefined();
   });
 
+  it("includes cycle field when provided", () => {
+    const entry = logAction("rebalance_decision", {
+      cycle: 5,
+    });
+    expect(entry.cycle).toBe(5);
+  });
+
+  it("omits cycle field when not provided", () => {
+    const entry = logAction("agent_start");
+    expect(entry.cycle).toBeUndefined();
+  });
+
+  it("writes cycle to JSONL output", () => {
+    logAction("test_cycle", { cycle: 3 });
+    const [, content] = (appendFileSync as ReturnType<typeof vi.fn>).mock.calls[0];
+    const parsed = JSON.parse(content.trim());
+    expect(parsed.cycle).toBe(3);
+  });
+
   it("writes JSON line to file via appendFileSync", () => {
     const entry = logAction("file_write_test");
 

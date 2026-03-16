@@ -23,6 +23,7 @@ export function resetLogSequence(): void {
 export function logAction(
   action: string,
   opts?: {
+    cycle?: number;
     tool?: string;
     parameters?: Record<string, unknown>;
     result?: Record<string, unknown>;

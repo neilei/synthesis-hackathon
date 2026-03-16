@@ -61,6 +61,7 @@ export const AgentLogEntrySchema = z.object({
   timestamp: z.string(),
   sequence: z.number(),
   action: z.string(),
+  cycle: z.number().optional(),
   tool: z.string().optional(),
   parameters: z.record(z.string(), z.unknown()).optional(),
   result: z.record(z.string(), z.unknown()).optional(),

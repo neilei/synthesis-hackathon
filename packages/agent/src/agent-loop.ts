@@ -253,18 +253,24 @@ export async function runAgentLoop(config: AgentConfig): Promise<void> {
       const msg = err instanceof Error ? err.message : String(err);
       logger.error({ err, cycle: state.cycle }, "Cycle error");
       logAction("cycle_error", {
+        cycle: state.cycle,
         parameters: { cycle: state.cycle },
         error: msg,
       });
     }
 
     logAction("cycle_complete", {
+      cycle: state.cycle,
       parameters: { cycle: state.cycle },
       duration_ms: Date.now() - cycleStart,
       result: {
         tradesExecuted: state.tradesExecuted,
         totalSpentUsd: state.totalSpentUsd,
         budgetTier: getBudgetTier(),
+        allocation: state.allocation,
+        drift: state.drift,
+        totalValue: state.totalValue,
+        ethPrice: state.ethPrice,
       },
     });
 
@@ -322,11 +328,13 @@ interface MarketData {
 async function gatherMarketData(
   config: AgentConfig,
   agentAddress: Address,
+  cycle: number,
 ): Promise<MarketData> {
   const budgetTier = getBudgetTier();
   if (budgetTier !== "normal") {
     logger.info({ budgetTier }, "Budget tier is not normal");
     logAction("budget_check", {
+      cycle,
       result: { tier: budgetTier },
     });
   }
@@ -335,6 +343,7 @@ async function gatherMarketData(
   const startPrice = Date.now();
   const ethPrice = await getTokenPrice("ETH");
   logAction("price_fetch", {
+    cycle,
     tool: "venice-web-search",
     duration_ms: Date.now() - startPrice,
     result: { price: ethPrice.price, citation: ethPrice.citation },
@@ -356,6 +365,7 @@ async function gatherMarketData(
     ethPrice.price,
   );
   logAction("portfolio_check", {
+    cycle,
     tool: "viem",
     duration_ms: Date.now() - startPortfolio,
     result: {
@@ -384,6 +394,7 @@ async function gatherMarketData(
       logger.info(poolContext);
     }
     logAction("pool_data_fetch", {
+      cycle,
       tool: "thegraph",
       duration_ms: Date.now() - startPool,
       result: { poolCount: pools.length, topPool: pools[0] ?? null },
@@ -392,6 +403,7 @@ async function gatherMarketData(
     const msg = err instanceof Error ? err.message : String(err);
     logger.warn({ err }, "Pool data unavailable");
     logAction("pool_data_fetch", {
+      cycle,
       tool: "thegraph",
       duration_ms: Date.now() - startPool,
       error: msg,
@@ -459,6 +471,7 @@ Decide whether to rebalance. If yes, specify the swap details. Keep swap amounts
   ]);
 
   logAction("rebalance_decision", {
+    cycle: state.cycle,
     tool: "venice-reasoning",
     duration_ms: Date.now() - startReasoning,
     result: {
@@ -501,6 +514,7 @@ async function executeSwap(
   ) {
     logger.info("SAFETY: Swap would exceed total budget. Skipping.");
     logAction("safety_block", {
+      cycle: state.cycle,
       result: { reason: "budget_exceeded", swapAmountUsd },
     });
     return;
@@ -509,6 +523,7 @@ async function executeSwap(
   if (state.tradesExecuted >= config.intent.maxTradesPerDay) {
     logger.info("SAFETY: Daily trade limit reached. Skipping.");
     logAction("safety_block", {
+      cycle: state.cycle,
       result: { reason: "trade_limit_reached" },
     });
     return;
@@ -559,6 +574,7 @@ async function executeSwap(
       await approvalClient.waitForTransactionReceipt({ hash: approvalTx });
       logger.info(`Permit2 approval confirmed: ${approvalTx}`);
       logAction("permit2_approval", {
+        cycle: state.cycle,
         tool: "uniswap-permit2",
         result: { txHash: approvalTx, token: swap.sellToken },
       });
@@ -578,6 +594,7 @@ async function executeSwap(
     });
 
     logAction("quote_received", {
+      cycle: state.cycle,
       tool: "uniswap-trading-api",
       duration_ms: Date.now() - startQuote,
       result: {
@@ -638,6 +655,7 @@ async function executeSwap(
           delegationErr instanceof Error ? delegationErr.message : String(delegationErr);
         logger.warn({ err: delegationErr }, "Delegation redemption failed, falling back to direct tx");
         logAction("delegation_redeem_failed", {
+          cycle: state.cycle,
           tool: "metamask-delegation",
           error: delegationMsg,
         });
@@ -686,6 +704,7 @@ async function executeSwap(
     });
 
     logAction("swap_executed", {
+      cycle: state.cycle,
       tool: "uniswap-via-delegation",
       duration_ms: Date.now() - startTx,
       result: {
@@ -706,10 +725,12 @@ async function executeSwap(
 
     // ERC-8004: give on-chain feedback for the swap (non-blocking)
     if (state.agentId) {
+      const currentCycle = state.cycle;
       giveFeedback(state.agentId, 5, "swap-execution", "defi", "base-sepolia")
         .then((fbHash) => {
           logger.info({ txHash: fbHash, agentId: state.agentId?.toString() }, "ERC-8004 feedback submitted");
           logAction("erc8004_feedback", {
+            cycle: currentCycle,
             tool: "erc8004-reputation",
             result: { txHash: fbHash, agentId: state.agentId?.toString(), rating: 5, tag: "swap-execution" },
           });
@@ -724,6 +745,7 @@ async function executeSwap(
     const msg = err instanceof Error ? err.message : String(err);
     logger.error({ err }, "Swap failed");
     logAction("swap_failed", {
+      cycle: state.cycle,
       tool: "uniswap-trading-api",
       error: msg,
       duration_ms: Date.now() - startQuote,
@@ -747,7 +769,7 @@ async function runCycle(
 ): Promise<void> {
   logger.info(`--- Cycle ${state.cycle} ---`);
 
-  const market = await gatherMarketData(config, agentAddress);
+  const market = await gatherMarketData(config, agentAddress, state.cycle);
 
   state.ethPrice = market.ethPrice.price;
   state.allocation = market.portfolio.allocation;
