@@ -58,6 +58,42 @@ describe("IntentParseSchema", () => {
     });
     expect(result.success).toBe(true);
   });
+
+  it("rejects allocation summing to 0.8 (too low)", () => {
+    const result = IntentParseSchema.safeParse({
+      targetAllocation: { ETH: 0.5, USDC: 0.3 },
+      dailyBudgetUsd: 200,
+      timeWindowDays: 7,
+      maxTradesPerDay: 10,
+      maxSlippage: 0.005,
+      driftThreshold: 0.05,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects allocation summing to 1.2 (too high)", () => {
+    const result = IntentParseSchema.safeParse({
+      targetAllocation: { ETH: 0.7, USDC: 0.5 },
+      dailyBudgetUsd: 200,
+      timeWindowDays: 7,
+      maxTradesPerDay: 10,
+      maxSlippage: 0.005,
+      driftThreshold: 0.05,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it("accepts allocation summing to 0.99 (floating point edge)", () => {
+    const result = IntentParseSchema.safeParse({
+      targetAllocation: { ETH: 0.33, USDC: 0.33, WBTC: 0.33 },
+      dailyBudgetUsd: 200,
+      timeWindowDays: 7,
+      maxTradesPerDay: 10,
+      maxSlippage: 0.005,
+      driftThreshold: 0.05,
+    });
+    expect(result.success).toBe(true);
+  });
 });
 
 describe("RebalanceDecisionSchema", () => {

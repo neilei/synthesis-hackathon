@@ -9,9 +9,12 @@ let totalCallCount = 0;
 
 export function updateBudget(responseHeaders: Record<string, string>) {
   const balanceHeader = responseHeaders["x-venice-balance-usd"];
-  if (balanceHeader) {
-    lastKnownBalance = parseFloat(balanceHeader);
-  }
+  if (!balanceHeader) return;
+
+  const parsed = parseFloat(balanceHeader);
+  if (isNaN(parsed)) return;
+
+  lastKnownBalance = parsed;
   totalCallCount++;
 }
 
@@ -43,4 +46,9 @@ export function getRecommendedModel(): string {
     default:
       return "auto"; // use whatever the caller wants
   }
+}
+
+export function resetBudgetState() {
+  lastKnownBalance = null;
+  totalCallCount = 0;
 }

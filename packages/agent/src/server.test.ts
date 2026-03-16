@@ -17,7 +17,7 @@ const mockListen = vi.fn((_port: number, cb?: () => void) => {
 const mockServerInstance = { listen: mockListen };
 
 vi.mock("http", () => ({
-  createServer: vi.fn((handler: any) => {
+  createServer: vi.fn((handler: (req: IncomingMessage, res: ServerResponse) => void) => {
     capturedHandler = handler;
     return mockServerInstance;
   }),
@@ -28,9 +28,9 @@ const mockExistsSync = vi.fn();
 const mockReadFileSync = vi.fn();
 const mockReadFile = vi.fn();
 vi.mock("fs", () => ({
-  existsSync: (...args: any[]) => mockExistsSync(...args),
-  readFileSync: (...args: any[]) => mockReadFileSync(...args),
-  readFile: (...args: any[]) => mockReadFile(...args),
+  existsSync: (...args: unknown[]) => mockExistsSync(...args),
+  readFileSync: (...args: unknown[]) => mockReadFileSync(...args),
+  readFile: (...args: unknown[]) => mockReadFile(...args),
 }));
 
 // Mock viem/accounts to prevent real crypto in startup()
@@ -96,6 +96,14 @@ vi.mock("./identity/erc8004.js", () => ({
   registerAgent: vi.fn().mockResolvedValue({ txHash: "0xabc", agentId: 1 }),
   giveFeedback: vi.fn(),
 }));
+vi.mock("./logging/logger.js", () => ({
+  logger: {
+    info: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+    debug: vi.fn(),
+  },
+}));
 
 // Mock @veil/common — provide real constant values so server.ts resolves cleanly
 vi.mock("@veil/common", () => ({
@@ -108,9 +116,9 @@ const mockGetAgentState = vi.fn().mockReturnValue(null);
 const mockGetAgentConfig = vi.fn().mockReturnValue(null);
 const mockRunAgentLoop = vi.fn().mockResolvedValue(undefined);
 vi.mock("./agent-loop.js", () => ({
-  getAgentState: (...args: any[]) => mockGetAgentState(...args),
-  getAgentConfig: (...args: any[]) => mockGetAgentConfig(...args),
-  runAgentLoop: (...args: any[]) => mockRunAgentLoop(...args),
+  getAgentState: (...args: unknown[]) => mockGetAgentState(...args),
+  getAgentConfig: (...args: unknown[]) => mockGetAgentConfig(...args),
+  runAgentLoop: (...args: unknown[]) => mockRunAgentLoop(...args),
 }));
 
 // ---------------------------------------------------------------------------
@@ -144,16 +152,22 @@ function createMockReq(
   return req;
 }
 
-/**
- * Create a mock ServerResponse that captures writeHead, setHeader, end calls.
- */
-function createMockRes() {
+interface MockServerResponse extends ServerResponse {
+  statusCode: number;
+  body: string;
+  headers: Record<string, string>;
+  headWritten: boolean;
+  // Returns Record (not | null) because tests always write valid JSON bodies
+  parsedBody: () => Record<string, unknown>;
+}
+
+function createMockRes(): MockServerResponse {
   const headers: Record<string, string> = {};
   let statusCode = 200;
   let body = "";
   let headWritten = false;
 
-  const res = {
+  return {
     setHeader: vi.fn((name: string, value: string) => {
       headers[name.toLowerCase()] = value;
     }),
@@ -169,7 +183,6 @@ function createMockRes() {
     end: vi.fn((data?: string) => {
       if (data) body = data;
     }),
-    // Accessors for assertions
     get statusCode() {
       return statusCode;
     },
@@ -189,26 +202,17 @@ function createMockRes() {
         return null;
       }
     },
-  } as unknown as ServerResponse & {
-    statusCode: number;
-    body: string;
-    headers: Record<string, string>;
-    headWritten: boolean;
-    parsedBody: () => any;
-  };
-
-  return res;
+  // Partial mock: only implements the ServerResponse methods the handler uses
+  } as unknown as MockServerResponse;
 }
 
-/**
- * Wait for the handler to finish (it may be async).
- */
 async function callHandler(
   req: IncomingMessage,
-  res: ServerResponse,
+  res: MockServerResponse,
 ): Promise<void> {
-  await capturedHandler(req, res);
-  // Give microtasks (readFile callbacks, etc.) time to settle
+  // MockServerResponse extends ServerResponse at the type level; the partial
+  // mock satisfies only the methods the handler actually calls
+  await capturedHandler(req, res as ServerResponse);
   await new Promise((r) => setTimeout(r, 10));
 }
 
@@ -262,9 +266,9 @@ describe("readLogFeed (via /api/state)", () => {
 
     const req = createMockReq("GET", "/api/state");
     const res = createMockRes();
-    await callHandler(req, res as any);
+    await callHandler(req, res);
 
-    const data = (res as any).parsedBody();
+    const data = res.parsedBody();
     expect(data.feed).toEqual([]);
   });
 
@@ -288,12 +292,13 @@ describe("readLogFeed (via /api/state)", () => {
 
     const req = createMockReq("GET", "/api/state");
     const res = createMockRes();
-    await callHandler(req, res as any);
+    await callHandler(req, res);
 
-    const data = (res as any).parsedBody();
-    expect(data.feed).toHaveLength(2);
-    expect(data.feed[0].action).toBe("agent_start");
-    expect(data.feed[1].action).toBe("cycle_complete");
+    const data = res.parsedBody();
+    const feed = data.feed as Record<string, unknown>[];
+    expect(feed).toHaveLength(2);
+    expect(feed[0].action).toBe("agent_start");
+    expect(feed[1].action).toBe("cycle_complete");
   });
 
   it("handles malformed lines gracefully (returns empty array)", async () => {
@@ -309,9 +314,9 @@ describe("readLogFeed (via /api/state)", () => {
 
     const req = createMockReq("GET", "/api/state");
     const res = createMockRes();
-    await callHandler(req, res as any);
+    await callHandler(req, res);
 
-    const data = (res as any).parsedBody();
+    const data = res.parsedBody();
     // The server catches the JSON.parse error and returns []
     expect(data.feed).toEqual([]);
   });
@@ -326,9 +331,9 @@ describe("readLogFeed (via /api/state)", () => {
 
     const req = createMockReq("GET", "/api/state");
     const res = createMockRes();
-    await callHandler(req, res as any);
+    await callHandler(req, res);
 
-    const data = (res as any).parsedBody();
+    const data = res.parsedBody();
     expect(data.feed).toEqual([]);
   });
 
@@ -340,9 +345,9 @@ describe("readLogFeed (via /api/state)", () => {
 
     const req = createMockReq("GET", "/api/state");
     const res = createMockRes();
-    await callHandler(req, res as any);
+    await callHandler(req, res);
 
-    const data = (res as any).parsedBody();
+    const data = res.parsedBody();
     expect(data.feed).toEqual([]);
   });
 });
@@ -359,10 +364,10 @@ describe("handleState (GET /api/state)", () => {
 
     const req = createMockReq("GET", "/api/state");
     const res = createMockRes();
-    await callHandler(req, res as any);
+    await callHandler(req, res);
 
-    expect((res as any).statusCode).toBe(200);
-    const data = (res as any).parsedBody();
+    expect(res.statusCode).toBe(200);
+    const data = res.parsedBody();
     expect(data.cycle).toBe(0);
     expect(data.running).toBe(false);
     expect(data.ethPrice).toBe(0);
@@ -428,10 +433,10 @@ describe("handleState (GET /api/state)", () => {
 
     const req = createMockReq("GET", "/api/state");
     const res = createMockRes();
-    await callHandler(req, res as any);
+    await callHandler(req, res);
 
-    expect((res as any).statusCode).toBe(200);
-    const data = (res as any).parsedBody();
+    expect(res.statusCode).toBe(200);
+    const data = res.parsedBody();
     expect(data.cycle).toBe(5);
     expect(data.running).toBe(true);
     expect(data.ethPrice).toBe(2500);
@@ -442,17 +447,19 @@ describe("handleState (GET /api/state)", () => {
     expect(data.allocation).toEqual({ ETH: 0.65, USDC: 0.35 });
     expect(data.target).toEqual({ ETH: 0.6, USDC: 0.4 });
     expect(data.totalValue).toBe(1200);
-    expect(data.transactions).toHaveLength(1);
-    expect(data.transactions[0].txHash).toBe("0xabc123");
+    const transactions = data.transactions as Record<string, unknown>[];
+    expect(transactions).toHaveLength(1);
+    expect(transactions[0].txHash).toBe("0xabc123");
     // Audit should have the 4 fields (not formatted)
-    expect(data.audit.allows).toEqual(["Swap ETH <-> USDC on Uniswap"]);
-    expect(data.audit.prevents).toEqual([
+    const audit = data.audit as Record<string, unknown>;
+    expect(audit.allows).toEqual(["Swap ETH <-> USDC on Uniswap"]);
+    expect(audit.prevents).toEqual([
       "Withdrawals to external addresses",
     ]);
-    expect(data.audit.worstCase).toBe("Loss of $200 daily budget");
-    expect(data.audit.warnings).toEqual(["High slippage tolerance"]);
+    expect(audit.worstCase).toBe("Loss of $200 daily budget");
+    expect(audit.warnings).toEqual(["High slippage tolerance"]);
     // formatted should NOT be in the response
-    expect(data.audit.formatted).toBeUndefined();
+    expect(audit.formatted).toBeUndefined();
   });
 
   it("returns null audit when state has no audit", async () => {
@@ -476,9 +483,9 @@ describe("handleState (GET /api/state)", () => {
 
     const req = createMockReq("GET", "/api/state");
     const res = createMockRes();
-    await callHandler(req, res as any);
+    await callHandler(req, res);
 
-    const data = (res as any).parsedBody();
+    const data = res.parsedBody();
     expect(data.audit).toBeNull();
   });
 
@@ -490,9 +497,9 @@ describe("handleState (GET /api/state)", () => {
 
     const req = createMockReq("GET", "/api/state");
     const res = createMockRes();
-    await callHandler(req, res as any);
+    await callHandler(req, res);
 
-    const data = (res as any).parsedBody();
+    const data = res.parsedBody();
     expect(data.running).toBe(false);
     expect(data.cycle).toBe(0);
   });
@@ -506,20 +513,20 @@ describe("handleDeploy (POST /api/deploy)", () => {
   it("returns 400 when intent is missing", async () => {
     const req = createMockReq("POST", "/api/deploy", {});
     const res = createMockRes();
-    await callHandler(req, res as any);
+    await callHandler(req, res);
 
-    expect((res as any).statusCode).toBe(400);
-    const data = (res as any).parsedBody();
+    expect(res.statusCode).toBe(400);
+    const data = res.parsedBody();
     expect(data.error).toBe("Missing intent");
   });
 
   it("returns 400 when intent is empty string", async () => {
     const req = createMockReq("POST", "/api/deploy", { intent: "" });
     const res = createMockRes();
-    await callHandler(req, res as any);
+    await callHandler(req, res);
 
-    expect((res as any).statusCode).toBe(400);
-    const data = (res as any).parsedBody();
+    expect(res.statusCode).toBe(400);
+    const data = res.parsedBody();
     expect(data.error).toBe("Missing intent");
   });
 
@@ -530,10 +537,10 @@ describe("handleDeploy (POST /api/deploy)", () => {
       intent: "60/40 ETH/USDC",
     });
     const res = createMockRes();
-    await callHandler(req, res as any);
+    await callHandler(req, res);
 
-    expect((res as any).statusCode).toBe(409);
-    const data = (res as any).parsedBody();
+    expect(res.statusCode).toBe(409);
+    const data = res.parsedBody();
     expect(data.error).toBe("Agent already running");
   });
 
@@ -563,13 +570,13 @@ describe("handleDeploy (POST /api/deploy)", () => {
 
     // Use fake timers to avoid waiting 3 real seconds
     vi.useFakeTimers();
-    const promise = callHandler(req, res as any);
+    const promise = callHandler(req, res);
     // Advance past the 3000ms setTimeout in handleDeploy
     await vi.advanceTimersByTimeAsync(3100);
     await promise;
     vi.useRealTimers();
 
-    expect((res as any).statusCode).toBe(200);
+    expect(res.statusCode).toBe(200);
   });
 
   it("returns 500 when compileIntent throws", async () => {
@@ -583,10 +590,10 @@ describe("handleDeploy (POST /api/deploy)", () => {
       intent: "60/40 ETH/USDC",
     });
     const res = createMockRes();
-    await callHandler(req, res as any);
+    await callHandler(req, res);
 
-    expect((res as any).statusCode).toBe(500);
-    const data = (res as any).parsedBody();
+    expect(res.statusCode).toBe(500);
+    const data = res.parsedBody();
     expect(data.error).toBe("Venice API timeout");
   });
 
@@ -625,7 +632,7 @@ describe("handleDeploy (POST /api/deploy)", () => {
     const res = createMockRes();
 
     vi.useFakeTimers();
-    const promise = callHandler(req, res as any);
+    const promise = callHandler(req, res);
     await vi.advanceTimersByTimeAsync(3100);
     await promise;
     vi.useRealTimers();
@@ -633,13 +640,14 @@ describe("handleDeploy (POST /api/deploy)", () => {
     expect(mockCompile).toHaveBeenCalledWith("60/40 ETH/USDC, $200/day");
     expect(mockRunAgentLoop).toHaveBeenCalled();
 
-    const data = (res as any).parsedBody();
+    const data = res.parsedBody();
     expect(data.parsed).toEqual(parsedIntent);
-    expect(data.audit.allows).toEqual(["Swap ETH/USDC"]);
-    expect(data.audit.prevents).toEqual(["External transfers"]);
-    expect(data.audit.worstCase).toBe("$200 max loss");
+    const audit = data.audit as Record<string, unknown>;
+    expect(audit.allows).toEqual(["Swap ETH/USDC"]);
+    expect(audit.prevents).toEqual(["External transfers"]);
+    expect(audit.worstCase).toBe("$200 max loss");
     // formatted should not leak to client
-    expect(data.audit.formatted).toBeUndefined();
+    expect(audit.formatted).toBeUndefined();
   });
 
   it("returns parsed intent with null audit when state has no audit after deploy", async () => {
@@ -662,12 +670,12 @@ describe("handleDeploy (POST /api/deploy)", () => {
     const res = createMockRes();
 
     vi.useFakeTimers();
-    const promise = callHandler(req, res as any);
+    const promise = callHandler(req, res);
     await vi.advanceTimersByTimeAsync(3100);
     await promise;
     vi.useRealTimers();
 
-    const data = (res as any).parsedBody();
+    const data = res.parsedBody();
     expect(data.audit).toBeNull();
   });
 });
@@ -688,12 +696,12 @@ describe("parseBody (via POST /api/deploy)", () => {
     });
 
     const res = createMockRes();
-    await callHandler(req, res as any);
+    await callHandler(req, res);
 
     // parseBody rejects with "Invalid JSON" -> caught by the try/catch
     // in the outer handler -> sendJson 500
-    expect((res as any).statusCode).toBe(500);
-    const data = (res as any).parsedBody();
+    expect(res.statusCode).toBe(500);
+    const data = res.parsedBody();
     expect(data.error).toBe("Invalid JSON");
   });
 
@@ -707,9 +715,9 @@ describe("parseBody (via POST /api/deploy)", () => {
     });
 
     const res = createMockRes();
-    await callHandler(req, res as any);
+    await callHandler(req, res);
 
-    expect((res as any).statusCode).toBe(500);
+    expect(res.statusCode).toBe(500);
   });
 });
 
@@ -729,7 +737,7 @@ describe("handleDashboard (GET /)", () => {
 
     const req = createMockReq("GET", "/");
     const res = createMockRes();
-    await callHandler(req, res as any);
+    await callHandler(req, res);
 
     await new Promise((r) => setTimeout(r, 20));
 
@@ -744,12 +752,12 @@ describe("handleDashboard (GET /)", () => {
 
     const req = createMockReq("GET", "/");
     const res = createMockRes();
-    await callHandler(req, res as any);
+    await callHandler(req, res);
 
     expect(res.writeHead).toHaveBeenCalledWith(200, {
       "Content-Type": "text/html",
     });
-    const html = (res.end as ReturnType<typeof vi.fn>).mock.calls[0]?.[0] as string;
+    const html = vi.mocked(res.end).mock.calls[0]?.[0] as string;
     expect(html).toContain("VEIL");
     expect(html).toContain("/api/state");
   });
@@ -763,7 +771,7 @@ describe("handleDashboard (GET /)", () => {
 
     const req = createMockReq("GET", "/dashboard");
     const res = createMockRes();
-    await callHandler(req, res as any);
+    await callHandler(req, res);
     await new Promise((r) => setTimeout(r, 20));
 
     expect(res.writeHead).toHaveBeenCalledWith(200, {
@@ -780,7 +788,7 @@ describe("handleDashboard (GET /)", () => {
 
     const req = createMockReq("GET", "/index.html");
     const res = createMockRes();
-    await callHandler(req, res as any);
+    await callHandler(req, res);
     await new Promise((r) => setTimeout(r, 20));
 
     expect(res.writeHead).toHaveBeenCalledWith(200, {
@@ -797,7 +805,7 @@ describe("CORS headers", () => {
   it("OPTIONS request returns 204 with CORS headers", async () => {
     const req = createMockReq("OPTIONS", "/api/state");
     const res = createMockRes();
-    await callHandler(req, res as any);
+    await callHandler(req, res);
 
     expect(res.writeHead).toHaveBeenCalledWith(204);
     expect(res.setHeader).toHaveBeenCalledWith(
@@ -821,7 +829,7 @@ describe("CORS headers", () => {
 
     const req = createMockReq("GET", "/api/state");
     const res = createMockRes();
-    await callHandler(req, res as any);
+    await callHandler(req, res);
 
     expect(res.setHeader).toHaveBeenCalledWith(
       "Access-Control-Allow-Origin",
@@ -832,7 +840,7 @@ describe("CORS headers", () => {
   it("OPTIONS on /api/deploy also returns CORS headers", async () => {
     const req = createMockReq("OPTIONS", "/api/deploy");
     const res = createMockRes();
-    await callHandler(req, res as any);
+    await callHandler(req, res);
 
     expect(res.writeHead).toHaveBeenCalledWith(204);
     expect(res.setHeader).toHaveBeenCalledWith(
@@ -850,14 +858,14 @@ describe("SPA fallback routes", () => {
   it("serves dashboard for unknown GET paths (SPA fallback)", async () => {
     const req = createMockReq("GET", "/api/unknown");
     const res = createMockRes();
-    await callHandler(req, res as any);
+    await callHandler(req, res);
 
     // SPA fallback attempts to serve React index.html or vanilla dashboard
     // In test env without real files, it may call readFile which is async
     await new Promise((r) => setTimeout(r, 50));
 
     // Should NOT return a JSON 404 — it tries to serve HTML
-    const writeHeadCalls = (res.writeHead as any).mock.calls;
+    const writeHeadCalls = vi.mocked(res.writeHead).mock.calls;
     if (writeHeadCalls.length > 0) {
       // Either serves HTML (200) or file-not-found (404 text/plain)
       const status = writeHeadCalls[0][0];
@@ -868,12 +876,12 @@ describe("SPA fallback routes", () => {
   it("serves dashboard for POST to unknown path", async () => {
     const req = createMockReq("POST", "/api/unknown", { foo: "bar" });
     const res = createMockRes();
-    await callHandler(req, res as any);
+    await callHandler(req, res);
 
     await new Promise((r) => setTimeout(r, 50));
 
     // SPA fallback handles all non-API routes
-    const writeHeadCalls = (res.writeHead as any).mock.calls;
+    const writeHeadCalls = vi.mocked(res.writeHead).mock.calls;
     if (writeHeadCalls.length > 0) {
       const status = writeHeadCalls[0][0];
       expect([200, 404]).toContain(status);
@@ -883,12 +891,12 @@ describe("SPA fallback routes", () => {
   it("unknown route does not return JSON error", async () => {
     const req = createMockReq("GET", "/nonexistent");
     const res = createMockRes();
-    await callHandler(req, res as any);
+    await callHandler(req, res);
 
     await new Promise((r) => setTimeout(r, 50));
 
     // Should NOT have Content-Type: application/json with error
-    const endCalls = (res.end as any).mock.calls;
+    const endCalls = vi.mocked(res.end).mock.calls;
     if (endCalls.length > 0) {
       const body = endCalls[0][0];
       if (typeof body === "string") {

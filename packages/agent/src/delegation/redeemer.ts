@@ -9,12 +9,12 @@ import {
   createWalletClient,
   createPublicClient,
   http,
-  parseEther,
   formatEther,
   type Chain,
   type Hex,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
+import { logger } from "../logging/logger.js";
 import {
   createExecution,
   ExecutionMode,
@@ -84,7 +84,7 @@ export async function deployDelegatorIfNeeded(
     throw new Error(`Smart account deployment failed: ${txHash}`);
   }
 
-  console.log(
+  logger.info(
     `Delegator smart account deployed at ${smartAccount.address} (tx: ${txHash})`,
   );
   return txHash;
@@ -115,7 +115,7 @@ export async function fundDelegatorIfNeeded(
   }
 
   const deficit = requiredWithBuffer - balance;
-  console.log(
+  logger.info(
     `Funding delegator smart account with ${formatEther(deficit)} ETH...`,
   );
 
@@ -137,7 +137,7 @@ export async function fundDelegatorIfNeeded(
     throw new Error(`Funding delegator smart account failed: ${txHash}`);
   }
 
-  console.log(
+  logger.info(
     `Delegator funded: ${formatEther(deficit)} ETH (tx: ${txHash})`,
   );
   return txHash;
