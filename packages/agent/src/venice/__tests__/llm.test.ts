@@ -111,4 +111,21 @@ describe("Venice LLM configuration", () => {
       expect(kwargs.venice_parameters.include_venice_system_prompt).toBe(false);
     }
   });
+
+  it("all tiers set enable_e2ee to true", () => {
+    for (const call of constructorCalls) {
+      const kwargs = call.modelKwargs as { venice_parameters: Record<string, unknown> };
+      expect(kwargs.venice_parameters.enable_e2ee).toBe(true);
+    }
+  });
+
+  it("reasoning tier has prompt_cache_key set", () => {
+    const kwargs = constructorCalls[2]!.modelKwargs as { venice_parameters: Record<string, unknown> };
+    expect(kwargs.venice_parameters.prompt_cache_key).toBe("veil-reasoning");
+  });
+
+  it("research tier has prompt_cache_key set", () => {
+    const kwargs = constructorCalls[1]!.modelKwargs as { venice_parameters: Record<string, unknown> };
+    expect(kwargs.venice_parameters.prompt_cache_key).toBe("veil-research");
+  });
 });

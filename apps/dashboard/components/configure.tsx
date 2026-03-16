@@ -57,7 +57,7 @@ export function Configure({ onSuccess }: ConfigureProps) {
             VEIL
           </h1>
           <p className="mt-3 text-sm uppercase tracking-widest text-text-secondary">
-            Describe your portfolio. The agent handles the rest.
+            Private reasoning, constrained execution
           </p>
         </div>
 

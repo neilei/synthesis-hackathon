@@ -264,7 +264,7 @@ export function Monitor({ onNavigateConfigure }: MonitorProps) {
             </div>
           )}
           <div className="mt-5 border-t border-border-subtle pt-3">
-            <SponsorBadge text="Powered by Venice" />
+            <SponsorBadge text="Private reasoning via Venice (no data retention)" />
           </div>
         </Card>
       </div>

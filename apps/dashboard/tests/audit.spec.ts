@@ -104,7 +104,7 @@ test.describe("Audit Screen", () => {
   });
 
   test("shows sponsor badges", async ({ page }) => {
-    await expect(page.getByText("Powered by Venice")).toBeVisible();
+    await expect(page.getByText("Private reasoning via Venice (no data retention)")).toBeVisible();
     await expect(
       page.getByText("Enforced by MetaMask Delegation"),
     ).toBeVisible();

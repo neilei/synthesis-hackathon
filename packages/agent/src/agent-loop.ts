@@ -422,11 +422,14 @@ async function getRebalanceDecision(
 ): Promise<{ shouldRebalance: boolean; reasoning: string; marketContext?: string | null; targetSwap?: { sellToken: string; buyToken: string; sellAmount: string; maxSlippage: string } | null }> {
   logger.info("Drift detected. Consulting Venice for rebalance decision...");
 
-  const llmForReasoning = market.budgetTier === "normal" ? reasoningLlm : fastLlm;
+  const isFullReasoning = market.budgetTier === "normal";
+  const llmForReasoning = isFullReasoning ? reasoningLlm : fastLlm;
   const startReasoning = Date.now();
   const structuredReasoning =
     llmForReasoning.withStructuredOutput(RebalanceDecisionSchema, {
       method: "functionCalling",
+      // Venice reasoning_effort: "high" for complex rebalance decisions
+      ...(isFullReasoning ? { reasoning_effort: "high" } : {}),
     });
 
   const decision = await structuredReasoning.invoke([
@@ -636,11 +639,20 @@ async function executeSwap(
       } catch (delegationErr) {
         const delegationMsg =
           delegationErr instanceof Error ? delegationErr.message : String(delegationErr);
-        logger.warn({ err: delegationErr }, "Delegation redemption failed, falling back to direct tx");
-        logAction("delegation_redeem_failed", {
-          tool: "metamask-delegation",
-          error: delegationMsg,
-        });
+        const isCaveatEnforcement = /Enforcer/i.test(delegationMsg);
+        if (isCaveatEnforcement) {
+          logger.warn({ err: delegationErr }, "Delegation caveat enforced — safety constraints blocked an out-of-scope operation, falling back to direct tx");
+          logAction("delegation_caveat_enforced", {
+            tool: "metamask-delegation",
+            result: { enforcer: delegationMsg, action: "fallback_to_direct_tx" },
+          });
+        } else {
+          logger.warn({ err: delegationErr }, "Delegation redemption failed, falling back to direct tx");
+          logAction("delegation_redeem_failed", {
+            tool: "metamask-delegation",
+            error: delegationMsg,
+          });
+        }
 
         const fallbackQuote = await getQuote({
           tokenIn: sellTokenAddress,
@@ -718,7 +730,7 @@ async function executeSwap(
           logger.warn({ err: fbErr }, "ERC-8004 feedback failed");
         });
     } else {
-      logger.warn("Skipping ERC-8004 feedback — no agent ID registered");
+      logger.info("Skipping ERC-8004 feedback — no agent ID registered");
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

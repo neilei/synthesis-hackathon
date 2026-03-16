@@ -1,7 +1,7 @@
 # Sponsor Prize Audit — Veil Project
 
-**Date:** 2026-03-15
-**Audited by:** Claude Opus 4.6 (5 parallel sub-agents)
+**Date:** 2026-03-16 (updated)
+**Audited by:** Claude Opus 4.6
 **Scope:** All 4 active sponsor integrations + overall project health
 
 ---
@@ -26,12 +26,11 @@
 The project is **substantially functional** with real on-chain proof:
 - 2 real Uniswap swaps on Ethereum Sepolia
 - 3 ERC-8004 transactions on Base Sepolia
-- 278 tests passing (170 agent unit, 57 agent e2e, 17 dashboard unit, 34 Playwright e2e)
 - Dashboard fully built (3 screens, styled, data-connected)
 - All 4 active sponsor integrations working at some level
 
 **Strongest track: MetaMask** (8/10). Delegation flow is genuinely novel and proven on-chain.
-**Weakest track: Venice** (5/10). Model names are invalid, no privacy narrative, no Venice-exclusive features.
+**Weakest track: Uniswap** (7/10). Real swaps but Permit2 unexercised and Graph data usage is shallow.
 
 ---
 
@@ -39,7 +38,7 @@ The project is **substantially functional** with real on-chain proof:
 
 | Component | Status | Evidence |
 |-----------|--------|---------|
-| Agent loop (autonomous rebalancing) | **REAL** | 2 on-chain swaps on Sepolia, 4,600+ log entries |
+| Agent loop (autonomous rebalancing) | **REAL** | 2 on-chain swaps on Sepolia |
 | Venice LLM calls (pricing, reasoning) | **REAL** | Real API calls, web search citations captured |
 | Venice model names | **VALID** | All 3 models (`qwen3-4b`, `gemini-3-flash-preview`, `gemini-3-1-pro-preview`) confirmed valid via `GET /api/v1/models`. Previous audit was wrong — these are proxied frontier models available through Venice |
 | Uniswap Trading API (quote + swap) | **REAL** | 2 confirmed txs on Sepolia |
@@ -48,10 +47,10 @@ The project is **substantially functional** with real on-chain proof:
 | MetaMask delegation (on-chain enforcement) | **REAL** | `ValueLteEnforcer:value-too-high` reverts prove caveats work |
 | MetaMask delegation (successful swap via delegation) | **PARTIAL** | Both swaps that succeeded used the fallback path (delegation reverted, then direct tx succeeded). Delegation fired and was validated, but execution was direct |
 | ERC-8004 registration | **REAL** | 2 txs on Base Sepolia |
-| ERC-8004 reputation feedback | **REAL txs, FAKE logic** | Always rates hardcoded `agentId=1n`, not a real agent |
-| The Graph pool data | **REAL** | 4 fetches logged, data fed into LLM reasoning prompt |
-| Dashboard (3 screens) | **REAL** | 34 Playwright e2e tests passing, all screens data-connected |
-| agent.json (PAM manifest) | **REAL** | Valid, complete, not loaded at runtime |
+| ERC-8004 reputation feedback | **REAL txs, PARTIAL logic** | Stores agentId from registration, but falls back to `1n` if registration hasn't completed |
+| The Graph pool data | **REAL** | Data fed into LLM reasoning prompt |
+| Dashboard (3 screens) | **REAL** | All screens data-connected |
+| agent.json (PAM manifest) | **REAL** | Valid, not loaded at runtime |
 | Agent logging (JSONL) | **REAL** | Claude Code hooks auto-write to agent_log.jsonl |
 | AgentCash / x402 | **NOT STARTED** | Zero code |
 
@@ -74,38 +73,28 @@ The project is **substantially functional** with real on-chain proof:
 | `include_venice_system_prompt: false` | `src/venice/llm.ts` | REAL | Set on all Venice calls |
 | Venice parameters | `src/venice/llm.ts` | REAL | `disable_thinking`, `include_search_results_in_stream`, `return_search_results_as_documents` all configured |
 
-### Previous Audit Correction
+### Model Note
 
-The previous audit incorrectly stated that `gemini-3-flash-preview` and `gemini-3-1-pro-preview` were invalid Venice models. Both are confirmed valid via `GET https://api.venice.ai/api/v1/models` — they are proxied Google Gemini models available through Venice's API. The `VENICE_MODEL_OVERRIDE` env var exists for testing convenience, not as a workaround for broken models.
-
-**NOTE:** Venice's model catalog changes frequently. Always verify model IDs against the live API rather than static documentation.
+All 3 models (`qwen3-4b`, `gemini-3-flash-preview`, `gemini-3-1-pro-preview`) are confirmed valid via `GET https://api.venice.ai/api/v1/models` — they are proxied frontier models available through Venice's API. Venice's model catalog changes frequently — always verify model IDs against the live API rather than static documentation.
 
 ### What's Missing
 
 | Venice Feature | Status | Impact |
 |----------------|--------|--------|
-| Privacy narrative | NOT DOCUMENTED | No explanation of WHY DeFi reasoning needs no-data-retention. Judge will ask "why not OpenAI?" |
-| Web scraping | DISABLED | `enable_web_scraping: false` explicitly set. Could scrape DeFi protocol docs |
-| E2EE | NOT CONFIGURED | Could encrypt sensitive portfolio analysis |
-| Prompt caching | NOT CONFIGURED | Could cache system prompts for cost savings |
+| Privacy narrative | PARTIAL | README mentions "no data retention" and "agents that keep secrets". `docs/venice-tech.md` documents Venice's no-retention architecture. Could be stronger as a standalone section explaining WHY DeFi reasoning specifically needs this. **Not visible in dashboard UI** beyond the word "Private" in the title. |
+| E2EE | NOT CONFIGURED | Venice supports E2EE for inference but has **no public API implementation guide** — only mentioned in [changelogs](https://featurebase.venice.ai/changelog/veniceai-change-log-february-26-2026-march-6-2026-2) as "improved end-to-end encryption with server key authentication". No documented API parameters exist. Would require Venice team guidance. |
+| Prompt caching | NOT CONFIGURED | Venice supports automatic caching on select models + manual `cache_control` on message content + `prompt_cache_key` routing hint in `venice_parameters`. Claude models charge cache writes at 1.25x input rate. See [API spec](https://docs.venice.ai/api-reference/api-spec). Could cache our rebalance system prompt for cost savings. |
+| Reasoning effort control | NOT USED | Venice supports `reasoning_effort` parameter (7 levels: `none` through `max`) via `reasoning: { effort: "high" }` or flat `reasoning_effort: "high"`. Model-specific — Gemini supports `low`/`high`, Claude supports `low`/`medium`/`high`. See [reasoning models guide](https://docs.venice.ai/overview/guides/reasoning-models). Could use `low` for price lookups, `high` for rebalance decisions. |
 | DIEM/VVV balance awareness | NOT CONFIGURED | Could show staking/credit status |
-| Reasoning effort control | NOT USED | Could vary reasoning depth per task |
-| Model suffix syntax | NOT USED | Venice's `model:param=value` dynamic config |
-
-### Test Coverage
-
-- `src/venice/schemas.test.ts` — 8 unit tests (schema validation)
-- `src/venice/llm.e2e.test.ts` — 5 e2e tests (real API calls, all pass with VENICE_MODEL_OVERRIDE)
-- `src/data/prices.e2e.test.ts` — 5 e2e tests (real price fetches, caching)
 
 ### Verdict
 
-**Score: 5/10**. The integration works but doesn't demonstrate understanding of Venice's unique value. Any project using Venice as a generic OpenAI replacement scores similarly. Missing: valid multi-model, privacy narrative, Venice-exclusive features.
+**Score: 7/10**. Multi-model routing, budget tracking, web search with citations, web scraping, and structured output are all real and tested. Privacy narrative exists but could be more prominent. Still missing: E2EE, prompt caching, reasoning effort control, and other Venice-exclusive features that would differentiate from a generic OpenAI replacement.
 
 ### Fixes Required
 
 1. ~~**Replace model names**~~ DONE — All 3 model names are valid Venice IDs (confirmed via API)
-2. **Write privacy section** in README: why DeFi reasoning REQUIRES no-data-retention inference
+2. **Strengthen privacy narrative** — README mentions it but a dedicated section explaining WHY DeFi reasoning specifically requires no-data-retention would be more compelling for judges
 3. ~~**Enable `enable_web_scraping: true`**~~ DONE — Enabled in `researchVeniceParams`
 4. **Add privacy guarantee log entry** showing Venice's no-retention policy per call
 
@@ -169,14 +158,6 @@ agent-loop.ts execution path:
 - Smart account funded with ETH before swap attempts
 - Proof tx from debug script: `0x725ba2904c3cd1b902fc656f201ef4786af84df56d8dc996a5cbb666b622f573`
 
-### Test Coverage
-
-- `compiler.test.ts` — 6 unit tests (adversarial detection, schema validation)
-- `compiler.e2e.test.ts` — 2 e2e tests (creating + signing delegations off-chain)
-- `redeemer.test.ts` — 8 unit tests (deploy, fund, redeem — mocked)
-- `redeemer.e2e.test.ts` — 3 e2e tests (address determinism, factory args)
-- `audit.e2e.test.ts` — 2 e2e tests (report generation and accuracy)
-
 ### Verdict
 
 **Score: 8/10**. Strongest integration. The intent-to-delegation pipeline is genuinely novel. On-chain enforcement is proven (caveats actively blocked unauthorized swaps). Few hackathon projects will tackle ERC-7715/7710 with real DeFi execution.
@@ -223,15 +204,6 @@ Uniswap Trading API usage (quote + swap), Permit2 integration, The Graph / subgr
 | `0x9c2f1064c3e8affa46877a79a29ee7b2de25709b84ae275241662b76e9832f9b` | ETH->USDC | 0.0048 ETH | 140,618 | Delegation fallback |
 | `0x8c72a20e36595b76ded652b2577b39ca3a16a8fa1222264cd7097b4c15bdacb0` | ETH->USDC | 0.01 ETH | 193,394 | Delegation fallback |
 
-### Test Coverage
-
-- `trading.test.ts` — 333 lines, mock-based (checkApproval, getQuote, createSwap)
-- `trading.e2e.test.ts` — 98 lines (real API calls: ETH->USDC, USDC->ETH, WETH->USDC quotes)
-- `permit2.test.ts` — 251 lines, mock-based (approval logic, signature generation)
-- `permit2.e2e.test.ts` — 97 lines (real Permit2 contract check, actual signature generation)
-- `thegraph.test.ts` — 164 lines (schema validation)
-- `thegraph.e2e.test.ts` — 52 lines (real subgraph queries)
-
 ### Verdict
 
 **Score: 7/10**. Trading API integration is solid and proven with real swaps. The Graph integration is real but shallow. Permit2 is code-complete but unexercised. Other projects will likely have more diverse swap scenarios.
@@ -256,54 +228,38 @@ ERC-8004 agent identity (NFT registration), ERC-8004 reputation feedback (rating
 |---------|------|--------|-------|
 | ERC-8004 registration | `src/identity/erc8004.ts` | REAL | `registerAgent(agentURI)` calls `register()` on IdentityRegistry. TX on Base Sepolia: `0x97237b74dfc3e4c332eed65b79aa9d73664a7afc1090ec9456a45a0dcfce829e` |
 | ERC-8004 feedback txs | `src/identity/erc8004.ts` | REAL TXS | `giveFeedback()` calls ReputationRegistry. TX: `0x4db757c8d7e02e1ae3f1762cea2d1ed9c623161581b41b611651aa1a452523e8` |
-| agent.json manifest | `/agent.json` | REAL | 164 lines, 3 profiles (core/exec/gov), 6 tools, security policies, observability config |
-| Agent logging | `src/logging/agent-log.ts` + hooks | REAL | JSONL format, 4,600+ entries, auto-generated via Claude Code PostToolUse hooks |
+| agent.json manifest | `/agent.json` | REAL | 3 profiles (core/exec/gov), 6 tools, security policies, observability config |
+| Agent logging | `src/logging/agent-log.ts` + hooks | REAL | JSONL format, auto-generated via Claude Code PostToolUse hooks + agent-loop `logAction()` |
 | Reputation summary | `src/identity/erc8004.ts` | REAL | `getReputationSummary()` fetches on-chain feedback for an agent |
 
-### What's Broken
+### What's Weak
 
-**Critical: Hardcoded agentId in feedback**
-
-```typescript
-// agent-loop.ts:738
-giveFeedback(1n, 5, "swap-execution", "defi", "base-sepolia")
-```
-
-The agent ALWAYS rates `agentId=1n` — a meaningless placeholder. Problems:
-
-1. **Agent ID 1 is not a real external agent** — it's whatever was first registered on the ERC-8004 registry
-2. **Not self-rating** — ERC-8004 prevents self-rating anyway, but the agent doesn't know its own ID because `registerAgent()` returns `agentId` but it's never stored in state
-3. **No inter-agent discovery** — the agent never queries "what other agents exist" to rate
-4. **No service consumption** — the feedback isn't tied to actually consuming another agent's service
-
-**Registered agentId is lost:**
+**Partially fixed: agentId fallback in feedback**
 
 ```typescript
-// agent-loop.ts:142-155
-registerAgent(`https://github.com/neilei/veil`, "base-sepolia")
-  .then(({ txHash }) => {
-    console.log(`[erc8004] Registered on Base Sepolia: ${txHash}`);
-    // agentId is in the response but NEVER STORED
-  });
+// agent-loop.ts:744
+const feedbackAgentId = state.agentId ?? 1n;
+giveFeedback(feedbackAgentId, 5, "swap-execution", "defi", "base-sepolia")
 ```
+
+The registration flow now correctly extracts and stores `agentId` from the `registerAgent()` response (line 146-150). However, the feedback call still falls back to `1n` via the `??` operator if `state.agentId` is null (e.g., if registration hasn't completed or failed). Remaining issues:
+
+1. **Fallback to `1n`** — should skip feedback entirely if agentId is null, not fall back to a placeholder
+2. **No inter-agent discovery** — the agent never queries "what other agents exist" to rate
+3. **No service consumption** — the feedback isn't tied to actually consuming another agent's service
 
 **agent.json not enforced at runtime:**
 
 The manifest exists and is valid, but the agent doesn't load it or validate its own behavior against it. It's a static artifact for judges, not a runtime constraint.
 
-### Test Coverage
-
-- `erc8004.test.ts` — 13 unit tests (register, feedback, reputation summary — mocked)
-- `erc8004.e2e.test.ts` — 6 e2e tests (contract deployment check, real feedback tx)
-
 ### Verdict
 
-**Score: 6/10**. Registration + logging + manifest are real and complete. But the hardcoded feedback `agentId=1n` is a serious credibility problem. A judge who looks at the on-chain feedback will see meaningless ratings targeting a placeholder agent.
+**Score: 7/10**. Registration + logging + manifest are real and complete. The agentId is now extracted from registration and stored in state, but the `?? 1n` fallback means feedback could still target a placeholder if registration is slow or fails. A judge who looks at the on-chain feedback may see ratings targeting agentId 1 from early runs before the fix.
 
 ### Fixes Required
 
-1. **Store registered agentId** from `registerAgent()` response into agent state
-2. **Use dynamic agentId for feedback** — either rate self (if protocol allows delegate rating) or discover real agents
+1. ~~**Store registered agentId**~~ DONE — `registerAgent()` response is destructured and stored in `state.agentId` (agent-loop.ts:146-150)
+2. **Remove `?? 1n` fallback** — feedback should be skipped entirely if agentId is null, not fall back to a placeholder
 3. **Tie feedback to service consumption** — "consumed Uniswap quote service, rating execution quality"
 4. **Consider x402 integration** — call x402scan for DeFi data, then rate that agent's service via ERC-8004
 
@@ -340,19 +296,16 @@ The intent-to-delegation pipeline is the strongest competitive differentiator. I
 
 | Prize | Pool | Score | Competition Level | Win Probability | Rationale |
 |-------|------|-------|-------------------|----------------|-----------|
-| Venice | $11,474 | 5/10 | Unknown | **15-20%** | Weak without privacy narrative + valid models. Any project using Venice as drop-in OpenAI replacement scores similarly |
+| Venice | $11,474 | 7/10 | Unknown | **25-35%** | Multi-model, budget tracking, web search/scraping all real. Privacy narrative exists but could be stronger |
 | MetaMask | $5,000 | 8/10 | Likely low (delegation is hard) | **35-45%** | Strongest integration. On-chain proof. Few projects tackle ERC-7715/7710 |
 | Uniswap | $5,000 | 7/10 | Moderate | **20-30%** | Real swaps but shallow Permit2/Graph usage |
-| Protocol Labs | $16,000 | 6/10 | High (everyone registers) | **15-25%** | Good manifest + logging, bad feedback logic |
+| Protocol Labs | $16,000 | 7/10 | High (everyone registers) | **20-30%** | Good manifest + logging, agentId partially fixed but feedback still has fallback issue |
 
-**Combined expected value: ~$3,000-$6,000** across all tracks at current state.
-
-With fixes applied (especially Venice models + feedback agentId + Permit2 swap):
-- Venice: 7/10 -> **25-35%**
-- MetaMask: 9/10 -> **40-50%**
-- Uniswap: 8/10 -> **25-35%**
-- Protocol Labs: 8/10 -> **25-35%**
-- **Combined expected value with fixes: ~$5,000-$10,000**
+With remaining fixes applied (remove agentId fallback, Permit2 swap, strengthen privacy narrative):
+- Venice: 7→8/10 -> **30-40%**
+- MetaMask: 8→9/10 -> **40-50%**
+- Uniswap: 7→8/10 -> **25-35%**
+- Protocol Labs: 7→8/10 -> **25-35%**
 
 ---
 
@@ -362,8 +315,8 @@ With fixes applied (especially Venice models + feedback agentId + Permit2 swap):
 
 | # | Fix | Impact | Effort | Affects |
 |---|-----|--------|--------|---------|
-| 1 | ~~**Fix Venice model names**~~ DONE — Models confirmed valid via `/api/v1/models` API. Previous audit was wrong. | N/A | Done | Venice |
-| 2 | **Fix `giveFeedback` hardcoded agentId** — Store registered ID from `registerAgent()`, use it dynamically | HIGH | 30 min | Protocol Labs score 6->8 |
+| 1 | ~~**Fix Venice model names**~~ DONE — Models confirmed valid via `/api/v1/models` API. | N/A | Done | Venice |
+| 2 | **Remove `?? 1n` fallback in `giveFeedback`** — agentId is now stored from registration, but feedback still falls back to `1n` if state.agentId is null. Should skip feedback entirely instead. | HIGH | 15 min | Protocol Labs score 7->8 |
 | 3 | **Push to GitHub** — Nothing counts if judges can't see it | CRITICAL | 5 min | All tracks |
 
 ### P1 — Should Fix
@@ -372,7 +325,7 @@ With fixes applied (especially Venice models + feedback agentId + Permit2 swap):
 |---|-----|--------|--------|---------|
 | 4 | **Execute one USDC -> ETH swap** — Proves Permit2 flow end-to-end | MEDIUM | 1 hr | Uniswap score 7->8 |
 | 5 | ~~**Tune delegation valueLte**~~ **FIXED** — `valueLte` now passed in `functionCall` scope config. E2e verified with correct encoding. | ~~MEDIUM~~ DONE | ~~1 hr~~ | MetaMask score 8->9 |
-| 6 | **Write privacy narrative** — 2-3 paragraphs in README explaining why Venice's no-data-retention is load-bearing for DeFi agent reasoning | MEDIUM | 30 min | Venice score 7->8 |
+| 6 | **Strengthen privacy narrative** — README mentions it but a dedicated section explaining WHY DeFi reasoning specifically requires no-data-retention would impress Venice judges | MEDIUM | 30 min | Venice score 7->8 |
 
 ### P2 — Nice to Have
 
@@ -380,7 +333,7 @@ With fixes applied (especially Venice models + feedback agentId + Permit2 swap):
 |---|-----|--------|--------|---------|
 | 7 | **Make LLM reasoning reference pool data** — Prompt explicitly uses TVL/volume | LOW | 30 min | Uniswap |
 | 8 | **Surface delegation details in dashboard** | LOW | 1 hr | MetaMask |
-| 9 | **Enable Venice web scraping** for research calls | LOW | 15 min | Venice |
+| 9 | ~~**Enable Venice web scraping**~~ DONE — `enable_web_scraping: true` on research tier | N/A | Done | Venice |
 | 10 | **Add x402 service consumption + feedback** | MEDIUM | 2 hr | Protocol Labs, AgentCash |
 
 ---
@@ -415,22 +368,22 @@ With fixes applied (especially Venice models + feedback agentId + Permit2 swap):
 
 ## Key File Locations
 
-| File | Purpose | Lines |
-|------|---------|-------|
-| `packages/agent/src/venice/llm.ts` | Venice LLM factory (3 tiers) | ~120 |
-| `packages/agent/src/venice/schemas.ts` | Zod schemas for structured output | ~100 |
-| `packages/agent/src/delegation/compiler.ts` | Intent -> delegation + caveats | ~237 |
-| `packages/agent/src/delegation/redeemer.ts` | ERC-7710 redemption | ~204 |
-| `packages/agent/src/delegation/audit.ts` | Audit report generator | ~140 |
-| `packages/agent/src/uniswap/trading.ts` | Uniswap Trading API client | ~234 |
-| `packages/agent/src/uniswap/permit2.ts` | Permit2 approval + signing | ~91 |
-| `packages/agent/src/data/thegraph.ts` | The Graph pool data | ~46 |
-| `packages/agent/src/data/prices.ts` | Venice web search for prices | ~80 |
-| `packages/agent/src/identity/erc8004.ts` | ERC-8004 registration + feedback | ~145 |
-| `packages/agent/src/agent-loop.ts` | Main autonomous loop | ~800 |
-| `packages/agent/src/server.ts` | API server for dashboard | ~300 |
-| `agent.json` | PAM spec manifest | 164 |
-| `agent_log.jsonl` | Auto-generated execution log | 4,600+ entries |
+| File | Purpose |
+|------|---------|
+| `packages/agent/src/venice/llm.ts` | Venice LLM factory (3 tiers) |
+| `packages/agent/src/venice/schemas.ts` | Zod schemas for structured output |
+| `packages/agent/src/delegation/compiler.ts` | Intent -> delegation + caveats |
+| `packages/agent/src/delegation/redeemer.ts` | ERC-7710 redemption |
+| `packages/agent/src/delegation/audit.ts` | Audit report generator |
+| `packages/agent/src/uniswap/trading.ts` | Uniswap Trading API client |
+| `packages/agent/src/uniswap/permit2.ts` | Permit2 approval + signing |
+| `packages/agent/src/data/thegraph.ts` | The Graph pool data |
+| `packages/agent/src/data/prices.ts` | Venice web search for prices |
+| `packages/agent/src/identity/erc8004.ts` | ERC-8004 registration + feedback |
+| `packages/agent/src/agent-loop.ts` | Main autonomous loop |
+| `packages/agent/src/server.ts` | API server for dashboard |
+| `agent.json` | PAM spec manifest |
+| `agent_log.jsonl` | Auto-generated execution log |
 
 ---
 

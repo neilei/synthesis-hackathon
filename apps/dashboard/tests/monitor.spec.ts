@@ -148,7 +148,7 @@ test.describe("Monitor Screen", () => {
     await navigateToMonitor(page);
 
     await expect(page.getByText("Trades via Uniswap")).toBeVisible();
-    await expect(page.getByText("Powered by Venice")).toBeVisible();
+    await expect(page.getByText("Private reasoning via Venice (no data retention)")).toBeVisible();
   });
 
   test("shows error banner when API fails", async ({ page }) => {

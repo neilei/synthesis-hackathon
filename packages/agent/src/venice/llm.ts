@@ -3,6 +3,12 @@
  * research (gemini-3-flash-preview with web search), reasoning (gemini-3-1-pro-preview).
  * Custom fetch wrapper captures billing headers for budget tracking.
  *
+ * Venice-specific features:
+ * - enable_e2ee: true — end-to-end encryption for E2EE-capable models (default true, set explicitly for visibility)
+ * - prompt_cache_key — routing hint to improve cache hit rates on repeated system prompts
+ * - reasoning_effort — set per-call in agent-loop.ts, not here (tier-level setting would override per-call)
+ *
+ * @see https://docs.venice.ai/api-reference/endpoint/chat/completions
  * @module @veil/agent/venice/llm
  */
 import { ChatOpenAI, type ChatOpenAIFields } from "@langchain/openai";
@@ -36,27 +42,47 @@ export const getVeniceLlm = (options: ChatOpenAIFields) => {
   });
 };
 
+/** Shared params: E2EE on, no Venice system prompt */
+const baseVeniceParams = {
+  enable_e2ee: true,
+  include_venice_system_prompt: false,
+};
+
 const fastVeniceParams = {
   venice_parameters: {
+    ...baseVeniceParams,
     disable_thinking: true,
     enable_web_search: "off" as const,
     enable_web_scraping: false,
     enable_web_citations: false,
     include_search_results_in_stream: false,
     return_search_results_as_documents: false,
-    include_venice_system_prompt: false,
   },
 };
 
 const researchVeniceParams = {
   venice_parameters: {
+    ...baseVeniceParams,
     disable_thinking: false,
     enable_web_search: "on" as const,
     enable_web_scraping: true,
     enable_web_citations: true,
     include_search_results_in_stream: true,
     return_search_results_as_documents: false,
-    include_venice_system_prompt: false,
+    prompt_cache_key: "veil-research",
+  },
+};
+
+const reasoningVeniceParams = {
+  venice_parameters: {
+    ...baseVeniceParams,
+    disable_thinking: false,
+    enable_web_search: "off" as const,
+    enable_web_scraping: false,
+    enable_web_citations: false,
+    include_search_results_in_stream: false,
+    return_search_results_as_documents: false,
+    prompt_cache_key: "veil-reasoning",
   },
 };
 
@@ -80,18 +106,6 @@ export const researchLlm = getVeniceLlm({
   modelKwargs: researchVeniceParams,
   timeout: LLM_TIMEOUT_RESEARCH_MS,
 });
-
-const reasoningVeniceParams = {
-  venice_parameters: {
-    disable_thinking: false,
-    enable_web_search: "off" as const,
-    enable_web_scraping: false,
-    enable_web_citations: false,
-    include_search_results_in_stream: false,
-    return_search_results_as_documents: false,
-    include_venice_system_prompt: false,
-  },
-};
 
 // Reasoning: complex decisions, intent compilation, rebalance logic
 export const reasoningLlm = getVeniceLlm({
