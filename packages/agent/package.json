@@ -17,10 +17,13 @@
     "@langchain/openai": "^1.2.0",
     "@metamask/smart-accounts-kit": "0.4.0-beta.1",
     "@veil/common": "workspace:*",
+    "better-sqlite3": "^12.8.0",
     "dotenv": "^17.3.0",
+    "drizzle-orm": "^0.45.1",
     "graphql": "^16.10.0",
     "graphql-request": "^7.1.2",
     "graphql-tag": "^2.12.6",
+    "nanoid": "^5.1.7",
     "pino": "^10.3.1",
     "viem": "^2.31.4",
     "zod": "^4.3.0"
@@ -30,7 +33,9 @@
     "@graphql-codegen/typescript": "^5.0.8",
     "@graphql-codegen/typescript-graphql-request": "^6.4.0",
     "@graphql-codegen/typescript-operations": "^5.0.8",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20.19.37",
+    "drizzle-kit": "^0.31.9",
     "tsx": "^4.19.3",
     "typescript": "^5.8.2",
     "vitest": "^4.1.0"
