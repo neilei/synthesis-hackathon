@@ -65,7 +65,7 @@ describe("Uniswap Trading API", () => {
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       expect(body.token).toBe("0x1234567890abcdef1234567890abcdef12345678");
       expect(body.chainId).toBe(11155111);
-      expect(result.approval.tokenAddress).toBe("0x1234567890abcdef1234567890abcdef12345678");
+      expect(result.approval?.tokenAddress).toBe("0x1234567890abcdef1234567890abcdef12345678");
     });
 
     it("throws on API error", async () => {
@@ -99,6 +99,22 @@ describe("Uniswap Trading API", () => {
           walletAddress: "0xwallet0000000000000000000000000000000000" as Address,
         }),
       ).rejects.toThrow("Uniswap API /check_approval response validation failed");
+    });
+
+    it("handles approval: null (token already approved)", async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve({ approval: null }),
+      });
+
+      const result = await checkApproval({
+        token: "0x1234567890abcdef1234567890abcdef12345678" as Address,
+        amount: "1000000",
+        chainId: 11155111,
+        walletAddress: "0xwallet0000000000000000000000000000000000" as Address,
+      });
+
+      expect(result.approval).toBeNull();
     });
 
     it("throws when hex strings lack 0x prefix", async () => {
