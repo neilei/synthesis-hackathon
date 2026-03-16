@@ -11,3 +11,4 @@ agent_log.jsonl
 test-results/
 playwright-report/
 .next/
+.worktrees/
