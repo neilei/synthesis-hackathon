@@ -88,7 +88,7 @@ export async function evaluateSwap(
   const evidence = buildSwapEvidence(input);
   const { hash: requestHash, url: requestURI } = storeEvidence(
     input.intentId,
-    evidence as unknown as Record<string, unknown>,
+    evidence,
   );
 
   logger.info(
@@ -128,13 +128,15 @@ export async function evaluateSwap(
     );
   }
 
-  // 4. Extract scores and reasonings
+  // 4. Extract scores and reasonings (fields are guaranteed by Zod schema validation above)
   const scores: Record<string, number> = {};
   const reasonings: Record<string, string> = {};
   for (const dim of dimensions) {
     const camel = toCamelCase(dim.tag);
-    scores[dim.tag] = validated.data[`${camel}Score`] as number;
-    reasonings[dim.tag] = validated.data[`${camel}Reasoning`] as string;
+    const scoreVal = validated.data[`${camel}Score`];
+    const reasoningVal = validated.data[`${camel}Reasoning`];
+    scores[dim.tag] = typeof scoreVal === "number" ? scoreVal : 0;
+    reasonings[dim.tag] = typeof reasoningVal === "string" ? reasoningVal : "";
   }
 
   logger.info({ scores }, "Judge: LLM evaluation complete");

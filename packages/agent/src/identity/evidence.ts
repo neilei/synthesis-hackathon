@@ -83,9 +83,9 @@ export function buildSwapEvidence(input: SwapEvidenceInput): SwapEvidence {
  *
  * @returns The keccak256 hash, local file path, and public URL
  */
-export function storeEvidence(
+export function storeEvidence<T extends object>(
   intentId: string,
-  document: Record<string, unknown>,
+  document: T,
 ): { hash: Hex; filePath: string; url: string } {
   const json = JSON.stringify(document, null, 2);
   const hash = keccak256(toHex(json));

@@ -126,6 +126,11 @@ export async function executeSwap(
     }
   }
 
+  // Snapshot pre-swap state for judge evaluation (before any mutation)
+  const beforeSwapAllocation = state.allocation;
+  const beforeSwapDrift = state.drift;
+  const beforeSwapValue = state.totalValue;
+
   const startQuote = Date.now();
   try {
     const quote = await getQuote({
@@ -308,9 +313,9 @@ export async function executeSwap(
           maxTradesPerDay: config.intent.maxTradesPerDay,
         },
         beforeSwap: {
-          allocation: {},
-          drift: 0,
-          portfolioValueUsd: 0,
+          allocation: { ...beforeSwapAllocation },
+          drift: beforeSwapDrift,
+          portfolioValueUsd: beforeSwapValue,
         },
         afterSwap: {
           allocation: state.allocation,
