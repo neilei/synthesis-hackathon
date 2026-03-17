@@ -189,6 +189,7 @@ async function handleAuthVerify(req: IncomingMessage, res: ServerResponse) {
   // Verify signature
   try {
     const message = `Sign this message to authenticate with Veil.\n\nNonce: ${nonceRecord.nonce}`;
+    // Safe cast: signature is validated as a string above; viem expects hex-prefixed type
     const recovered = await recoverMessageAddress({
       message,
       signature: signature as `0x${string}`,

@@ -7,10 +7,12 @@ export {
   SwapRecordSchema,
   AuditReportSchema,
   AgentLogEntrySchema,
+  IntentRecordSchema,
   type ParsedIntent,
   type SwapRecord,
   type AuditReport,
   type AgentLogEntry,
+  type IntentRecord,
 } from "./schemas.js";
 
 export {

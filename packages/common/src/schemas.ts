@@ -71,4 +71,22 @@ export const AgentLogEntrySchema = z.object({
 
 export type AgentLogEntry = z.infer<typeof AgentLogEntrySchema>;
 
+// ---------------------------------------------------------------------------
+// IntentRecord — intent as returned by the API (DB row + worker enrichment)
+// ---------------------------------------------------------------------------
 
+export const IntentRecordSchema = z.object({
+  id: z.string(),
+  walletAddress: z.string(),
+  intentText: z.string(),
+  parsedIntent: z.string(),
+  status: z.string(),
+  createdAt: z.number(),
+  expiresAt: z.number(),
+  cycle: z.number(),
+  tradesExecuted: z.number(),
+  totalSpentUsd: z.number(),
+  workerStatus: z.string().optional(),
+});
+
+export type IntentRecord = z.infer<typeof IntentRecordSchema>;

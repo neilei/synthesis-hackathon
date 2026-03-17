@@ -10,7 +10,7 @@
 import type { AgentState, AgentConfig } from "./agent-loop.js";
 import { runAgentLoop } from "./agent-loop.js";
 import { IntentLogger } from "./logging/intent-log.js";
-import type { IntentRepository, IntentSelect } from "./db/repository.js";
+import type { IntentRepository } from "./db/repository.js";
 import { env } from "./config.js";
 import { logger } from "./logging/logger.js";
 
@@ -35,7 +35,7 @@ export class DefaultAgentWorker implements AgentWorker {
   private running = false;
   private state: AgentState | null = null;
   private intentLogger: IntentLogger;
-  private stopRequested = false;
+  private abortController: AbortController | null = null;
   private loopPromise: Promise<void> | null = null;
 
   constructor(
@@ -63,7 +63,7 @@ export class DefaultAgentWorker implements AgentWorker {
     }
 
     this.running = true;
-    this.stopRequested = false;
+    this.abortController = new AbortController();
 
     this.intentLogger.log("worker_start", {
       result: { intentId: this.intentId, wallet: intent.walletAddress },
@@ -81,10 +81,18 @@ export class DefaultAgentWorker implements AgentWorker {
 
     const config: AgentConfig = {
       intent: parsed,
+      // Fallback to empty hex — delegation creation will fail gracefully if key is missing
       delegatorKey: env.DELEGATOR_PRIVATE_KEY ?? ("0x" as `0x${string}`),
       agentKey: env.AGENT_PRIVATE_KEY,
       chainId: 11155111,
       intervalMs: 60_000,
+      signal: this.abortController.signal,
+      intentLogger: this.intentLogger,
+      onCycleComplete: (loopState) => {
+        // Capture the live state from the running loop
+        this.state = loopState;
+        this.persistState(loopState);
+      },
     };
 
     // Run the agent loop in the background
@@ -102,24 +110,29 @@ export class DefaultAgentWorker implements AgentWorker {
       })
       .finally(() => {
         this.running = false;
-        this.persistState(intent);
       });
   }
 
   async stop(): Promise<void> {
     if (!this.running) return;
-    this.stopRequested = true;
 
-    // The runAgentLoop checks state.running — we need to signal it to stop.
-    // Since the loop is running with its own AgentState, we can't directly
-    // access it. For now, mark intent as cancelled in DB so next cycle check
-    // can detect it. The loop will complete its current cycle then exit.
-    this.deps.repo.updateIntentStatus(this.intentId, "cancelled");
+    // Signal the running loop to stop via AbortController
+    this.abortController?.abort();
+
     this.intentLogger.log("worker_stop", {
       result: { reason: "stop_requested" },
     });
 
+    // Wait for the loop to actually finish (up to 10s)
+    if (this.loopPromise) {
+      await Promise.race([
+        this.loopPromise,
+        new Promise((resolve) => setTimeout(resolve, 10_000)),
+      ]);
+    }
+
     this.running = false;
+    this.deps.repo.updateIntentStatus(this.intentId, "cancelled");
   }
 
   isRunning(): boolean {
@@ -130,17 +143,14 @@ export class DefaultAgentWorker implements AgentWorker {
     return this.state;
   }
 
-  private persistState(intent: IntentSelect): void {
+  private persistState(loopState: AgentState): void {
     try {
-      const dbIntent = this.deps.repo.getIntent(this.intentId);
-      if (dbIntent && dbIntent.status === "active") {
-        this.deps.repo.updateIntentCycleState(this.intentId, {
-          cycle: dbIntent.cycle,
-          tradesExecuted: dbIntent.tradesExecuted,
-          totalSpentUsd: dbIntent.totalSpentUsd,
-          lastCycleAt: Math.floor(Date.now() / 1000),
-        });
-      }
+      this.deps.repo.updateIntentCycleState(this.intentId, {
+        cycle: loopState.cycle,
+        tradesExecuted: loopState.tradesExecuted,
+        totalSpentUsd: loopState.totalSpentUsd,
+        lastCycleAt: Math.floor(Date.now() / 1000),
+      });
     } catch (err) {
       logger.error(
         { err, intentId: this.intentId },

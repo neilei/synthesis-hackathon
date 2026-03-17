@@ -3,7 +3,7 @@
  *
  * @module @veil/dashboard/lib/api
  */
-import type { ParsedIntent, AuditReport } from "@veil/common";
+import type { ParsedIntent, AuditReport, IntentRecord } from "@veil/common";
 
 // ---------------------------------------------------------------------------
 // Auth API
@@ -49,19 +49,7 @@ export async function parseIntent(
   return res.json();
 }
 
-export interface IntentRecord {
-  id: string;
-  walletAddress: string;
-  intentText: string;
-  parsedIntent: string;
-  status: string;
-  createdAt: number;
-  expiresAt: number;
-  cycle: number;
-  tradesExecuted: number;
-  totalSpentUsd: number;
-  workerStatus?: string;
-}
+export type { IntentRecord };
 
 export async function createIntent(
   token: string,
