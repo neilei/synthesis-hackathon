@@ -21,6 +21,7 @@ export function useIntentDetail(
     if (!intentId || !token) return;
     try {
       const detail = await fetchIntentDetail(intentId, token);
+      // fetchIntentDetail returns IntentRecord & { logs, liveState } which structurally matches IntentDetail
       setData(detail as IntentDetail);
       setError(null);
     } catch (err) {

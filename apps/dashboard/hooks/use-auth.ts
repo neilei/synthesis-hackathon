@@ -38,12 +38,12 @@ export function useAuth() {
     }
   }, [isConnected]);
 
-  // Auto-authenticate when wallet connects
+  // Auto-authenticate when wallet connects (guard on error to prevent infinite retry)
   useEffect(() => {
-    if (isConnected && address && !token && !authenticating) {
+    if (isConnected && address && !token && !authenticating && !error) {
       authenticate();
     }
-  }, [isConnected, address, token, authenticating, authenticate]);
+  }, [isConnected, address, token, authenticating, error, authenticate]);
 
   return {
     token,

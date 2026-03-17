@@ -45,6 +45,12 @@ export interface AgentConfig {
   chainId: number;
   intervalMs: number;
   maxCycles?: number; // for demo mode — stop after N cycles
+  /** Signal to abort the loop from outside (e.g. worker stop) */
+  signal?: AbortSignal;
+  /** Called after each cycle with the current state for external persistence */
+  onCycleComplete?: (state: AgentState) => void;
+  /** Per-intent logger for writing cycle data to intent-specific JSONL */
+  intentLogger?: import("./logging/intent-log.js").IntentLogger;
 }
 
 export interface AgentState {
@@ -244,6 +250,13 @@ export async function runAgentLoop(config: AgentConfig): Promise<void> {
   logger.info("Entering monitoring loop...");
 
   while (state.running) {
+    // Check abort signal before each cycle
+    if (config.signal?.aborted) {
+      logger.info("Abort signal received. Stopping agent.");
+      state.running = false;
+      break;
+    }
+
     state.cycle++;
     const cycleStart = Date.now();
 
@@ -259,20 +272,34 @@ export async function runAgentLoop(config: AgentConfig): Promise<void> {
       });
     }
 
+    const cycleResult = {
+      tradesExecuted: state.tradesExecuted,
+      totalSpentUsd: state.totalSpentUsd,
+      budgetTier: getBudgetTier(),
+      allocation: state.allocation,
+      drift: state.drift,
+      totalValue: state.totalValue,
+      ethPrice: state.ethPrice,
+    };
+
     logAction("cycle_complete", {
       cycle: state.cycle,
       parameters: { cycle: state.cycle },
       duration_ms: Date.now() - cycleStart,
-      result: {
-        tradesExecuted: state.tradesExecuted,
-        totalSpentUsd: state.totalSpentUsd,
-        budgetTier: getBudgetTier(),
-        allocation: state.allocation,
-        drift: state.drift,
-        totalValue: state.totalValue,
-        ethPrice: state.ethPrice,
-      },
+      result: cycleResult,
     });
+
+    // Write cycle data to per-intent log
+    if (config.intentLogger) {
+      config.intentLogger.log("cycle_complete", {
+        cycle: state.cycle,
+        duration_ms: Date.now() - cycleStart,
+        result: cycleResult,
+      });
+    }
+
+    // Notify external observer (worker persistence)
+    config.onCycleComplete?.(state);
 
     // Budget guard
     const maxBudget =
@@ -299,12 +326,19 @@ export async function runAgentLoop(config: AgentConfig): Promise<void> {
       break;
     }
 
-    // Wait for next cycle
+    // Check abort signal before sleeping
+    if (config.signal?.aborted) {
+      logger.info("Abort signal received. Stopping agent.");
+      state.running = false;
+      break;
+    }
+
+    // Wait for next cycle (interruptible via abort signal)
     if (state.running) {
       logger.info(
         `Sleeping ${config.intervalMs / 1000}s until next cycle...`,
       );
-      await sleep(config.intervalMs);
+      await abortableSleep(config.intervalMs, config.signal);
     }
   }
 
@@ -470,16 +504,26 @@ Decide whether to rebalance. If yes, specify the swap details. Keep swap amounts
     },
   ]);
 
+  const decisionResult = {
+    shouldRebalance: decision.shouldRebalance,
+    reasoning: decision.reasoning,
+    marketContext: decision.marketContext,
+    model: market.budgetTier === "normal" ? "gemini-3-1-pro-preview" : "qwen3-4b",
+  };
+
   logAction("rebalance_decision", {
     cycle: state.cycle,
     tool: "venice-reasoning",
     duration_ms: Date.now() - startReasoning,
-    result: {
-      shouldRebalance: decision.shouldRebalance,
-      reasoning: decision.reasoning,
-      marketContext: decision.marketContext,
-      model: market.budgetTier === "normal" ? "gemini-3-1-pro-preview" : "qwen3-4b",
-    },
+    result: decisionResult,
+  });
+
+  // Write to per-intent log
+  config.intentLogger?.log("rebalance_decision", {
+    cycle: state.cycle,
+    tool: "venice-reasoning",
+    duration_ms: Date.now() - startReasoning,
+    result: decisionResult,
   });
 
   logger.info(`Decision: ${decision.shouldRebalance ? "REBALANCE" : "HOLD"}`);
@@ -703,19 +747,29 @@ async function executeSwap(
       timestamp: new Date().toISOString(),
     });
 
+    const swapResult = {
+      txHash,
+      status: receipt.status,
+      gasUsed: receipt.gasUsed.toString(),
+      sellToken: swap.sellToken,
+      buyToken: swap.buyToken,
+      sellAmount: swap.sellAmount,
+      viaDelegation: usedDelegation,
+    };
+
     logAction("swap_executed", {
       cycle: state.cycle,
       tool: "uniswap-via-delegation",
       duration_ms: Date.now() - startTx,
-      result: {
-        txHash,
-        status: receipt.status,
-        gasUsed: receipt.gasUsed.toString(),
-        sellToken: swap.sellToken,
-        buyToken: swap.buyToken,
-        sellAmount: swap.sellAmount,
-        viaDelegation: usedDelegation,
-      },
+      result: swapResult,
+    });
+
+    // Write to per-intent log
+    config.intentLogger?.log("swap_executed", {
+      cycle: state.cycle,
+      tool: "uniswap-via-delegation",
+      duration_ms: Date.now() - startTx,
+      result: swapResult,
     });
 
     logger.info(`Swap executed! TX: ${txHash}`);
@@ -804,6 +858,19 @@ async function runCycle(
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** Sleep that resolves early if the abort signal fires */
+function abortableSleep(ms: number, signal?: AbortSignal): Promise<void> {
+  if (!signal) return sleep(ms);
+  return new Promise((resolve) => {
+    const timer = setTimeout(resolve, ms);
+    const onAbort = () => {
+      clearTimeout(timer);
+      resolve();
+    };
+    signal.addEventListener("abort", onAbort, { once: true });
+  });
 }
 
 // ---------------------------------------------------------------------------
