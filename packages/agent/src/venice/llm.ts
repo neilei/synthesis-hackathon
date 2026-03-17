@@ -85,7 +85,7 @@ const reasoningVeniceParams = {
   venice_parameters: {
     disable_thinking: false,
     enable_web_search: "off" as const,
-    enable_web_scraping: false,
+    enable_web_scraping: true,
     enable_web_citations: false,
     include_search_results_in_stream: false,
     return_search_results_as_documents: false,

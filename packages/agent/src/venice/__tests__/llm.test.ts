@@ -66,14 +66,14 @@ describe("Venice LLM configuration", () => {
     expect(kwargs.venice_parameters.disable_thinking).toBe(false);
   });
 
-  it("reasoning LLM uses gemini-3-1-pro-preview with web search disabled", () => {
+  it("reasoning LLM uses gemini-3-1-pro-preview with web scraping enabled", () => {
     const reasoning = constructorCalls[2]!;
     expect(reasoning.model).toBe("gemini-3-1-pro-preview");
     expect(reasoning.temperature).toBe(0);
 
     const kwargs = reasoning.modelKwargs as { venice_parameters: Record<string, unknown> };
     expect(kwargs.venice_parameters.enable_web_search).toBe("off");
-    expect(kwargs.venice_parameters.enable_web_scraping).toBe(false);
+    expect(kwargs.venice_parameters.enable_web_scraping).toBe(true);
     expect(kwargs.venice_parameters.enable_web_citations).toBe(false);
     expect(kwargs.venice_parameters.disable_thinking).toBe(false);
   });

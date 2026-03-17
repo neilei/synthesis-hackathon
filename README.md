@@ -40,48 +40,41 @@ An autonomous agent that compiles natural language portfolio rules into on-chain
 ## Architecture
 
 ```
-src/
-├── index.ts                 CLI entrypoint ("tsx src/index.ts --intent '...'")
-├── server.ts                HTTP API server (port 3147) — serves dashboard + JSON API
-├── agent-loop.ts            Core autonomous loop — orchestrates all modules
-├── config.ts                Env validation (Zod), contract addresses, chain config
-├── types.ts                 Shared TypeScript interfaces
-│
-├── venice/                  VENICE AI — Private Reasoning ($11.5K prize track)
-│   ├── llm.ts               3 LLM instances (fast/research/reasoning) via LangChain
-│   │                         Custom fetch captures x-venice-balance-usd for budget tracking
-│   └── schemas.ts            Zod schemas for intent parsing, rebalance decisions, market analysis
-│
-├── delegation/              METAMASK DELEGATION — On-Chain Cage ($5K prize track)
-│   ├── compiler.ts           Intent -> ERC-7715 delegation with caveats
-│   │                         Adversarial intent detection (budget >$1K, slippage >2%)
-│   ├── audit.ts              Human-readable audit report (ALLOWS / PREVENTS / WORST CASE)
-│   └── redeemer.ts           ERC-7710 delegation redemption (server-side, no browser)
-│
-├── uniswap/                 UNISWAP — Trade Execution ($5K prize track)
-│   ├── trading.ts            Quote + swap via Uniswap Trading API
-│   │                         Full flow: approve -> quote -> sign -> swap
-│   └── permit2.ts            Gasless approvals via Permit2 (EIP-2612)
-│
-├── data/                    Data Layer (internal tools, not sponsor tracks)
-│   ├── prices.ts             Token prices via Venice web search (60s cache)
-│   ├── portfolio.ts          On-chain balances via viem RPC
-│   └── thegraph.ts           Uniswap V3 pool data via The Graph subgraph
-│
-├── identity/                PROTOCOL LABS — Agent Identity ($16K prize track)
-│   └── erc8004.ts            Register agent + submit reputation feedback on Base
-│                             ERC-8004 Identity Registry + Reputation Registry
-│
-└── logging/                 Observability
-    ├── agent-log.ts          JSONL structured logging (agent_log.jsonl)
-    └── budget.ts             Venice compute budget tracking + model tier selection
-
-dashboard/
-├── index.html               Vanilla HTML dashboard (legacy, being replaced)
-└── react/                   React + Vite dashboard (being replaced by Next.js)
-
-docs/                        Design docs and research
-reference/                   Code patterns from existing projects
+packages/common/             Shared types, Zod schemas, constants, utilities (@veil/common)
+packages/agent/              Backend — autonomous agent + HTTP API server
+  src/
+  ├── index.ts               CLI entrypoint
+  ├── server.ts              HTTP API server (port 3147) — serves dashboard + JSON API
+  ├── agent-loop.ts          Core autonomous loop — orchestrates all modules
+  ├── agent-worker.ts        Per-intent worker (AbortController lifecycle, DB persistence)
+  ├── worker-pool.ts         Concurrent worker management (max 5 intents)
+  ├── config.ts              Env validation (Zod), contract addresses, chain config
+  ├── auth.ts                Nonce-signing wallet authentication (HMAC tokens)
+  ├── db/                    SQLite persistence (drizzle-orm + better-sqlite3)
+  │   ├── schema.ts          intents, swaps, auth_nonces tables
+  │   └── repository.ts      Data access layer
+  ├── venice/                VENICE AI — Private Reasoning ($11.5K prize track)
+  │   ├── llm.ts             3 LLM tiers (fast/research/reasoning) via LangChain
+  │   └── schemas.ts         Zod schemas for structured output
+  ├── delegation/            METAMASK DELEGATION — On-Chain Cage ($5K prize track)
+  │   ├── compiler.ts        Intent → ERC-7715 delegation with caveats
+  │   ├── audit.ts           Human-readable audit report
+  │   └── redeemer.ts        ERC-7710 delegation redemption (server-side)
+  ├── uniswap/               UNISWAP — Trade Execution ($5K prize track)
+  │   ├── trading.ts         Quote + swap via Uniswap Trading API
+  │   └── permit2.ts         Gasless approvals via Permit2 (EIP-712)
+  ├── data/                  Market data layer
+  │   ├── prices.ts          Token prices via Venice web search (60s cache)
+  │   ├── portfolio.ts       On-chain balances via viem RPC
+  │   └── thegraph.ts        Uniswap V3 pool data via The Graph subgraph
+  ├── identity/              PROTOCOL LABS — Agent Identity ($16K prize track)
+  │   └── erc8004.ts         ERC-8004 registration + reputation feedback on Base
+  └── logging/               Observability
+      ├── agent-log.ts       Global JSONL structured logging
+      ├── intent-log.ts      Per-intent JSONL logs (downloadable via API)
+      └── budget.ts          Venice compute budget tracking + model tier selection
+apps/dashboard/              Next.js 16 dashboard (Configure, Audit, Monitor)
+docs/                        Design docs, plans, research
 agent.json                   PAM spec manifest — capabilities, tools, security policies
 ```
 
@@ -91,52 +84,36 @@ agent.json                   PAM spec manifest — capabilities, tools, security
 
 | Sponsor | Prize Pool | What We Use | Where In Code | Status |
 |---------|-----------|-------------|---------------|--------|
-| **Venice** | $11,474 (VVV) | Private LLM inference, web search, multi-model routing, no-data-retention | `src/venice/` | WORKING — 3 models configured, e2e tested |
-| **MetaMask** | $5,000 | ERC-7715 delegation grant + ERC-7710 redemption, 8 caveats | `src/delegation/` | WORKING — compiler + audit + redeemer, unit tested |
-| **Uniswap** | $5,000 | Trading API (quote + swap), Permit2 gasless approvals | `src/uniswap/` | WORKING — full flow coded, needs live swap test |
-| **Protocol Labs** | $15,968 | ERC-8004 identity + reputation, agent.json manifest, structured logs | `src/identity/`, `src/logging/`, `agent.json` | WORKING — contracts verified on Base Sepolia |
-| **AgentCash/Merit** | $1,746 | x402 paid data services | Not yet integrated | NOT STARTED |
+| **Venice** | $11,474 (VVV) | Private LLM inference, web search + scraping, multi-model routing, no-data-retention | `packages/agent/src/venice/` | WORKING — 3 models, privacy narrative, budget tracking |
+| **MetaMask** | $5,000 | ERC-7715 delegation grant + ERC-7710 redemption, caveat enforcers | `packages/agent/src/delegation/` | WORKING — on-chain proof, delegation details in Audit tab |
+| **Uniswap** | $5,000 | Trading API (quote + swap), Permit2 gasless approvals, The Graph pool data | `packages/agent/src/uniswap/` | WORKING — 2 successful swaps + Permit2 flow proven |
+| **Protocol Labs** | $15,968 | ERC-8004 identity + reputation, agent.json manifest, per-intent logs | `packages/agent/src/identity/`, `agent.json` | WORKING — dynamic agentId, feedback after each swap |
 
 ---
 
 ## What Works Right Now
 
-**Fully tested and functional (167 unit tests, 34 e2e tests — all passing):**
+**Tested:** 239 agent unit tests, 34 Playwright e2e tests, dashboard lint passing.
 
-- Venice LLM integration — 3 model tiers, structured output, web search, budget tracking
-- Intent compilation — natural language to structured delegation parameters
+- Venice LLM integration — 3 model tiers, structured output, web search + scraping, budget tracking
+- Intent compilation — natural language → structured delegation parameters via Venice
 - Adversarial intent detection — flags dangerous configs before delegation
-- Delegation creation — ERC-7715 with TimestampEnforcer + LimitedCallsEnforcer caveats
-- Audit report generation — human-readable ALLOWS/PREVENTS/WORST CASE
-- ERC-7710 delegation redemption client creation
-- Uniswap quote + swap flow with Permit2 signatures
-- Portfolio balance queries via RPC
-- Pool data queries via The Graph
-- Token price fetching via Venice web search (with 60s cache)
-- ERC-8004 agent registration + reputation feedback
-- Structured JSONL logging with sequence tracking
-- Venice compute budget tracking with model tier recommendations
-- HTTP API server with deploy + state endpoints
-- Dashboard (React + vanilla HTML)
+- ERC-7715 delegation creation with ValueLteEnforcer + TimestampEnforcer + LimitedCallsEnforcer
+- ERC-7710 delegation redemption (server-side, no browser needed)
+- Audit report generation — ALLOWS / PREVENTS / WORST CASE / WARNINGS
+- Uniswap quote + swap via Trading API — 2 successful on-chain swaps on Sepolia
+- Permit2 EIP-712 signing flow — proven end-to-end (`scripts/swap-usdc-eth.ts`)
+- Pool data from The Graph — top 3 pools fed into LLM reasoning with liquidity guidance
+- Token prices via Venice web search (60s cache)
+- ERC-8004 agent registration + dynamic reputation feedback on Base Sepolia
+- Multi-wallet intent persistence (SQLite, WAL mode, intent CRUD API)
+- Per-intent worker pool with AbortController lifecycle (max 5 concurrent)
+- Wallet-scoped nonce-signing auth flow (HMAC bearer tokens)
+- Per-intent JSONL logs (downloadable via API)
+- Next.js dashboard with Configure → Audit → Monitor flow
+- Live deployment at `http://195.201.8.147:3147`
 
-**Not yet validated end-to-end:**
-
-- Full agent loop (all steps together in sequence) — individual modules work, orchestration untested
-- Real Uniswap swap on testnet — quote flow works, need funded wallet for actual tx
-- Real delegation redemption — client creation works, need DelegationManager on testnet
-- Wallet is unfunded on Base Sepolia (can't register ERC-8004 identity)
-
----
-
-## Known Issues
-
-1. **Two different The Graph subgraph IDs** — `config.ts` uses the official Uniswap V3 subgraph (`5zvR82...`), `codegen.ts` and `agent.json` use a Messari-standardized subgraph (`FUbEPQ...`) with a different schema. Runtime code works; codegen fails.
-
-2. **GraphQL codegen never run** — `codegen.ts` was pointing at a keyless URL (fixed) but still uses the wrong subgraph. No `__generated__/` output exists. Runtime code uses raw `graphql-request` with manual types.
-
-3. **Dashboard is mid-migration** — Vanilla HTML at `dashboard/index.html`, Vite React at `dashboard/react/`, both being replaced by Next.js at `apps/dashboard/`.
-
-4. **No monorepo structure yet** — Everything lives flat. Plan: npm workspaces with `packages/agent/` (current `src/`) and `apps/dashboard/` (Next.js).
+**On-chain evidence:** 4 successful Sepolia txs, 4 Base Sepolia txs, 1 Base Mainnet registration. See `docs/sponsor-prize-audit.md` for full tx list.
 
 ---
 
@@ -144,41 +121,45 @@ agent.json                   PAM spec manifest — capabilities, tools, security
 
 ```bash
 # Clone
-git clone git@github-neilei:neilei/synthesis-hackathon.git
+git clone git@github.com:neilei/synthesis-hackathon.git
 cd synthesis-hackathon
 
-# Install
-npm install
+# Install (pnpm workspaces)
+pnpm install
 
 # Configure
 cp .env.example .env
 # Fill in: VENICE_API_KEY, UNISWAP_API_KEY, AGENT_PRIVATE_KEY
 
 # Test
-npm test              # 167 unit tests
-npm run test:e2e      # 34 e2e tests (needs API keys)
+pnpm test             # unit tests (agent + common + dashboard)
+pnpm run test:e2e     # e2e tests (needs API keys)
 
-# Run agent (CLI)
-npx tsx src/index.ts --intent "60/40 ETH/USDC, $200/day, 7 days"
+# Run API server + dashboard
+pnpm run serve        # http://localhost:3147
 
-# Run dashboard server
-npm run serve         # http://localhost:3147
+# Run agent (CLI mode)
+pnpm run dev -- --intent "60/40 ETH/USDC, \$200/day, 7 days"
+
+# Dashboard dev server (hot reload)
+pnpm run dev:dashboard
 ```
 
 ---
 
 ## Tech Stack
 
-- **Runtime**: Node.js 20, TypeScript 5.8
+- **Runtime**: Node.js 22, TypeScript 5.9, pnpm workspaces + turborepo
 - **AI**: Venice AI (OpenAI-compatible) via LangChain (`@langchain/openai`)
-- **Chain**: viem 2.31, Ethereum Sepolia / Base Sepolia / Base Mainnet
-- **Delegation**: MetaMask Smart Accounts Kit 0.4.0-beta.1 (ERC-7715 + ERC-7710)
-- **DEX**: Uniswap Trading API + Permit2
-- **Data**: The Graph (Uniswap V3 subgraph), Venice web search
+- **Chain**: viem 2.47, Ethereum Sepolia / Base Sepolia / Base Mainnet
+- **Delegation**: MetaMask Smart Accounts Kit (ERC-7715 + ERC-7710)
+- **DEX**: Uniswap Trading API + Permit2 (EIP-712)
+- **Data**: The Graph (Uniswap V3 subgraph), Venice web search + scraping
 - **Identity**: ERC-8004 Identity + Reputation Registries on Base
-- **Validation**: Zod schemas throughout
-- **Testing**: Vitest (unit + e2e), Playwright (dashboard)
-- **Dashboard**: Next.js (planned), currently React + Vite
+- **Persistence**: SQLite (drizzle-orm + better-sqlite3, WAL mode)
+- **Validation**: Zod schemas throughout (`@veil/common`)
+- **Testing**: Vitest (unit + e2e), Playwright (dashboard e2e)
+- **Dashboard**: Next.js 16, wagmi v2, tailwindcss
 
 ---
 
