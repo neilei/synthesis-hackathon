@@ -161,13 +161,13 @@ function getJudgeClients(target: ChainTarget) {
 
   const publicClient = createPublicClient({
     chain,
-    transport: http(),
+    transport: rpcTransport(target),
   });
 
   const walletClient = createWalletClient({
     account,
     chain,
-    transport: http(),
+    transport: rpcTransport(target),
   });
 
   return { publicClient, walletClient, account };
