@@ -1,50 +1,19 @@
 /**
- * Unit tests for Permit2 approval and signing utilities.
+ * Unit tests for Permit2 EIP-712 signing utilities.
  *
  * @module @veil/agent/uniswap/permit2.test
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import type { Address, Hex } from "viem";
 
-// ---------------------------------------------------------------------------
-// Mock config
-// ---------------------------------------------------------------------------
-
-vi.mock("../../config.js", () => ({
-  CONTRACTS: {
-    PERMIT2: "0x000000000022D473030F116dDEE9F6B43aC78BA3" as Address,
-  },
-}));
-
-// ---------------------------------------------------------------------------
-// Mock viem – parseAbi must return a passthrough so the real module can
-// define its ABI constants at import time.
-// ---------------------------------------------------------------------------
-
-vi.mock("viem", async () => {
-  const actual = await vi.importActual<typeof import("viem")>("viem");
-  return {
-    ...actual,
-    // keep parseAbi functional so ABI consts resolve
-  };
-});
-
-import { ensurePermit2Approval, signPermit2Data, derivePrimaryType } from "../permit2.js";
+import { signPermit2Data, derivePrimaryType } from "../permit2.js";
 
 // ---------------------------------------------------------------------------
 // Shared mock factories
 // ---------------------------------------------------------------------------
 
-function makeMockPublicClient(allowance: bigint = 0n) {
-  return {
-    readContract: vi.fn().mockResolvedValue(allowance),
-    waitForTransactionReceipt: vi.fn().mockResolvedValue({ status: "success" }),
-  } as unknown as import("viem").PublicClient;
-}
-
 function makeMockWalletClient() {
   return {
-    writeContract: vi.fn().mockResolvedValue("0xapprovalhash" as Hex),
     signTypedData: vi.fn().mockResolvedValue("0xsignature" as Hex),
     chain: { id: 1, name: "mainnet" },
     account: {
@@ -53,109 +22,6 @@ function makeMockWalletClient() {
     },
   } as unknown as import("viem").WalletClient;
 }
-
-const TOKEN = "0xTokenAddress" as Address;
-const OWNER = "0xOwnerAddress" as Address;
-
-// ---------------------------------------------------------------------------
-// ensurePermit2Approval
-// ---------------------------------------------------------------------------
-
-describe("ensurePermit2Approval", () => {
-  it("skips approval when existing allowance is above 2^128", async () => {
-    const highAllowance = 2n ** 128n + 1n;
-    const publicClient = makeMockPublicClient(highAllowance);
-    const walletClient = makeMockWalletClient();
-
-    const result = await ensurePermit2Approval(
-      publicClient,
-      walletClient,
-      TOKEN,
-      OWNER,
-    );
-
-    expect(result).toBe(false);
-    expect(publicClient.readContract).toHaveBeenCalledTimes(1);
-    expect(
-      (walletClient as unknown as { writeContract: ReturnType<typeof vi.fn> })
-        .writeContract,
-    ).not.toHaveBeenCalled();
-  });
-
-  it("skips approval when allowance is exactly at the boundary (2^128 is NOT > 2^128)", async () => {
-    // The code checks `currentAllowance > 2n ** 128n`, so exactly 2^128 should trigger approval
-    const boundaryAllowance = 2n ** 128n;
-    const publicClient = makeMockPublicClient(boundaryAllowance);
-    const walletClient = makeMockWalletClient();
-
-    const result = await ensurePermit2Approval(
-      publicClient,
-      walletClient,
-      TOKEN,
-      OWNER,
-    );
-
-    expect(result).toBe(true);
-    expect(
-      (walletClient as unknown as { writeContract: ReturnType<typeof vi.fn> })
-        .writeContract,
-    ).toHaveBeenCalledTimes(1);
-  });
-
-  it("sends approval tx when allowance is low", async () => {
-    const lowAllowance = 1000n;
-    const publicClient = makeMockPublicClient(lowAllowance);
-    const walletClient = makeMockWalletClient();
-
-    const result = await ensurePermit2Approval(
-      publicClient,
-      walletClient,
-      TOKEN,
-      OWNER,
-    );
-
-    expect(result).toBe(true);
-
-    // Verify writeContract was called with correct args
-    const writeCall = (
-      walletClient as unknown as { writeContract: ReturnType<typeof vi.fn> }
-    ).writeContract.mock.calls[0][0];
-    expect(writeCall.address).toBe(TOKEN);
-    expect(writeCall.functionName).toBe("approve");
-    expect(writeCall.args[0]).toBe(
-      "0x000000000022D473030F116dDEE9F6B43aC78BA3",
-    ); // PERMIT2
-    expect(writeCall.args[1]).toBe(2n ** 256n - 1n); // max uint256
-  });
-
-  it("waits for transaction receipt after approval", async () => {
-    const publicClient = makeMockPublicClient(0n);
-    const walletClient = makeMockWalletClient();
-
-    await ensurePermit2Approval(publicClient, walletClient, TOKEN, OWNER);
-
-    expect(publicClient.waitForTransactionReceipt).toHaveBeenCalledWith({
-      hash: "0xapprovalhash",
-    });
-  });
-
-  it("passes owner and PERMIT2 to readContract allowance check", async () => {
-    const publicClient = makeMockPublicClient(2n ** 200n);
-    const walletClient = makeMockWalletClient();
-
-    await ensurePermit2Approval(publicClient, walletClient, TOKEN, OWNER);
-
-    const readCall = (
-      publicClient as unknown as { readContract: ReturnType<typeof vi.fn> }
-    ).readContract.mock.calls[0][0];
-    expect(readCall.address).toBe(TOKEN);
-    expect(readCall.functionName).toBe("allowance");
-    expect(readCall.args[0]).toBe(OWNER);
-    expect(readCall.args[1]).toBe(
-      "0x000000000022D473030F116dDEE9F6B43aC78BA3",
-    ); // PERMIT2
-  });
-});
 
 // ---------------------------------------------------------------------------
 // signPermit2Data

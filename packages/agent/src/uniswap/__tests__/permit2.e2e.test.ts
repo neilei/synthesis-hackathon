@@ -8,7 +8,7 @@ import { createPublicClient, createWalletClient } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { sepolia } from "viem/chains";
 import { env, CONTRACTS, rpcTransport } from "../../config.js";
-import { ensurePermit2Approval, signPermit2Data } from "../permit2.js";
+import { signPermit2Data } from "../permit2.js";
 
 /**
  * E2E tests for Permit2 on Sepolia.
