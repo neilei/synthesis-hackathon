@@ -573,8 +573,9 @@ const server = createServer(async (req, res) => {
 // ---------------------------------------------------------------------------
 
 async function startup() {
-  // Initialize database
-  repo = new IntentRepository(getDb());
+  // Initialize database (DB_PATH env var allows e2e tests to use isolated DBs)
+  const dbPath = process.env.DB_PATH || "data/veil.db";
+  repo = new IntentRepository(getDb(dbPath));
 
   // Wire up worker factory so WorkerPool can create AgentWorker instances
   workerPool.setWorkerFactory(

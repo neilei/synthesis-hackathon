@@ -5,10 +5,10 @@
  */
 import { describe, it, expect } from "vitest";
 import { sepolia } from "viem/chains";
-import { createPublicClient, http } from "viem";
-import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
-import { deployDelegatorIfNeeded } from "../redeemer.js";
+import { createPublicClient } from "viem";
+import { generatePrivateKey } from "viem/accounts";
 import { createDelegatorSmartAccount } from "../compiler.js";
+import { rpcTransport } from "../../config.js";
 
 /**
  * E2E tests for delegation redeemer.
@@ -72,7 +72,7 @@ describe("Delegation Redeemer E2E (Sepolia)", () => {
       // We can't actually deploy (costs gas), but we can verify the code check
       const publicClient = createPublicClient({
         chain: sepolia,
-        transport: http(),
+        transport: rpcTransport("sepolia"),
       });
       const code = await publicClient.getCode({
         address: smartAccount.address,

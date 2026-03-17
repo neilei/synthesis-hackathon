@@ -61,7 +61,7 @@ Root `package.json` uses pnpm workspaces. Run everything from root:
 ## Key Technical Decisions
 
 - **Shared types**: `@veil/common` is the single source of truth for API contract types (Zod schemas + derived types), shared constants, and formatting utilities. Both `packages/agent` and `apps/dashboard` import from common — never define duplicate type interfaces.
-- **Venice multi-model**: qwen3-4b (fast), gemini-3-flash-preview (research/web search + scraping), gemini-3-1-pro-preview (reasoning). All confirmed valid via `GET /api/v1/models`. Venice model catalog changes frequently — always verify against the live API, never static docs.
+- **Venice multi-model**: qwen3-4b (fast), gemini-3-flash-preview (research/web search + scraping), gemini-3-flash-preview (reasoning). All confirmed valid via `GET /api/v1/models`. Venice model catalog changes frequently — always verify against the live API, never static docs.
 - **Structured output**: `llm.withStructuredOutput(zodSchema)` + `safeParse()` post-validation
 - **Budget tracking**: Venice `x-venice-balance-usd` response header captured via custom fetch wrapper
 - **The Graph**: Uses official Uniswap V3 Ethereum mainnet subgraph (ID: `5zvR82QoaXYFyDEKLZ9t6v9adgnptxYpKpSbxtgVENFV`). Types generated via graphql-codegen.

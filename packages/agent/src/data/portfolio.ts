@@ -6,13 +6,12 @@
  */
 import {
   createPublicClient,
-  http,
   formatEther,
   formatUnits,
   type Address,
 } from "viem";
 import { sepolia, baseSepolia, base } from "viem/chains";
-import { CONTRACTS, type ChainEnv } from "../config.js";
+import { CONTRACTS, rpcTransport, type ChainEnv } from "../config.js";
 
 export interface PortfolioState {
   address: Address;
@@ -49,14 +48,14 @@ function getClient(chainEnv: ChainEnv) {
   const config = chainConfigs[chainEnv];
   return createPublicClient({
     chain: config.chain,
-    transport: http(),
+    transport: rpcTransport(chainEnv),
   });
 }
 
 /** Default public client for Sepolia */
 export const publicClient = createPublicClient({
   chain: sepolia,
-  transport: http(),
+  transport: rpcTransport("sepolia"),
 });
 
 /**

@@ -90,6 +90,24 @@ describe("QuoteResponseSchema", () => {
     expect(result.success).toBe(true);
   });
 
+  it("accepts slippage as a plain number", () => {
+    const withNumericSlippage = {
+      ...validQuote,
+      quote: { ...validQuote.quote, slippage: 0.5 },
+    };
+    const result = QuoteResponseSchema.safeParse(withNumericSlippage);
+    expect(result.success).toBe(true);
+  });
+
+  it("accepts null permitData", () => {
+    const withNullPermit = {
+      ...validQuote,
+      permitData: null,
+    };
+    const result = QuoteResponseSchema.safeParse(withNullPermit);
+    expect(result.success).toBe(true);
+  });
+
   it("rejects non-numeric chainId", () => {
     const invalid = {
       ...validQuote,

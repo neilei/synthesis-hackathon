@@ -130,12 +130,16 @@ vi.mock("../../venice/llm.js", () => ({
   reasoningLlm: {},
 }));
 
-vi.mock("../../config.js", () => ({
-  CONTRACTS: {
-    UNISWAP_ROUTER_SEPOLIA: "0x3A9D48AB9751398BbFa63ad67599Bb04e4BdF98b",
-    UNISWAP_ROUTER_MAINNET: "0x3fC91A3afd70395Cd496C647d5a6CC9D4B2b7FAD",
-  },
-}));
+vi.mock("../../config.js", async () => {
+  const { http } = await import("viem");
+  return {
+    CONTRACTS: {
+      UNISWAP_ROUTER_SEPOLIA: "0x3A9D48AB9751398BbFa63ad67599Bb04e4BdF98b",
+      UNISWAP_ROUTER_MAINNET: "0x3fC91A3afd70395Cd496C647d5a6CC9D4B2b7FAD",
+    },
+    rpcTransport: () => http(),
+  };
+});
 
 // Now import the function under test (must come after vi.mock calls)
 const { createDelegationFromIntent } = await import("../compiler.js");

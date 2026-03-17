@@ -8,12 +8,12 @@
 import {
   createWalletClient,
   createPublicClient,
-  http,
   formatEther,
   type Chain,
   type Hex,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
+import { rpcTransport } from "../config.js";
 import { logger } from "../logging/logger.js";
 import {
   createExecution,
@@ -50,7 +50,7 @@ export async function deployDelegatorIfNeeded(
   agentPrivateKey: `0x${string}`,
   chain: Chain,
 ): Promise<Hex | null> {
-  const publicClient = createPublicClient({ chain, transport: http() });
+  const publicClient = createPublicClient({ chain, transport: rpcTransport(chain) });
 
   // Check if smart account code exists at the address
   const code = await publicClient.getCode({ address: smartAccount.address });
@@ -68,7 +68,7 @@ export async function deployDelegatorIfNeeded(
   const walletClient = createWalletClient({
     account: privateKeyToAccount(agentPrivateKey),
     chain,
-    transport: http(),
+    transport: rpcTransport(chain),
   });
 
   const txHash = await walletClient.sendTransaction({
@@ -101,7 +101,7 @@ export async function fundDelegatorIfNeeded(
   chain: Chain,
   requiredWei: bigint,
 ): Promise<Hex | null> {
-  const publicClient = createPublicClient({ chain, transport: http() });
+  const publicClient = createPublicClient({ chain, transport: rpcTransport(chain) });
 
   const balance = await publicClient.getBalance({
     address: smartAccount.address,
@@ -122,7 +122,7 @@ export async function fundDelegatorIfNeeded(
   const walletClient = createWalletClient({
     account: privateKeyToAccount(agentPrivateKey),
     chain,
-    transport: http(),
+    transport: rpcTransport(chain),
   });
 
   const txHash = await walletClient.sendTransaction({
@@ -192,7 +192,7 @@ export async function redeemDelegation(
   const walletClient = createWalletClient({
     account: privateKeyToAccount(agentPrivateKey),
     chain,
-    transport: http(),
+    transport: rpcTransport(chain),
   });
 
   const delegationManagerAddr = getSmartAccountsEnvironment(

@@ -7,6 +7,8 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { spawn, type ChildProcess } from "child_process";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
+import { mkdtempSync, rmSync } from "fs";
+import { tmpdir } from "os";
 
 /**
  * E2E tests for the server HTTP endpoints.
@@ -19,6 +21,10 @@ const __dirname = dirname(__filename);
 const PORT = 3148;
 const BASE = `http://localhost:${PORT}`;
 let serverProcess: ChildProcess;
+
+// Isolated temp DB so parallel e2e test suites don't conflict
+const tmpDir = mkdtempSync(join(tmpdir(), "veil-server-e2e-"));
+const DB_PATH = join(tmpDir, "test.db");
 
 async function waitForServer(timeoutMs = 30000): Promise<void> {
   const start = Date.now();
@@ -42,7 +48,7 @@ describe("Server E2E", () => {
       "npx",
       ["tsx", join(__dirname, "../server.ts")],
       {
-        env: { ...process.env, PORT: String(PORT) },
+        env: { ...process.env, PORT: String(PORT), DB_PATH },
         stdio: "pipe",
       },
     );
@@ -64,6 +70,11 @@ describe("Server E2E", () => {
   afterAll(() => {
     if (serverProcess) {
       serverProcess.kill("SIGTERM");
+    }
+    try {
+      rmSync(tmpDir, { recursive: true, force: true });
+    } catch {
+      // ignore cleanup errors
     }
   });
 

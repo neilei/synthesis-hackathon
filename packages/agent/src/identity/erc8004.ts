@@ -8,7 +8,6 @@
 import {
   createPublicClient,
   createWalletClient,
-  http,
   parseAbi,
   type Address,
   type Hex,
@@ -19,7 +18,7 @@ import {
   IDENTITY_REGISTRY_ABI_HUMAN,
   REPUTATION_REGISTRY_ABI_HUMAN,
 } from "@veil/common";
-import { env, CONTRACTS } from "../config.js";
+import { env, CONTRACTS, rpcTransport } from "../config.js";
 
 // ---------------------------------------------------------------------------
 // ABI fragments for ERC-8004 registries (sourced from @veil/common)
@@ -54,13 +53,13 @@ function getClients(target: ChainTarget) {
 
   const publicClient = createPublicClient({
     chain,
-    transport: http(),
+    transport: rpcTransport(target),
   });
 
   const walletClient = createWalletClient({
     account,
     chain,
-    transport: http(),
+    transport: rpcTransport(target),
   });
 
   return { publicClient, walletClient, account };

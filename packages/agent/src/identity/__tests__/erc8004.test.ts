@@ -47,6 +47,7 @@ vi.mock("../../config.js", () => ({
     REPUTATION_BASE_SEPOLIA: "0x8004B663056A597Dffe9eCcC1965A193B7388713" as Address,
     REPUTATION_BASE_MAINNET: "0x8004BAa17C55a88189AE136b182e5fdA19dE9b63" as Address,
   },
+  rpcTransport: vi.fn().mockReturnValue("http-transport"),
 }));
 
 import { giveFeedback, getReputationSummary, registerAgent } from "../erc8004.js";

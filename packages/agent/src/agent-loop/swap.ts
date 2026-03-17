@@ -6,12 +6,12 @@
  * @module @veil/agent/agent-loop/swap
  */
 import type { Address, Hex } from "viem";
-import { createWalletClient, createPublicClient, http, parseUnits } from "viem";
+import { createWalletClient, createPublicClient, parseUnits } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import type { sepolia, base } from "viem/chains";
 
 import type { AgentConfig, AgentState } from "./index.js";
-import { CONTRACTS } from "../config.js";
+import { CONTRACTS, rpcTransport } from "../config.js";
 import { redeemDelegation } from "../delegation/redeemer.js";
 import { getQuote, createSwap, checkApproval } from "../uniswap/trading.js";
 import { signPermit2Data } from "../uniswap/permit2.js";
@@ -105,9 +105,9 @@ export async function executeSwap(
       const approvalWallet = createWalletClient({
         account: privateKeyToAccount(config.agentKey),
         chain,
-        transport: http(),
+        transport: rpcTransport(chain),
       });
-      const approvalClient = createPublicClient({ chain, transport: http() });
+      const approvalClient = createPublicClient({ chain, transport: rpcTransport(chain) });
       const approvalTx = await approvalWallet.sendTransaction({
         to: approval.approval.transactionRequest.to,
         data: approval.approval.transactionRequest.data,
@@ -158,12 +158,12 @@ export async function executeSwap(
     const walletClient = createWalletClient({
       account: privateKeyToAccount(config.agentKey),
       chain,
-      transport: http(),
+      transport: rpcTransport(chain),
     });
 
     const publicClient = createPublicClient({
       chain,
-      transport: http(),
+      transport: rpcTransport(chain),
     });
 
     // Sign permit data if present (only for direct tx path — smart account can't sign)

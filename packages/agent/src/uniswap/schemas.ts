@@ -52,10 +52,13 @@ export const QuoteResponseSchema = z.object({
     input: z.object({ token: hexString, amount: z.string() }),
     output: z.object({ token: hexString, amount: z.string() }),
     swapper: hexString,
-    slippage: z.object({ tolerance: z.number() }),
+    slippage: z.union([
+      z.object({ tolerance: z.number() }),
+      z.number(),
+    ]),
   }),
   routing: z.string(),
-  permitData: PermitDataSchema.optional(),
+  permitData: PermitDataSchema.optional().nullable(),
 });
 export type QuoteResponse = z.infer<typeof QuoteResponseSchema>;
 

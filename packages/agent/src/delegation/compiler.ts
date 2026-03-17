@@ -6,7 +6,7 @@
  * @module @veil/agent/delegation/compiler
  */
 import type { Address, Hex } from "viem";
-import { createPublicClient, encodePacked, http } from "viem";
+import { createPublicClient, encodePacked } from "viem";
 import { sepolia, mainnet } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
 import {
@@ -24,7 +24,7 @@ import {
   IntentParseSchema,
   type IntentParse,
 } from "../venice/schemas.js";
-import { CONTRACTS } from "../config.js";
+import { CONTRACTS, rpcTransport } from "../config.js";
 
 // ---------------------------------------------------------------------------
 // Safety thresholds for adversarial intent detection
@@ -146,7 +146,7 @@ export async function createDelegatorSmartAccount(
   chainId: number,
 ): Promise<MetaMaskSmartAccount> {
   const chain = chainId === 11155111 ? sepolia : mainnet;
-  const publicClient = createPublicClient({ chain, transport: http() });
+  const publicClient = createPublicClient({ chain, transport: rpcTransport(chain) });
   const delegatorAccount = privateKeyToAccount(delegatorKey);
 
   const smartAccount = await toMetaMaskSmartAccount({

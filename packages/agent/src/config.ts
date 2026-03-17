@@ -7,7 +7,7 @@
 import { config as dotenvConfig } from "dotenv";
 import { resolve } from "path";
 import { z } from "zod";
-import { type Chain, type Address } from "viem";
+import { type Chain, type Address, http, type HttpTransport } from "viem";
 import { sepolia, baseSepolia, base } from "viem/chains";
 
 // Load .env from project root. First call handles cwd=root, second handles cwd=packages/agent/.
@@ -33,6 +33,18 @@ const envSchema = z.object({
       v && v.startsWith("0x") ? (v as `0x${string}`) : undefined,
     ),
   THEGRAPH_API_KEY: z.string().optional(),
+  SEPOLIA_RPC_URL: z
+    .string()
+    .url()
+    .default("https://ethereum-sepolia-rpc.publicnode.com"),
+  BASE_SEPOLIA_RPC_URL: z
+    .string()
+    .url()
+    .default("https://base-sepolia-rpc.publicnode.com"),
+  BASE_RPC_URL: z
+    .string()
+    .url()
+    .default("https://base-rpc.publicnode.com"),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -101,3 +113,29 @@ const THEGRAPH_SUBGRAPH_ID =
 export const THEGRAPH_UNISWAP_V3_BASE = env.THEGRAPH_API_KEY
   ? `https://gateway.thegraph.com/api/${env.THEGRAPH_API_KEY}/subgraphs/id/${THEGRAPH_SUBGRAPH_ID}`
   : `https://gateway.thegraph.com/api/subgraphs/id/${THEGRAPH_SUBGRAPH_ID}`;
+
+// ── RPC Transports ──────────────────────────────────────────────────
+
+const RPC_URLS: Record<ChainEnv, string> = {
+  sepolia: env.SEPOLIA_RPC_URL,
+  "base-sepolia": env.BASE_SEPOLIA_RPC_URL,
+  base: env.BASE_RPC_URL,
+};
+
+const CHAIN_ID_TO_ENV: Record<number, ChainEnv> = {
+  11155111: "sepolia",
+  84532: "base-sepolia",
+  8453: "base",
+};
+
+export function rpcTransport(chainOrEnv: ChainEnv | Chain): HttpTransport {
+  if (typeof chainOrEnv === "string") {
+    return http(RPC_URLS[chainOrEnv]);
+  }
+  const envKey = CHAIN_ID_TO_ENV[chainOrEnv.id];
+  if (!envKey) {
+    // Unknown chain (e.g. mainnet, local anvil) — use chain's default RPC
+    return http();
+  }
+  return http(RPC_URLS[envKey]);
+}

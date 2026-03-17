@@ -14,7 +14,6 @@ import { describe, it, expect } from "vitest";
 import {
   createPublicClient,
   createWalletClient,
-  http,
   parseAbi,
   toEventSelector,
   toHex,
@@ -27,7 +26,7 @@ import {
   IDENTITY_REGISTRY_ABI_HUMAN,
   REPUTATION_REGISTRY_ABI_HUMAN,
 } from "@veil/common";
-import { env, CONTRACTS } from "../../config.js";
+import { env, CONTRACTS, rpcTransport } from "../../config.js";
 
 // ---------------------------------------------------------------------------
 // Parse the shared ABI fragments — this is what we're validating
@@ -64,13 +63,13 @@ const account = privateKeyToAccount(env.AGENT_PRIVATE_KEY);
 
 const publicClient = createPublicClient({
   chain: baseSepolia,
-  transport: http(),
+  transport: rpcTransport("base-sepolia"),
 });
 
 const walletClient = createWalletClient({
   account,
   chain: baseSepolia,
-  transport: http(),
+  transport: rpcTransport("base-sepolia"),
 });
 
 const identityAddress = CONTRACTS.IDENTITY_BASE_SEPOLIA;

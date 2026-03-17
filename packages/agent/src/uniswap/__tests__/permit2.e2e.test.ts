@@ -4,10 +4,10 @@
  * @module @veil/agent/uniswap/permit2.e2e.test
  */
 import { describe, it, expect } from "vitest";
-import { createPublicClient, createWalletClient, http } from "viem";
+import { createPublicClient, createWalletClient } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { sepolia } from "viem/chains";
-import { env, CONTRACTS } from "../../config.js";
+import { env, CONTRACTS, rpcTransport } from "../../config.js";
 import { ensurePermit2Approval, signPermit2Data } from "../permit2.js";
 
 /**
@@ -20,13 +20,13 @@ describe("Permit2 E2E (Sepolia)", () => {
 
   const publicClient = createPublicClient({
     chain: sepolia,
-    transport: http(),
+    transport: rpcTransport("sepolia"),
   });
 
   const walletClient = createWalletClient({
     account,
     chain: sepolia,
-    transport: http(),
+    transport: rpcTransport("sepolia"),
   });
 
   it("Permit2 contract is deployed on Sepolia", async () => {

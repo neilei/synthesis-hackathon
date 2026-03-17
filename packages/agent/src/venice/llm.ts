@@ -1,6 +1,6 @@
 /**
  * Venice AI LLM instances via LangChain. Three tiers: fast (qwen3-4b),
- * research (gemini-3-flash-preview with web search), reasoning (gemini-3-1-pro-preview).
+ * research (gemini-3-flash-preview with web search), reasoning (gemini-3-flash-preview).
  * Custom fetch wrapper captures billing headers for budget tracking.
  *
  * @module @veil/agent/venice/llm
@@ -95,7 +95,7 @@ const reasoningVeniceParams = {
 
 // Reasoning: complex decisions, intent compilation, rebalance logic
 export const reasoningLlm = getVeniceLlm({
-  model: override ?? "gemini-3-1-pro-preview",
+  model: override ?? "gemini-3-flash-preview",
   temperature: 0,
   maxRetries: 2,
   modelKwargs: reasoningVeniceParams,

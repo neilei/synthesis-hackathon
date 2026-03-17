@@ -67,6 +67,13 @@ vi.mock("@metamask/smart-accounts-kit/contracts", () => ({
     },
   },
 }));
+vi.mock("../../config.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../config.js")>();
+  return {
+    ...actual,
+    rpcTransport: vi.fn().mockReturnValue("http-transport"),
+  };
+});
 vi.mock("../../logging/logger.js", () => ({
   logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn() },
 }));
