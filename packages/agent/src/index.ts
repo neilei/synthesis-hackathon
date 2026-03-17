@@ -5,7 +5,7 @@
  */
 import { env } from "./config.js";
 import { privateKeyToAccount } from "viem/accounts";
-import { startFromCli } from "./agent-loop.js";
+import { startFromCli } from "./agent-loop/index.js";
 import { logger } from "./logging/logger.js";
 
 const agentAccount = privateKeyToAccount(env.AGENT_PRIVATE_KEY);

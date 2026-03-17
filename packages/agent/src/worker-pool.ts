@@ -1,5 +1,5 @@
 import type { AgentWorker } from "./agent-worker.js";
-import type { AgentState } from "./agent-loop.js";
+import type { AgentState } from "./agent-loop/index.js";
 
 export interface WorkerPoolConfig {
   maxConcurrency: number;

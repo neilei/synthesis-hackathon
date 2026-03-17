@@ -6,33 +6,33 @@
  * @module @veil/agent/agent-loop
  */
 import type { SwapRecord } from "@veil/common";
-import type { Address, Hex } from "viem";
-import { createWalletClient, createPublicClient, http, parseUnits } from "viem";
+import type { Address } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { sepolia, base } from "viem/chains";
 import type { Delegation, MetaMaskSmartAccount } from "@metamask/smart-accounts-kit";
 
-import { env, CONTRACTS, type ChainEnv } from "./config.js";
-import type { IntentParse } from "./venice/schemas.js";
-import { RebalanceDecisionSchema } from "./venice/schemas.js";
-import { reasoningLlm, fastLlm } from "./venice/llm.js";
-import { getPortfolioBalance } from "./data/portfolio.js";
-import { getTokenPrice } from "./data/prices.js";
-import { getPoolData } from "./data/thegraph.js";
+import { env } from "../config.js";
+import type { IntentParse } from "../venice/schemas.js";
+import { RebalanceDecisionSchema } from "../venice/schemas.js";
+import { reasoningLlm, fastLlm } from "../venice/llm.js";
 import {
   compileIntent,
   createDelegationFromIntent,
   detectAdversarialIntent,
-} from "./delegation/compiler.js";
-import { generateAuditReport, type AuditReport } from "./delegation/audit.js";
-import { redeemDelegation } from "./delegation/redeemer.js";
-import { getQuote, createSwap, checkApproval } from "./uniswap/trading.js";
-import { signPermit2Data } from "./uniswap/permit2.js";
-import { logAction, logStart, logStop } from "./logging/agent-log.js";
-import { getBudgetTier } from "./logging/budget.js";
-import { registerAgent, giveFeedback } from "./identity/erc8004.js";
-import { logger } from "./logging/logger.js";
-import { withRetry } from "./utils/retry.js";
+} from "../delegation/compiler.js";
+import { generateAuditReport, type AuditReport } from "../delegation/audit.js";
+import { logAction, logStart, logStop } from "../logging/agent-log.js";
+import { getBudgetTier } from "../logging/budget.js";
+import { registerAgent } from "../identity/erc8004.js";
+import { logger } from "../logging/logger.js";
+import { withRetry } from "../utils/retry.js";
+
+import { gatherMarketData, type MarketData } from "./market-data.js";
+import { executeSwap } from "./swap.js";
+
+// Re-export extracted modules for convenience
+export { gatherMarketData, type MarketData } from "./market-data.js";
+export { executeSwap, resolveTokenAddress } from "./swap.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -50,7 +50,7 @@ export interface AgentConfig {
   /** Called after each cycle with the current state for external persistence */
   onCycleComplete?: (state: AgentState) => void;
   /** Per-intent logger for writing cycle data to intent-specific JSONL */
-  intentLogger?: import("./logging/intent-log.js").IntentLogger;
+  intentLogger?: import("../logging/intent-log.js").IntentLogger;
   /** Pre-registered ERC-8004 agent ID from server startup — avoids redundant registration per worker */
   serverAgentId?: bigint;
 }
@@ -74,18 +74,6 @@ export interface AgentState {
   deployError: string | null;
 }
 
-// Singleton state for dashboard access
-let _currentState: AgentState | null = null;
-let _currentConfig: AgentConfig | null = null;
-
-export function getAgentState(): AgentState | null {
-  return _currentState;
-}
-
-export function getAgentConfig(): AgentConfig | null {
-  return _currentConfig;
-}
-
 // ---------------------------------------------------------------------------
 // Drift calculation (exported for testing)
 // ---------------------------------------------------------------------------
@@ -106,19 +94,6 @@ export function calculateDrift(
   }
 
   return { drift, maxDrift };
-}
-
-// ---------------------------------------------------------------------------
-// Token address resolution
-// ---------------------------------------------------------------------------
-
-export function resolveTokenAddress(symbol: string, chainId: number): Address {
-  const map: Record<string, Address> = {
-    ETH: chainId === 8453 ? CONTRACTS.WETH_BASE : CONTRACTS.NATIVE_ETH,
-    WETH: chainId === 8453 ? CONTRACTS.WETH_BASE : CONTRACTS.WETH_SEPOLIA,
-    USDC: chainId === 8453 ? CONTRACTS.USDC_BASE : CONTRACTS.USDC_SEPOLIA,
-  };
-  return map[symbol.toUpperCase()] ?? CONTRACTS.USDC_SEPOLIA;
 }
 
 // ---------------------------------------------------------------------------
@@ -147,9 +122,6 @@ export async function runAgentLoop(config: AgentConfig): Promise<void> {
     agentId: null,
     deployError: null,
   };
-
-  _currentState = state;
-  _currentConfig = config;
 
   logStart();
 
@@ -370,127 +342,13 @@ export async function runAgentLoop(config: AgentConfig): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Market data gathering
-// ---------------------------------------------------------------------------
-
-interface MarketData {
-  ethPrice: { price: number; citation: string | null };
-  portfolio: Awaited<ReturnType<typeof getPortfolioBalance>>;
-  poolContext: string;
-  drift: Record<string, number>;
-  maxDrift: number;
-  budgetTier: ReturnType<typeof getBudgetTier>;
-}
-
-async function gatherMarketData(
-  config: AgentConfig,
-  agentAddress: Address,
-  cycle: number,
-): Promise<MarketData> {
-  const budgetTier = getBudgetTier();
-  if (budgetTier !== "normal") {
-    logger.info({ budgetTier }, "Budget tier is not normal");
-    logAction("budget_check", {
-      cycle,
-      result: { tier: budgetTier },
-    });
-  }
-
-  // 1. Get ETH price
-  const startPrice = Date.now();
-  const ethPrice = await getTokenPrice("ETH");
-  logAction("price_fetch", {
-    cycle,
-    tool: "venice-web-search",
-    duration_ms: Date.now() - startPrice,
-    result: { price: ethPrice.price, citation: ethPrice.citation },
-  });
-  logger.info(`ETH price: $${ethPrice.price.toFixed(2)}`);
-
-  // 2. Get portfolio balance
-  const chainEnv: ChainEnv =
-    config.chainId === 8453
-      ? "base"
-      : config.chainId === 84532
-        ? "base-sepolia"
-        : "sepolia";
-
-  const startPortfolio = Date.now();
-  const portfolio = await getPortfolioBalance(
-    agentAddress,
-    chainEnv,
-    ethPrice.price,
-  );
-  logAction("portfolio_check", {
-    cycle,
-    tool: "viem",
-    duration_ms: Date.now() - startPortfolio,
-    result: {
-      totalUsdValue: portfolio.totalUsdValue,
-      allocation: portfolio.allocation,
-    },
-  });
-
-  logger.info(
-    `Portfolio: $${portfolio.totalUsdValue.toFixed(2)} | ` +
-      Object.entries(portfolio.allocation)
-        .map(([t, v]) => `${t}: ${(v * 100).toFixed(1)}%`)
-        .join(", "),
-  );
-
-  // 3. Fetch pool data from The Graph (top 3 pools for richer LLM context)
-  let poolContext = "";
-  const startPool = Date.now();
-  try {
-    const pools = await getPoolData("WETH", "USDC");
-    if (pools.length > 0) {
-      const poolSummaries = pools.slice(0, 3).map((p, i) => {
-        const tvl = Number(p.totalValueLockedUSD) || 0;
-        const volume = Number(p.volumeUSD) || 0;
-        const feeBps = Number(p.feeTier) / 100;
-        return `Pool ${i + 1}: fee=${feeBps}bps, TVL=$${tvl.toLocaleString()}, 24h volume=$${volume.toLocaleString()}, txCount=${p.txCount}`;
-      });
-      poolContext = `WETH/USDC Uniswap V3 pools (by TVL):\n${poolSummaries.join("\n")}\n\nPool selection guidance: Higher TVL = deeper liquidity = less slippage. Higher volume = more active trading. Fee tier matters: 5bps (0.05%) is cheapest but may have less liquidity; 30bps (0.3%) is standard; 100bps (1%) is for volatile pairs.`;
-      logger.info({ poolCount: pools.length }, "Pool data fetched for LLM context");
-    }
-    logAction("pool_data_fetch", {
-      cycle,
-      tool: "thegraph",
-      duration_ms: Date.now() - startPool,
-      result: { poolCount: pools.length, topPool: pools[0] ?? null },
-    });
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    logger.warn({ err }, "Pool data unavailable");
-    logAction("pool_data_fetch", {
-      cycle,
-      tool: "thegraph",
-      duration_ms: Date.now() - startPool,
-      error: msg,
-    });
-  }
-
-  // 4. Calculate drift
-  const { drift, maxDrift } = calculateDrift(
-    portfolio.allocation,
-    config.intent.targetAllocation,
-  );
-
-  logger.info(
-    `Drift: ${(maxDrift * 100).toFixed(1)}% (threshold: ${(config.intent.driftThreshold * 100).toFixed(1)}%)`,
-  );
-
-  return { ethPrice, portfolio, poolContext, drift, maxDrift, budgetTier };
-}
-
-// ---------------------------------------------------------------------------
 // Rebalance decision via Venice
 // ---------------------------------------------------------------------------
 
 async function getRebalanceDecision(
   config: AgentConfig,
   state: AgentState,
-  market: MarketData,
+  market: MarketData & { drift: Record<string, number>; maxDrift: number },
 ): Promise<{ shouldRebalance: boolean; reasoning: string; marketContext?: string | null; targetSwap?: { sellToken: string; buyToken: string; sellAmount: string; maxSlippage: string } | null }> {
   logger.info("Drift detected. Consulting Venice for rebalance decision...");
 
@@ -559,285 +417,6 @@ Decide whether to rebalance. If yes, specify the swap details. Keep swap amounts
 }
 
 // ---------------------------------------------------------------------------
-// Swap execution
-// ---------------------------------------------------------------------------
-
-async function executeSwap(
-  config: AgentConfig,
-  state: AgentState,
-  swap: { sellToken: string; buyToken: string; sellAmount: string; maxSlippage: string },
-  agentAddress: Address,
-  chain: typeof sepolia | typeof base,
-  ethPriceUsd: number,
-): Promise<void> {
-  // Safety checks
-  const isStablecoin = ["USDC", "USDT", "DAI"].includes(
-    swap.sellToken.toUpperCase(),
-  );
-  const swapAmountUsd = isStablecoin
-    ? Number(swap.sellAmount) || 0
-    : (Number(swap.sellAmount) || 0) * ethPriceUsd;
-
-  if (
-    state.totalSpentUsd + swapAmountUsd >
-    config.intent.dailyBudgetUsd * config.intent.timeWindowDays
-  ) {
-    logger.info("SAFETY: Swap would exceed total budget. Skipping.");
-    logAction("safety_block", {
-      cycle: state.cycle,
-      result: { reason: "budget_exceeded", swapAmountUsd },
-    });
-    return;
-  }
-
-  if (state.tradesExecuted >= config.intent.maxTradesPerDay) {
-    logger.info("SAFETY: Daily trade limit reached. Skipping.");
-    logAction("safety_block", {
-      cycle: state.cycle,
-      result: { reason: "trade_limit_reached" },
-    });
-    return;
-  }
-
-  logger.info(
-    `Quoting swap: ${swap.sellAmount} ${swap.sellToken} -> ${swap.buyToken}`,
-  );
-
-  const sellTokenAddress = resolveTokenAddress(swap.sellToken, config.chainId);
-  const buyTokenAddress = resolveTokenAddress(swap.buyToken, config.chainId);
-
-  const decimals = swap.sellToken.toUpperCase() === "USDC" ? 6 : 18;
-  const amountRaw = parseUnits(swap.sellAmount, decimals).toString();
-
-  const isEthSell = swap.sellToken.toUpperCase() === "ETH";
-  const canUseDelegation =
-    isEthSell && state.delegation && state.delegatorSmartAccount;
-
-  const swapperAddress = canUseDelegation
-    ? state.delegatorSmartAccount!.address
-    : agentAddress;
-
-  // For ERC-20 tokens sold from agent EOA, check if Permit2 approval is needed
-  if (!isEthSell && !canUseDelegation) {
-    const approval = await checkApproval({
-      token: sellTokenAddress,
-      amount: amountRaw,
-      chainId: config.chainId,
-      walletAddress: agentAddress,
-    });
-
-    if (approval.approval?.transactionRequest) {
-      logger.info(`Sending Permit2 approval for ${swap.sellToken}...`);
-      const approvalWallet = createWalletClient({
-        account: privateKeyToAccount(config.agentKey),
-        chain,
-        transport: http(),
-      });
-      const approvalClient = createPublicClient({ chain, transport: http() });
-      const approvalTx = await approvalWallet.sendTransaction({
-        to: approval.approval.transactionRequest.to,
-        data: approval.approval.transactionRequest.data,
-        value: BigInt(approval.approval.transactionRequest.value || "0"),
-        chain,
-        account: approvalWallet.account,
-      });
-      await approvalClient.waitForTransactionReceipt({ hash: approvalTx });
-      logger.info(`Permit2 approval confirmed: ${approvalTx}`);
-      logAction("permit2_approval", {
-        cycle: state.cycle,
-        tool: "uniswap-permit2",
-        result: { txHash: approvalTx, token: swap.sellToken },
-      });
-    }
-  }
-
-  const startQuote = Date.now();
-  try {
-    const quote = await getQuote({
-      tokenIn: sellTokenAddress,
-      tokenOut: buyTokenAddress,
-      amount: amountRaw,
-      type: "EXACT_INPUT",
-      chainId: config.chainId,
-      swapper: swapperAddress,
-      slippageTolerance: config.intent.maxSlippage * 100,
-    });
-
-    logAction("quote_received", {
-      cycle: state.cycle,
-      tool: "uniswap-trading-api",
-      duration_ms: Date.now() - startQuote,
-      result: {
-        input: quote.quote.input,
-        output: quote.quote.output,
-        routing: quote.routing,
-        hasPermitData: !!quote.permitData,
-        swapper: swapperAddress,
-        viaDelegation: !!canUseDelegation,
-      },
-    });
-
-    logger.info(
-      `Quote: ${swap.sellAmount} ${swap.sellToken} -> ${quote.quote.output.amount} ${swap.buyToken}`,
-    );
-
-    const walletClient = createWalletClient({
-      account: privateKeyToAccount(config.agentKey),
-      chain,
-      transport: http(),
-    });
-
-    const publicClient = createPublicClient({
-      chain,
-      transport: http(),
-    });
-
-    // Sign permit data if present (only for direct tx path — smart account can't sign)
-    let permitSignature: Hex | undefined;
-    if (quote.permitData && !canUseDelegation) {
-      permitSignature = await signPermit2Data(walletClient, quote.permitData);
-    }
-
-    const swapResponse = await createSwap(quote, permitSignature, {
-      disableSimulation: !!canUseDelegation,
-    });
-
-    // Execute through delegation for ETH sells, direct tx otherwise
-    const startTx = Date.now();
-    let txHash: Hex;
-    let usedDelegation = false;
-
-    if (canUseDelegation) {
-      try {
-        txHash = await redeemDelegation(config.agentKey, chain, {
-          delegation: state.delegation!,
-          delegatorSmartAccount: state.delegatorSmartAccount!,
-          call: {
-            to: swapResponse.swap.to as Hex,
-            data: swapResponse.swap.data as Hex,
-            value: BigInt(swapResponse.swap.value || "0"),
-          },
-        });
-        usedDelegation = true;
-        logger.info(`Swap executed via delegation redemption (ERC-7710)`);
-      } catch (delegationErr) {
-        const delegationMsg =
-          delegationErr instanceof Error ? delegationErr.message : String(delegationErr);
-        logger.warn({ err: delegationErr }, "Delegation redemption failed, falling back to direct tx");
-        logAction("delegation_redeem_failed", {
-          cycle: state.cycle,
-          tool: "metamask-delegation",
-          error: delegationMsg,
-        });
-
-        const fallbackQuote = await getQuote({
-          tokenIn: sellTokenAddress,
-          tokenOut: buyTokenAddress,
-          amount: amountRaw,
-          type: "EXACT_INPUT",
-          chainId: config.chainId,
-          swapper: agentAddress,
-          slippageTolerance: config.intent.maxSlippage * 100,
-        });
-        const fallbackSwap = await createSwap(fallbackQuote);
-        txHash = await walletClient.sendTransaction({
-          to: fallbackSwap.swap.to,
-          data: fallbackSwap.swap.data,
-          value: BigInt(fallbackSwap.swap.value || "0"),
-          chain,
-          account: walletClient.account,
-        });
-      }
-    } else {
-      txHash = await walletClient.sendTransaction({
-        to: swapResponse.swap.to,
-        data: swapResponse.swap.data,
-        value: BigInt(swapResponse.swap.value || "0"),
-        chain,
-        account: walletClient.account,
-      });
-    }
-
-    const receipt = await publicClient.waitForTransactionReceipt({
-      hash: txHash,
-    });
-
-    state.tradesExecuted++;
-    state.totalSpentUsd += swapAmountUsd;
-    state.transactions.push({
-      txHash,
-      sellToken: swap.sellToken,
-      buyToken: swap.buyToken,
-      sellAmount: swap.sellAmount,
-      status: receipt.status,
-      timestamp: new Date().toISOString(),
-    });
-
-    const swapResult = {
-      txHash,
-      status: receipt.status,
-      gasUsed: receipt.gasUsed.toString(),
-      sellToken: swap.sellToken,
-      buyToken: swap.buyToken,
-      sellAmount: swap.sellAmount,
-      viaDelegation: usedDelegation,
-    };
-
-    logAction("swap_executed", {
-      cycle: state.cycle,
-      tool: "uniswap-via-delegation",
-      duration_ms: Date.now() - startTx,
-      result: swapResult,
-    });
-
-    // Write to per-intent log
-    config.intentLogger?.log("swap_executed", {
-      cycle: state.cycle,
-      tool: "uniswap-via-delegation",
-      duration_ms: Date.now() - startTx,
-      result: swapResult,
-    });
-
-    logger.info(`Swap executed! TX: ${txHash}`);
-    logger.info(
-      `Status: ${receipt.status} | Gas: ${receipt.gasUsed.toString()}`,
-    );
-
-    // ERC-8004: give on-chain feedback for the swap (non-blocking)
-    if (state.agentId) {
-      const currentCycle = state.cycle;
-      giveFeedback(state.agentId, 5, "swap-execution", "defi", "base-sepolia")
-        .then((fbHash) => {
-          logger.info({ txHash: fbHash, agentId: state.agentId?.toString() }, "ERC-8004 feedback submitted");
-          logAction("erc8004_feedback", {
-            cycle: currentCycle,
-            tool: "erc8004-reputation",
-            result: { txHash: fbHash, agentId: state.agentId?.toString(), rating: 5, tag: "swap-execution" },
-          });
-        })
-        .catch((fbErr) => {
-          logger.warn({ err: fbErr }, "ERC-8004 feedback failed");
-        });
-    } else {
-      logger.warn("Skipping ERC-8004 feedback — no agent ID registered");
-    }
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    logger.error({ err }, "Swap failed");
-    logAction("swap_failed", {
-      cycle: state.cycle,
-      tool: "uniswap-trading-api",
-      error: msg,
-      duration_ms: Date.now() - startQuote,
-    });
-
-    if (state.cycle <= 3) {
-      logger.info("Will retry with adjusted params next cycle.");
-    }
-  }
-}
-
-// ---------------------------------------------------------------------------
 // Single monitoring cycle (orchestrator)
 // ---------------------------------------------------------------------------
 
@@ -849,20 +428,30 @@ async function runCycle(
 ): Promise<void> {
   logger.info(`--- Cycle ${state.cycle} ---`);
 
-  const market = await gatherMarketData(config, agentAddress, state.cycle);
+  const market = await gatherMarketData(config.chainId, agentAddress, state.cycle);
 
   state.ethPrice = market.ethPrice.price;
   state.allocation = market.portfolio.allocation;
   state.totalValue = market.portfolio.totalUsdValue;
-  state.drift = market.maxDrift;
   state.budgetTier = market.budgetTier;
 
-  if (market.maxDrift < config.intent.driftThreshold) {
+  const { drift, maxDrift } = calculateDrift(
+    market.portfolio.allocation,
+    config.intent.targetAllocation,
+  );
+
+  logger.info(
+    `Drift: ${(maxDrift * 100).toFixed(1)}% (threshold: ${(config.intent.driftThreshold * 100).toFixed(1)}%)`,
+  );
+
+  state.drift = maxDrift;
+
+  if (maxDrift < config.intent.driftThreshold) {
     logger.info("No significant drift. Skipping rebalance.");
     return;
   }
 
-  const decision = await getRebalanceDecision(config, state, market);
+  const decision = await getRebalanceDecision(config, state, { ...market, drift, maxDrift });
 
   if (!decision.shouldRebalance || !decision.targetSwap) {
     return;

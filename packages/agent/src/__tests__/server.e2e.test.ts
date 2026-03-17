@@ -124,6 +124,15 @@ describe("Server E2E", () => {
     expect(html.toLowerCase()).toContain("<!doctype html");
   });
 
+  it("GET /_next/static/ directory path falls through to SPA (not 500)", async () => {
+    const res = await fetch(`${BASE}/_next/static/`);
+
+    // Directory paths should fall through to SPA fallback, not 500
+    expect(res.status).toBe(200);
+    const contentType = res.headers.get("content-type") ?? "";
+    expect(contentType).toContain("text/html");
+  });
+
   it("GET /nonexistent serves SPA fallback (not JSON 404)", async () => {
     const res = await fetch(`${BASE}/nonexistent`);
 

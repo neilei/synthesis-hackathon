@@ -23,13 +23,15 @@ vi.mock("http", () => ({
   }),
 }));
 
-// Mock fs — we control existsSync, readFileSync, readFile, createReadStream
+// Mock fs — we control existsSync, statSync, readFileSync, readFile, createReadStream
 const mockExistsSync = vi.fn();
+const mockStatSync = vi.fn().mockReturnValue({ isFile: () => true });
 const mockReadFileSync = vi.fn();
 const mockReadFile = vi.fn();
 const mockCreateReadStream = vi.fn();
 vi.mock("fs", () => ({
   existsSync: (...args: unknown[]) => mockExistsSync(...args),
+  statSync: (...args: unknown[]) => mockStatSync(...args),
   readFileSync: (...args: unknown[]) => mockReadFileSync(...args),
   readFile: (...args: unknown[]) => mockReadFile(...args),
   createReadStream: (...args: unknown[]) => mockCreateReadStream(...args),

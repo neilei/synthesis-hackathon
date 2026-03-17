@@ -1,11 +1,11 @@
 /**
- * Unit tests for the agent loop: drift calculation, token resolution, state management.
+ * Unit tests for the agent loop: drift calculation and token resolution.
  *
  * @module @veil/agent/agent-loop.test
  */
 import { describe, it, expect, vi } from "vitest";
 
-// Mock all heavy dependencies so we can import calculateDrift
+// Mock all heavy dependencies so we can import pure functions
 vi.mock("../config.js", () => ({
   env: { VENICE_API_KEY: "x", VENICE_BASE_URL: "https://x", UNISWAP_API_KEY: "x", AGENT_PRIVATE_KEY: "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef" },
   CONTRACTS: {
@@ -38,7 +38,7 @@ vi.mock("../utils/retry.js", () => ({
   withRetry: vi.fn((fn: () => Promise<unknown>) => fn()),
 }));
 
-import { calculateDrift, resolveTokenAddress, getAgentState, getAgentConfig } from "../agent-loop.js";
+import { calculateDrift, resolveTokenAddress } from "../agent-loop/index.js";
 
 describe("Agent Loop - resolveTokenAddress", () => {
   it("returns NATIVE_ETH for ETH on Sepolia", () => {
@@ -82,17 +82,6 @@ describe("Agent Loop - resolveTokenAddress", () => {
     expect(result).toBe("0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238");
   });
 });
-
-describe("Agent Loop - state accessors", () => {
-  it("getAgentState returns null before agent starts", () => {
-    expect(getAgentState()).toBeNull();
-  });
-
-  it("getAgentConfig returns null before agent starts", () => {
-    expect(getAgentConfig()).toBeNull();
-  });
-});
-
 
 describe("Agent Loop - drift calculation", () => {
   it("detects zero drift when allocations match", () => {

@@ -7,8 +7,8 @@
  *
  * @module @veil/agent/agent-worker
  */
-import type { AgentState, AgentConfig } from "./agent-loop.js";
-import { runAgentLoop } from "./agent-loop.js";
+import type { AgentState, AgentConfig } from "./agent-loop/index.js";
+import { runAgentLoop } from "./agent-loop/index.js";
 import { IntentLogger } from "./logging/intent-log.js";
 import type { IntentRepository } from "./db/repository.js";
 import { env } from "./config.js";

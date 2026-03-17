@@ -5,7 +5,7 @@
  * @module @veil/agent/server
  */
 import { createServer, type IncomingMessage, type ServerResponse } from "http";
-import { readFile, existsSync, createReadStream } from "fs";
+import { readFile, existsSync, statSync, createReadStream } from "fs";
 import { join, extname } from "path";
 import { privateKeyToAccount } from "viem/accounts";
 import { recoverMessageAddress } from "viem";
@@ -448,7 +448,7 @@ function handleIntentLogs(
 // ---------------------------------------------------------------------------
 
 function serveStaticFile(filePath: string, res: ServerResponse): boolean {
-  if (!existsSync(filePath)) return false;
+  if (!existsSync(filePath) || !statSync(filePath).isFile()) return false;
   const ext = extname(filePath);
   const contentType = MIME_TYPES[ext] ?? "application/octet-stream";
   readFile(filePath, (err, data) => {

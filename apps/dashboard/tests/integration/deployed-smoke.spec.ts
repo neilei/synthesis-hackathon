@@ -79,6 +79,29 @@ test.describe("Deployed VPS Smoke Tests", () => {
     expect(headers["access-control-allow-methods"]).toContain("POST");
   });
 
+  test("static assets referenced in HTML are served", async ({ request }) => {
+    // Fetch the dashboard HTML and extract a real asset URL
+    const htmlResponse = await request.get(DEPLOYED_URL);
+    const html = await htmlResponse.text();
+    const cssMatch = html.match(/\/_next\/static\/[^"]+\.css/);
+    const jsMatch = html.match(/\/_next\/static\/[^"]+\.js/);
+
+    if (cssMatch) {
+      const cssResponse = await request.get(`${DEPLOYED_URL}${cssMatch[0]}`);
+      expect(cssResponse.status()).toBe(200);
+      expect(cssResponse.headers()["content-type"]).toContain("text/css");
+    }
+
+    if (jsMatch) {
+      const jsResponse = await request.get(`${DEPLOYED_URL}${jsMatch[0]}`);
+      expect(jsResponse.status()).toBe(200);
+      expect(jsResponse.headers()["content-type"]).toContain("application/javascript");
+    }
+
+    // At least one asset should exist in a built dashboard
+    expect(cssMatch || jsMatch).toBeTruthy();
+  });
+
   test("SPA fallback serves HTML for unknown routes", async ({ request }) => {
     const response = await request.get(`${DEPLOYED_URL}/nonexistent-route`);
     expect(response.status()).toBe(200);
