@@ -81,7 +81,12 @@ app.use(`${API_PATHS.intents}/*`, requireAuth);
 app.use(API_PATHS.intents, requireAuth);
 app.route(
   API_PATHS.intents,
-  createIntentRoutes({ ...lazyDeps, workerPool }),
+  createIntentRoutes({
+    get repo() {
+      return repo;
+    },
+    workerPool,
+  }),
 );
 
 // ---------------------------------------------------------------------------
