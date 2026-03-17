@@ -45,6 +45,12 @@ const envSchema = z.object({
     .string()
     .url()
     .default("https://base-rpc.publicnode.com"),
+  JUDGE_PRIVATE_KEY: z
+    .string()
+    .optional()
+    .transform((v) =>
+      v && v.startsWith("0x") ? (v as `0x${string}`) : undefined,
+    ),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -101,6 +107,12 @@ export const CONTRACTS = {
     "0x8004B663056A597Dffe9eCcC1965A193B7388713" as Address,
   REPUTATION_BASE_MAINNET:
     "0x8004BAa17C55a88189AE136b182e5fdA19dE9b63" as Address,
+
+  // ERC-8004 Validation
+  VALIDATION_BASE_SEPOLIA:
+    "0x8004Cb1BF31DAf7788923b405b754f57acEB4272" as Address,
+  VALIDATION_BASE_MAINNET:
+    "0x8004Cc8439f36fd5F9F049D9fF86523Df6dAAB58" as Address,
 } as const;
 
 // ── API endpoints ────────────────────────────────────────────────────

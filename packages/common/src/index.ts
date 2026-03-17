@@ -41,6 +41,7 @@ export {
 export {
   IDENTITY_REGISTRY_ABI_HUMAN,
   REPUTATION_REGISTRY_ABI_HUMAN,
+  VALIDATION_REGISTRY_ABI_HUMAN,
 } from "./erc8004-abi.js";
 
 export {

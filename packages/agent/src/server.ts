@@ -13,10 +13,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { privateKeyToAccount } from "viem/accounts";
 
 import { env } from "./config.js";
-import { registerAgent } from "./identity/erc8004.js";
 import { DEFAULT_AGENT_PORT, API_PATHS } from "@veil/common";
 import { logger } from "./logging/logger.js";
-import { withRetry } from "./utils/retry.js";
 import { IntentRepository } from "./db/repository.js";
 import { getDb } from "./db/connection.js";
 import { WorkerPool } from "./worker-pool.js";
@@ -33,7 +31,6 @@ const DASHBOARD_DIST = join("apps", "dashboard", "out");
 
 // Singleton instances — initialized at startup
 let repo: IntentRepository;
-let serverAgentId: bigint | undefined;
 const workerPool = new WorkerPool({ maxConcurrency: 5 });
 
 // ---------------------------------------------------------------------------
@@ -143,7 +140,7 @@ async function startup() {
 
   // Wire up worker factory so WorkerPool can create AgentWorker instances
   workerPool.setWorkerFactory(
-    (intentId) => new DefaultAgentWorker(intentId, { repo, serverAgentId }),
+    (intentId) => new DefaultAgentWorker(intentId, { repo }),
   );
 
   const agentAccount = privateKeyToAccount(env.AGENT_PRIVATE_KEY);
@@ -174,26 +171,6 @@ async function startup() {
     }
   } catch (err) {
     logger.error({ err }, "Startup resumption failed");
-  }
-
-  // Register agent identity on Base Sepolia and store the agentId for workers
-  try {
-    const { txHash, agentId } = await withRetry(
-      () => registerAgent(`https://github.com/neilei/veil`, "base-sepolia"),
-      { label: "erc8004:register", maxRetries: 3 },
-    );
-    if (agentId) {
-      serverAgentId = agentId;
-    }
-    logger.info(
-      { txHash, agentId: agentId?.toString() },
-      "ERC-8004 agent registered — ID will be passed to all workers",
-    );
-  } catch (err) {
-    logger.error(
-      { err },
-      "ERC-8004 registration failed after retries — workers will register individually",
-    );
   }
 }
 

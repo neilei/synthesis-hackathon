@@ -123,6 +123,15 @@ describe("QuoteResponseSchema", () => {
     expect(result.success).toBe(false);
   });
 
+  it("accepts slippage as a plain number (new Uniswap API format)", () => {
+    const numericSlippage = {
+      ...validQuote,
+      quote: { ...validQuote.quote, slippage: 0.5 },
+    };
+    const result = QuoteResponseSchema.safeParse(numericSlippage);
+    expect(result.success).toBe(true);
+  });
+
   it("rejects non-hex token addresses", () => {
     const invalid = {
       ...validQuote,

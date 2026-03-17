@@ -30,9 +30,6 @@ vi.mock("viem/accounts", () => ({
 vi.mock("../delegation/compiler.js", () => ({
   compileIntent: vi.fn(),
 }));
-vi.mock("../identity/erc8004.js", () => ({
-  registerAgent: vi.fn().mockResolvedValue({ txHash: "0xabc", agentId: 1n }),
-}));
 vi.mock("../logging/logger.js", () => ({
   logger: {
     info: vi.fn(),
@@ -40,9 +37,6 @@ vi.mock("../logging/logger.js", () => ({
     warn: vi.fn(),
     debug: vi.fn(),
   },
-}));
-vi.mock("../utils/retry.js", () => ({
-  withRetry: vi.fn((fn: () => Promise<unknown>) => fn()),
 }));
 vi.mock("../db/connection.js", () => ({
   getDb: vi.fn().mockReturnValue({}),

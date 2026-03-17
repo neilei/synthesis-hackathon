@@ -66,14 +66,14 @@ describe("Venice LLM configuration", () => {
     expect(kwargs.venice_parameters.disable_thinking).toBe(false);
   });
 
-  it("reasoning LLM uses gemini-3-flash-preview with web scraping enabled", () => {
+  it("reasoning LLM uses gemini-3-flash-preview with web scraping disabled", () => {
     const reasoning = constructorCalls[2]!;
     expect(reasoning.model).toBe("gemini-3-flash-preview");
     expect(reasoning.temperature).toBe(0);
 
     const kwargs = reasoning.modelKwargs as { venice_parameters: Record<string, unknown> };
     expect(kwargs.venice_parameters.enable_web_search).toBe("off");
-    expect(kwargs.venice_parameters.enable_web_scraping).toBe(true);
+    expect(kwargs.venice_parameters.enable_web_scraping).toBe(false);
     expect(kwargs.venice_parameters.enable_web_citations).toBe(false);
     expect(kwargs.venice_parameters.disable_thinking).toBe(false);
   });
@@ -110,5 +110,24 @@ describe("Venice LLM configuration", () => {
       const kwargs = call.modelKwargs as { venice_parameters: Record<string, unknown> };
       expect(kwargs.venice_parameters.include_venice_system_prompt).toBe(false);
     }
+  });
+
+  it("all tiers set enable_e2ee to true", () => {
+    for (const call of constructorCalls) {
+      const kwargs = call.modelKwargs as { venice_parameters: Record<string, unknown> };
+      expect(kwargs.venice_parameters.enable_e2ee).toBe(true);
+    }
+  });
+
+  it("research tier has prompt_cache_key set", () => {
+    const research = constructorCalls[1]!;
+    const kwargs = research.modelKwargs as { venice_parameters: Record<string, unknown> };
+    expect(kwargs.venice_parameters.prompt_cache_key).toBe("veil-research");
+  });
+
+  it("reasoning tier has prompt_cache_key set", () => {
+    const reasoning = constructorCalls[2]!;
+    const kwargs = reasoning.modelKwargs as { venice_parameters: Record<string, unknown> };
+    expect(kwargs.venice_parameters.prompt_cache_key).toBe("veil-reasoning");
   });
 });
