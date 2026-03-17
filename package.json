@@ -18,6 +18,9 @@
     "dev:dashboard": "pnpm --filter @veil/dashboard dev",
     "build:dashboard": "pnpm --filter @veil/dashboard build"
   },
+  "pnpm": {
+    "onlyBuiltDependencies": ["better-sqlite3"]
+  },
   "devDependencies": {
     "turbo": "^2.5.0"
   }
