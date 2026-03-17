@@ -7,7 +7,7 @@
 import { config as dotenvConfig } from "dotenv";
 import { resolve } from "path";
 import { z } from "zod";
-import { type Chain, type Address, http, type HttpTransport } from "viem";
+import { type Chain, type Address, type Transport, http, fallback } from "viem";
 import { sepolia, baseSepolia, base } from "viem/chains";
 
 // Load .env from project root. First call handles cwd=root, second handles cwd=packages/agent/.
@@ -122,20 +122,29 @@ const RPC_URLS: Record<ChainEnv, string> = {
   base: env.BASE_RPC_URL,
 };
 
+const FALLBACK_RPC_URLS: Record<ChainEnv, string> = {
+  sepolia: "https://rpc.sepolia.org",
+  "base-sepolia": "https://sepolia.base.org",
+  base: "https://mainnet.base.org",
+};
+
+
 const CHAIN_ID_TO_ENV: Record<number, ChainEnv> = {
   11155111: "sepolia",
   84532: "base-sepolia",
   8453: "base",
 };
 
-export function rpcTransport(chainOrEnv: ChainEnv | Chain): HttpTransport {
+export function rpcTransport(chainOrEnv: ChainEnv | Chain): Transport {
   if (typeof chainOrEnv === "string") {
-    return http(RPC_URLS[chainOrEnv]);
+    return fallback([
+      http(RPC_URLS[chainOrEnv]),
+      http(FALLBACK_RPC_URLS[chainOrEnv]),
+    ]);
   }
   const envKey = CHAIN_ID_TO_ENV[chainOrEnv.id];
   if (!envKey) {
-    // Unknown chain (e.g. mainnet, local anvil) — use chain's default RPC
     return http();
   }
-  return http(RPC_URLS[envKey]);
+  return fallback([http(RPC_URLS[envKey]), http(FALLBACK_RPC_URLS[envKey])]);
 }
