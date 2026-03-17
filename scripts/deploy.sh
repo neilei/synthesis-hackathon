@@ -95,7 +95,7 @@ MemoryMax=1G
 # Security hardening
 NoNewPrivileges=true
 ProtectSystem=strict
-ReadWritePaths=${APP_DIR}
+ReadWritePaths=${APP_DIR} ${APP_DIR}/data
 PrivateTmp=true
 
 [Install]
@@ -105,7 +105,11 @@ UNITEOF
   ssh_run "sudo systemctl daemon-reload"
   ssh_run "sudo systemctl enable ${SERVICE_NAME}"
 
-  # 4. Open firewall port if ufw is active
+  # 4. Create data directories for SQLite and per-intent logs
+  log "Creating data directories..."
+  ssh_run "mkdir -p ${APP_DIR}/data/logs"
+
+  # 5. Open firewall port if ufw is active
   ssh_run "which ufw >/dev/null 2>&1 && sudo ufw allow ${PORT}/tcp || true"
 
   log "Setup complete."
@@ -135,6 +139,10 @@ cmd_deploy() {
     ssh_run "git clone ${REPO_URL} ${APP_DIR}"
   fi
 
+  # Ensure data directory exists (SQLite DB + per-intent JSONL logs)
+  log "Creating data directories..."
+  ssh_run "mkdir -p ${APP_DIR}/data/logs"
+
   # Install dependencies
   log "Installing dependencies..."
   ssh_run "cd ${APP_DIR} && pnpm install --frozen-lockfile"
@@ -163,7 +171,7 @@ cmd_deploy() {
 
   log "Deployed successfully."
   log "Dashboard: http://${VPS_HOST}:${PORT}"
-  log "API:       http://${VPS_HOST}:${PORT}/api/state"
+  log "API:       http://${VPS_HOST}:${PORT}/api/intents"
 }
 
 # --------------------------------------------------------------------------
@@ -184,7 +192,7 @@ cmd_logs() {
 cmd_status() {
   ssh_run "sudo systemctl status ${SERVICE_NAME} --no-pager -l" || true
   echo ""
-  ssh_run "curl -s http://localhost:${PORT}/api/state 2>/dev/null | head -c 500" || warn "Service not responding"
+  ssh_run "curl -s http://localhost:${PORT}/api/auth/nonce?wallet=0x0 2>/dev/null | head -c 500" || warn "Service not responding"
 }
 
 cmd_env() {

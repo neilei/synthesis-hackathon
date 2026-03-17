@@ -1,9 +1,31 @@
 /**
- * Playwright e2e tests for the Configure tab: form input, presets, deploy flow.
+ * Playwright e2e tests for the Configure tab: form input, presets, preview flow.
+ *
+ * Note: The full deploy flow (sign delegation → submit) requires a connected
+ * wallet which can't be mocked in Playwright without a real browser extension.
+ * These tests cover the Preview step (parse intent via Venice) which doesn't
+ * require wallet connection.
  *
  * @module @veil/dashboard/tests/configure.spec
  */
 import { test, expect } from "@playwright/test";
+
+const MOCK_PARSE_RESPONSE = {
+  parsed: {
+    targetAllocation: { ETH: 0.6, USDC: 0.4 },
+    dailyBudgetUsd: 200,
+    timeWindowDays: 7,
+    maxSlippage: 0.005,
+    driftThreshold: 0.05,
+    maxTradesPerDay: 10,
+  },
+  audit: {
+    allows: ["Swap ETH ↔ USDC on Uniswap V3"],
+    prevents: ["Transfer to external addresses"],
+    worstCase: "Maximum daily loss: $200",
+    warnings: [],
+  },
+};
 
 test.describe("Configure Screen", () => {
   test.beforeEach(async ({ page }) => {
@@ -25,16 +47,16 @@ test.describe("Configure Screen", () => {
     await expect(textarea).toHaveValue("70/30 ETH/USDC, $100/day, 14 days");
   });
 
-  test("deploy button disabled when textarea empty", async ({ page }) => {
-    const deployBtn = page.getByRole("button", { name: /deploy agent/i });
-    await expect(deployBtn).toBeDisabled();
+  test("preview button disabled when textarea empty", async ({ page }) => {
+    const previewBtn = page.getByRole("button", { name: /preview strategy/i });
+    await expect(previewBtn).toBeDisabled();
   });
 
-  test("deploy button enabled when textarea has text", async ({ page }) => {
+  test("preview button enabled when textarea has text", async ({ page }) => {
     const textarea = page.getByPlaceholder(/60\/40/);
     await textarea.fill("60/40 ETH/USDC");
-    const deployBtn = page.getByRole("button", { name: /deploy agent/i });
-    await expect(deployBtn).toBeEnabled();
+    const previewBtn = page.getByRole("button", { name: /preview strategy/i });
+    await expect(previewBtn).toBeEnabled();
   });
 
   test("preset buttons fill textarea", async ({ page }) => {
@@ -58,46 +80,87 @@ test.describe("Configure Screen", () => {
     ).toBeVisible();
   });
 
-  test("shows loading state during deploy", async ({ page }) => {
-    // Mock deploy with a delay
-    await page.route("**/api/deploy", async (route) => {
+  test("shows loading state during preview", async ({ page }) => {
+    await page.route("**/api/parse-intent", async (route) => {
       await new Promise((resolve) => setTimeout(resolve, 2000));
       route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({
-          parsed: {
-            targetAllocation: { ETH: 0.6, USDC: 0.4 },
-            dailyBudgetUsd: 200,
-            timeWindowDays: 7,
-            maxSlippage: 0.005,
-            driftThreshold: 0.05,
-            maxTradesPerDay: 10,
-          },
-          audit: {
-            allows: ["Swap ETH ↔ USDC on Uniswap V3"],
-            prevents: [],
-            worstCase: null,
-            warnings: [],
-          },
-        }),
+        body: JSON.stringify(MOCK_PARSE_RESPONSE),
       });
     });
 
     const textarea = page.getByPlaceholder(/60\/40/);
     await textarea.fill("60/40 ETH/USDC");
-    await page.getByRole("button", { name: /deploy agent/i }).click();
+    await page.getByRole("button", { name: /preview strategy/i }).click();
 
-    // Loading text should appear
     await expect(
       page.getByText("Analyzing your strategy..."),
     ).toBeVisible();
-    // Textarea should be disabled during loading
     await expect(textarea).toBeDisabled();
   });
 
-  test("shows error message on deploy failure", async ({ page }) => {
-    await page.route("**/api/deploy", (route) =>
+  test("shows parsed strategy preview after parsing", async ({ page }) => {
+    await page.route("**/api/parse-intent", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(MOCK_PARSE_RESPONSE),
+      }),
+    );
+
+    const textarea = page.getByPlaceholder(/60\/40/);
+    await textarea.fill("60/40 ETH/USDC, $200/day, 7 days");
+    await page.getByRole("button", { name: /preview strategy/i }).click();
+
+    await expect(page.getByText("Your Strategy")).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText("ETH 60%")).toBeVisible();
+    await expect(page.getByText("USDC 40%")).toBeVisible();
+    await expect(page.getByText("$200", { exact: true })).toBeVisible();
+    await expect(page.getByText("7 days", { exact: true })).toBeVisible();
+  });
+
+  test("shows audit report after parsing", async ({ page }) => {
+    await page.route("**/api/parse-intent", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(MOCK_PARSE_RESPONSE),
+      }),
+    );
+
+    const textarea = page.getByPlaceholder(/60\/40/);
+    await textarea.fill("60/40 ETH/USDC");
+    await page.getByRole("button", { name: /preview strategy/i }).click();
+
+    await expect(page.getByText("Delegation Report")).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText("Swap ETH ↔ USDC on Uniswap V3")).toBeVisible();
+    await expect(page.getByText("Transfer to external addresses")).toBeVisible();
+    await expect(page.getByText("Maximum daily loss: $200")).toBeVisible();
+  });
+
+  test("shows wallet connection prompt after preview", async ({ page }) => {
+    await page.route("**/api/parse-intent", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(MOCK_PARSE_RESPONSE),
+      }),
+    );
+
+    const textarea = page.getByPlaceholder(/60\/40/);
+    await textarea.fill("60/40 ETH/USDC");
+    await page.getByRole("button", { name: /preview strategy/i }).click();
+
+    await expect(page.getByText("Your Strategy")).toBeVisible({ timeout: 5000 });
+    // Without wallet connected, should show connect prompt
+    await expect(
+      page.getByText("Connect your wallet to deploy the agent."),
+    ).toBeVisible();
+  });
+
+  test("shows error message on parse failure", async ({ page }) => {
+    await page.route("**/api/parse-intent", (route) =>
       route.fulfill({
         status: 500,
         contentType: "application/json",
@@ -107,31 +170,20 @@ test.describe("Configure Screen", () => {
 
     const textarea = page.getByPlaceholder(/60\/40/);
     await textarea.fill("60/40 ETH/USDC");
-    await page.getByRole("button", { name: /deploy agent/i }).click();
+    await page.getByRole("button", { name: /preview strategy/i }).click();
 
-    // Error message should appear
     await expect(page.getByText(/failed|error|rate limit/i)).toBeVisible({
       timeout: 5000,
     });
   });
 
-  test("Cmd+Enter triggers deploy", async ({ page }) => {
-    await page.route("**/api/deploy", async (route) => {
+  test("Cmd+Enter triggers preview", async ({ page }) => {
+    await page.route("**/api/parse-intent", async (route) => {
       await new Promise((resolve) => setTimeout(resolve, 500));
       route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({
-          parsed: {
-            targetAllocation: { ETH: 0.5, USDC: 0.5 },
-            dailyBudgetUsd: 100,
-            timeWindowDays: 30,
-            maxSlippage: 0.01,
-            driftThreshold: 0.1,
-            maxTradesPerDay: 5,
-          },
-          audit: { allows: [], prevents: [], worstCase: null, warnings: [] },
-        }),
+        body: JSON.stringify(MOCK_PARSE_RESPONSE),
       });
     });
 
@@ -139,29 +191,18 @@ test.describe("Configure Screen", () => {
     await textarea.fill("50/50 split");
     await textarea.press("Meta+Enter");
 
-    // Should show loading state (proving the shortcut fired)
     await expect(
       page.getByText("Analyzing your strategy..."),
     ).toBeVisible({ timeout: 2000 });
   });
 
-  test("Ctrl+Enter triggers deploy (Windows/Linux)", async ({ page }) => {
-    await page.route("**/api/deploy", async (route) => {
+  test("Ctrl+Enter triggers preview (Windows/Linux)", async ({ page }) => {
+    await page.route("**/api/parse-intent", async (route) => {
       await new Promise((resolve) => setTimeout(resolve, 500));
       route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({
-          parsed: {
-            targetAllocation: { ETH: 0.5, USDC: 0.5 },
-            dailyBudgetUsd: 100,
-            timeWindowDays: 30,
-            maxSlippage: 0.01,
-            driftThreshold: 0.1,
-            maxTradesPerDay: 5,
-          },
-          audit: { allows: [], prevents: [], worstCase: null, warnings: [] },
-        }),
+        body: JSON.stringify(MOCK_PARSE_RESPONSE),
       });
     });
 
@@ -172,5 +213,41 @@ test.describe("Configure Screen", () => {
     await expect(
       page.getByText("Analyzing your strategy..."),
     ).toBeVisible({ timeout: 2000 });
+  });
+
+  test("Edit button returns to input step", async ({ page }) => {
+    await page.route("**/api/parse-intent", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(MOCK_PARSE_RESPONSE),
+      }),
+    );
+
+    const textarea = page.getByPlaceholder(/60\/40/);
+    await textarea.fill("60/40 ETH/USDC");
+    await page.getByRole("button", { name: /preview strategy/i }).click();
+    await expect(page.getByText("Your Strategy")).toBeVisible({ timeout: 5000 });
+
+    // Click Edit to go back
+    await page.getByRole("button", { name: /edit/i }).click();
+    await expect(page.getByRole("button", { name: /preview strategy/i })).toBeVisible();
+  });
+
+  test("sponsor badges shown after preview", async ({ page }) => {
+    await page.route("**/api/parse-intent", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(MOCK_PARSE_RESPONSE),
+      }),
+    );
+
+    const textarea = page.getByPlaceholder(/60\/40/);
+    await textarea.fill("60/40 ETH/USDC");
+    await page.getByRole("button", { name: /preview strategy/i }).click();
+
+    await expect(page.getByText("Powered by Venice")).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText("Enforced by MetaMask Delegation")).toBeVisible();
   });
 });

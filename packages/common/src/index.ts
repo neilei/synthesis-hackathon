@@ -7,16 +7,10 @@ export {
   SwapRecordSchema,
   AuditReportSchema,
   AgentLogEntrySchema,
-  AgentStateResponseSchema,
-  DeployResponseSchema,
-  DeployRequestSchema,
   type ParsedIntent,
   type SwapRecord,
   type AuditReport,
   type AgentLogEntry,
-  type AgentStateResponse,
-  type DeployResponse,
-  type DeployRequest,
 } from "./schemas.js";
 
 export {
@@ -46,3 +40,12 @@ export {
   IDENTITY_REGISTRY_ABI_HUMAN,
   REPUTATION_REGISTRY_ABI_HUMAN,
 } from "./erc8004-abi.js";
+
+export {
+  computeMaxValueWei,
+  computeExpiryTimestamp,
+  computeMaxCalls,
+  detectAdversarialIntent,
+  generateAuditReport,
+  type AdversarialWarning,
+} from "./delegation.js";

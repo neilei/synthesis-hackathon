@@ -13,6 +13,8 @@ export const SECONDS_PER_DAY = 86400;
 
 /** Canonical API route paths used by both the agent server and dashboard client. */
 export const API_PATHS = Object.freeze({
-  state: "/api/state",
-  deploy: "/api/deploy",
+  authNonce: "/api/auth/nonce",
+  authVerify: "/api/auth/verify",
+  parseIntent: "/api/parse-intent",
+  intents: "/api/intents",
 } as const);

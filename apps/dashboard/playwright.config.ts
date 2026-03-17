@@ -8,6 +8,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 const isCI = !!process.env.CI;
 const runIntegration = !!process.env.INTEGRATION;
+const dashPort = Number(process.env.DASH_PORT) || 3100;
 
 export default defineConfig({
   fullyParallel: true,
@@ -16,7 +17,7 @@ export default defineConfig({
   workers: isCI ? 1 : undefined,
   reporter: "html",
   use: {
-    baseURL: "http://localhost:3100",
+    baseURL: `http://localhost:${dashPort}`,
     trace: "on-first-retry",
   },
   projects: [
@@ -41,8 +42,8 @@ export default defineConfig({
       : []),
   ],
   webServer: {
-    command: "pnpm dev --port 3100",
-    url: "http://localhost:3100",
+    command: `npx next dev --webpack --port ${dashPort}`,
+    url: `http://localhost:${dashPort}`,
     reuseExistingServer: !isCI,
   },
 });

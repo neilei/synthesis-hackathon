@@ -24,7 +24,7 @@ async function waitForServer(timeoutMs = 30000): Promise<void> {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
     try {
-      const res = await fetch(`${BASE}/api/state`);
+      const res = await fetch(`${BASE}/api/auth/nonce?wallet=0x1234`);
       if (res.ok) return;
     } catch {
       // Server not ready yet
@@ -67,49 +67,29 @@ describe("Server E2E", () => {
     }
   });
 
-  it("GET /api/state returns valid JSON with expected fields", async () => {
-    const res = await fetch(`${BASE}/api/state`);
+  it("GET /api/auth/nonce returns nonce for wallet", async () => {
+    const res = await fetch(`${BASE}/api/auth/nonce?wallet=0x1234`);
 
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toContain("application/json");
 
     const data = await res.json();
-
-    // All expected fields must be present
-    expect(typeof data.cycle).toBe("number");
-    expect(typeof data.running).toBe("boolean");
-    expect(typeof data.ethPrice).toBe("number");
-    expect(typeof data.drift).toBe("number");
-    expect(typeof data.trades).toBe("number");
-    expect(typeof data.totalSpent).toBe("number");
-    expect(typeof data.budgetTier).toBe("string");
-    expect(typeof data.allocation).toBe("object");
-    expect(typeof data.target).toBe("object");
-    expect(typeof data.totalValue).toBe("number");
-    expect(Array.isArray(data.feed)).toBe(true);
-    expect(Array.isArray(data.transactions)).toBe(true);
-
-    // Agent not running — default state
-    expect(data.running).toBe(false);
-    expect(data.cycle).toBe(0);
+    expect(typeof data.nonce).toBe("string");
+    expect(data.nonce.length).toBeGreaterThan(0);
   });
 
-  it("GET /api/state includes CORS headers", async () => {
-    const res = await fetch(`${BASE}/api/state`);
-
-    expect(res.headers.get("access-control-allow-origin")).toBe("*");
+  it("GET /api/auth/nonce returns 400 without wallet", async () => {
+    const res = await fetch(`${BASE}/api/auth/nonce`);
+    expect(res.status).toBe(400);
   });
 
-  it("OPTIONS preflight returns 204 with CORS headers", async () => {
-    const res = await fetch(`${BASE}/api/state`, { method: "OPTIONS" });
-
-    expect(res.status).toBe(204);
-    expect(res.headers.get("access-control-allow-origin")).toBe("*");
-    expect(res.headers.get("access-control-allow-methods")).toContain("POST");
+  it("GET /api/intents returns 401 without auth", async () => {
+    const res = await fetch(`${BASE}/api/intents?wallet=0x1234`);
+    expect(res.status).toBe(401);
   });
 
-  it("POST /api/deploy with missing intent returns 400", async () => {
-    const res = await fetch(`${BASE}/api/deploy`, {
+  it("POST /api/parse-intent returns 400 for missing intent", async () => {
+    const res = await fetch(`${BASE}/api/parse-intent`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({}),
@@ -120,16 +100,17 @@ describe("Server E2E", () => {
     expect(data.error).toContain("Missing intent");
   });
 
-  it("POST /api/deploy with invalid JSON returns 500", async () => {
-    const res = await fetch(`${BASE}/api/deploy`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: "not json at all",
-    });
+  it("GET /api/auth/nonce includes CORS headers", async () => {
+    const res = await fetch(`${BASE}/api/auth/nonce?wallet=0x1234`);
+    expect(res.headers.get("access-control-allow-origin")).toBe("*");
+  });
 
-    expect(res.status).toBe(500);
-    const data = await res.json();
-    expect(data.error).toBeDefined();
+  it("OPTIONS preflight returns 204 with CORS headers", async () => {
+    const res = await fetch(`${BASE}/api/parse-intent`, { method: "OPTIONS" });
+
+    expect(res.status).toBe(204);
+    expect(res.headers.get("access-control-allow-origin")).toBe("*");
+    expect(res.headers.get("access-control-allow-methods")).toContain("POST");
   });
 
   it("GET / serves the dashboard HTML", async () => {

@@ -29,6 +29,12 @@ test.describe("Dashboard Navigation", () => {
     await expect(monitorTab).toBeDisabled();
   });
 
+  test("shows Connect Wallet button", async ({ page }) => {
+    await expect(
+      page.getByRole("button", { name: /connect wallet/i }),
+    ).toBeVisible();
+  });
+
   test("footer shows sponsor links", async ({ page }) => {
     await expect(page.getByRole("link", { name: "Venice" })).toBeVisible();
     await expect(page.getByRole("link", { name: "MetaMask" })).toBeVisible();
@@ -52,7 +58,7 @@ test.describe("Dashboard Navigation", () => {
     await expect(page.getByRole("heading", { name: "VEIL" })).toBeVisible();
     await expect(page.getByPlaceholder(/60\/40/)).toBeVisible();
     await expect(
-      page.getByRole("button", { name: /deploy agent/i }),
+      page.getByRole("button", { name: /preview strategy/i }),
     ).toBeVisible();
 
     // Tabs still accessible

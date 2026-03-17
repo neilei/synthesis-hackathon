@@ -1,11 +1,16 @@
 /**
  * Playwright e2e tests for the Audit tab: delegation report display.
  *
+ * The Audit tab is now reached via Configure preview → Deploy (which requires
+ * wallet connection for delegation signing). Since we can't mock wagmi in
+ * Playwright, we test the Audit component's rendering by verifying the preview
+ * step in Configure shows the same audit report data inline.
+ *
  * @module @veil/dashboard/tests/audit.spec
  */
 import { test, expect } from "@playwright/test";
 
-const MOCK_DEPLOY_RESPONSE = {
+const MOCK_PARSE_RESPONSE = {
   parsed: {
     targetAllocation: { ETH: 0.6, USDC: 0.4 },
     dailyBudgetUsd: 200,
@@ -28,31 +33,27 @@ const MOCK_DEPLOY_RESPONSE = {
   },
 };
 
-test.describe("Audit Screen", () => {
+test.describe("Audit Report (via Configure Preview)", () => {
   test.beforeEach(async ({ page }) => {
-    // Mock deploy API
-    await page.route("**/api/deploy", (route) =>
+    await page.route("**/api/parse-intent", (route) =>
       route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify(MOCK_DEPLOY_RESPONSE),
+        body: JSON.stringify(MOCK_PARSE_RESPONSE),
       }),
     );
 
-    // Navigate and deploy to get to audit screen
     await page.goto("/");
     const textarea = page.getByPlaceholder(/60\/40/);
     await textarea.fill("60/40 ETH/USDC, $200/day, 7 days");
-    await page.getByRole("button", { name: /deploy agent/i }).click();
+    await page.getByRole("button", { name: /preview strategy/i }).click();
 
-    // Wait for audit screen to render
     await expect(page.getByText("Your Strategy")).toBeVisible({
       timeout: 5000,
     });
   });
 
-  test("shows parsed intent section with allocation bar", async ({ page }) => {
-    // Allocation bar labels
+  test("shows parsed intent with allocation bar", async ({ page }) => {
     await expect(page.getByText("ETH 60%")).toBeVisible();
     await expect(page.getByText("USDC 40%")).toBeVisible();
   });
@@ -61,7 +62,7 @@ test.describe("Audit Screen", () => {
     await expect(page.getByText("Daily Budget")).toBeVisible();
     await expect(page.getByText("$200", { exact: true })).toBeVisible();
     await expect(page.getByText("Time Window")).toBeVisible();
-    await expect(page.getByText("7 days")).toBeVisible();
+    await expect(page.getByText("7 days", { exact: true })).toBeVisible();
     await expect(page.getByText("Max Slippage")).toBeVisible();
     await expect(page.getByText("0.5%")).toBeVisible();
     await expect(page.getByText("Drift Threshold", { exact: true })).toBeVisible();
@@ -110,43 +111,9 @@ test.describe("Audit Screen", () => {
     ).toBeVisible();
   });
 
-  test("shows status bar with View Monitor button", async ({ page }) => {
+  test("shows wallet connection prompt (no wallet connected)", async ({ page }) => {
     await expect(
-      page.getByText("Agent deployed and monitoring your portfolio"),
+      page.getByText("Connect your wallet to deploy the agent."),
     ).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: /view monitor/i }),
-    ).toBeVisible();
-  });
-
-  test("View Monitor button navigates to monitor tab", async ({ page }) => {
-    // Mock state API for monitor screen
-    await page.route("**/api/state", (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          running: true,
-          cycle: 1,
-          drift: 0.01,
-          totalValue: 1000,
-          trades: 0,
-          totalSpent: 0,
-          budgetTier: "$200",
-          allocation: { ETH: 0.6, USDC: 0.4 },
-          target: { ETH: 0.6, USDC: 0.4 },
-          transactions: [],
-          feed: [],
-        }),
-      }),
-    );
-
-    await page.getByRole("button", { name: /view monitor/i }).click();
-
-    // Should be on monitor screen now
-    await expect(page.getByText("Portfolio Value")).toBeVisible({
-      timeout: 5000,
-    });
-    await expect(page.getByText("$1,000.00")).toBeVisible();
   });
 });

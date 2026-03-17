@@ -12,16 +12,27 @@ import { Configure } from "@/components/configure";
 import { Audit } from "@/components/audit";
 import { Monitor } from "@/components/monitor";
 import { Footer } from "@/components/footer";
-import type { DeployResponse } from "@veil/common";
+import type { AuditReport, ParsedIntent } from "@veil/common";
+import type { IntentRecord } from "@/lib/api";
+
+interface DeployedState {
+  intent: IntentRecord;
+  parsed: ParsedIntent;
+  audit: AuditReport;
+}
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<TabId>("configure");
-  const [deployData, setDeployData] = useState<DeployResponse | null>(null);
+  const [deployedState, setDeployedState] = useState<DeployedState | null>(null);
 
-  const handleDeploySuccess = useCallback((data: DeployResponse) => {
-    setDeployData(data);
-    setActiveTab("audit");
-  }, []);
+  const handleDeploySuccess = useCallback(
+    (intent: IntentRecord, audit: AuditReport) => {
+      const parsed: ParsedIntent = JSON.parse(intent.parsedIntent);
+      setDeployedState({ intent, parsed, audit });
+      setActiveTab("audit");
+    },
+    [],
+  );
 
   const handleViewMonitor = useCallback(() => {
     setActiveTab("monitor");
@@ -36,15 +47,18 @@ export default function Home() {
       <Tabs
         activeTab={activeTab}
         onTabChange={setActiveTab}
-        hasDeployed={deployData !== null}
+        hasDeployed={deployedState !== null}
       />
 
       <main className="flex-1">
         {activeTab === "configure" && (
           <Configure onSuccess={handleDeploySuccess} />
         )}
-        {activeTab === "audit" && deployData && (
-          <Audit data={deployData} onViewMonitor={handleViewMonitor} />
+        {activeTab === "audit" && deployedState && (
+          <Audit
+            data={{ parsed: deployedState.parsed, audit: deployedState.audit }}
+            onViewMonitor={handleViewMonitor}
+          />
         )}
         {activeTab === "monitor" && (
           <Monitor onNavigateConfigure={handleNavigateConfigure} />

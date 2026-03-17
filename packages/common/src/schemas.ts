@@ -71,46 +71,4 @@ export const AgentLogEntrySchema = z.object({
 
 export type AgentLogEntry = z.infer<typeof AgentLogEntrySchema>;
 
-// ---------------------------------------------------------------------------
-// AgentStateResponse — the /api/state response shape
-// ---------------------------------------------------------------------------
 
-export const AgentStateResponseSchema = z.object({
-  cycle: z.number(),
-  running: z.boolean(),
-  ethPrice: z.number(),
-  drift: z.number(),
-  trades: z.number(),
-  totalSpent: z.number(),
-  budgetTier: z.string(),
-  allocation: z.record(z.string(), z.number()),
-  target: z.record(z.string(), z.number()),
-  totalValue: z.number(),
-  feed: z.array(AgentLogEntrySchema),
-  transactions: z.array(SwapRecordSchema),
-  audit: AuditReportSchema.nullable(),
-  deployError: z.string().nullable(),
-});
-
-export type AgentStateResponse = z.infer<typeof AgentStateResponseSchema>;
-
-// ---------------------------------------------------------------------------
-// DeployResponse — the /api/deploy response shape
-// ---------------------------------------------------------------------------
-
-export const DeployResponseSchema = z.object({
-  parsed: ParsedIntentSchema,
-  audit: AuditReportSchema.nullable(),
-});
-
-export type DeployResponse = z.infer<typeof DeployResponseSchema>;
-
-// ---------------------------------------------------------------------------
-// DeployRequest — the /api/deploy request body
-// ---------------------------------------------------------------------------
-
-export const DeployRequestSchema = z.object({
-  intent: z.string().min(1, "Intent cannot be empty"),
-});
-
-export type DeployRequest = z.infer<typeof DeployRequestSchema>;

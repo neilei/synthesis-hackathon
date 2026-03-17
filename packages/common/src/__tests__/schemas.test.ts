@@ -1,6 +1,6 @@
 /**
  * @file Tests for Zod schemas — ParsedIntent, SwapRecord, AuditReport,
- * AgentLogEntry, AgentStateResponse, DeployResponse.
+ * AgentLogEntry.
  */
 import { describe, it, expect } from "vitest";
 import {
@@ -8,15 +8,10 @@ import {
   SwapRecordSchema,
   AuditReportSchema,
   AgentLogEntrySchema,
-  AgentStateResponseSchema,
-  DeployResponseSchema,
-  DeployRequestSchema,
   type ParsedIntent,
   type SwapRecord,
   type AuditReport,
   type AgentLogEntry,
-  type AgentStateResponse,
-  type DeployResponse,
 } from "../schemas.js";
 
 // ---------------------------------------------------------------------------
@@ -211,163 +206,4 @@ describe("AgentLogEntrySchema", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// AgentStateResponseSchema
-// ---------------------------------------------------------------------------
 
-describe("AgentStateResponseSchema", () => {
-  const valid: AgentStateResponse = {
-    cycle: 5,
-    running: true,
-    ethPrice: 2500,
-    drift: 0.03,
-    trades: 2,
-    totalSpent: 150.5,
-    budgetTier: "$200/day",
-    allocation: { ETH: 0.58, USDC: 0.42 },
-    target: { ETH: 0.6, USDC: 0.4 },
-    totalValue: 1000,
-    feed: [
-      {
-        timestamp: "2026-03-15T12:00:00.000Z",
-        sequence: 0,
-        action: "agent_start",
-      },
-    ],
-    transactions: [
-      {
-        txHash: "0xabc",
-        sellToken: "ETH",
-        buyToken: "USDC",
-        sellAmount: "0.1",
-        status: "confirmed",
-        timestamp: "2026-03-15T12:00:00.000Z",
-      },
-    ],
-    audit: {
-      allows: ["Swap"],
-      prevents: ["Withdraw"],
-      worstCase: "Loss",
-      warnings: [],
-    },
-    deployError: null,
-  };
-
-  it("accepts a valid agent state response", () => {
-    const result = AgentStateResponseSchema.safeParse(valid);
-    expect(result.success).toBe(true);
-  });
-
-  it("accepts null audit", () => {
-    const result = AgentStateResponseSchema.safeParse({
-      ...valid,
-      audit: null,
-    });
-    expect(result.success).toBe(true);
-  });
-
-  it("accepts empty feed and transactions", () => {
-    const result = AgentStateResponseSchema.safeParse({
-      ...valid,
-      feed: [],
-      transactions: [],
-    });
-    expect(result.success).toBe(true);
-  });
-
-  it("rejects missing cycle", () => {
-    const { cycle: _, ...rest } = valid;
-    const result = AgentStateResponseSchema.safeParse(rest);
-    expect(result.success).toBe(false);
-  });
-
-  it("accepts deployError as a string", () => {
-    const result = AgentStateResponseSchema.safeParse({
-      ...valid,
-      deployError: "MetaMask SDK timeout",
-    });
-    expect(result.success).toBe(true);
-  });
-
-  it("rejects missing deployError", () => {
-    const { deployError: _, ...rest } = valid;
-    const result = AgentStateResponseSchema.safeParse(rest);
-    expect(result.success).toBe(false);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// DeployResponseSchema
-// ---------------------------------------------------------------------------
-
-describe("DeployResponseSchema", () => {
-  const valid: DeployResponse = {
-    parsed: {
-      targetAllocation: { ETH: 0.6, USDC: 0.4 },
-      dailyBudgetUsd: 200,
-      timeWindowDays: 7,
-      maxTradesPerDay: 5,
-      maxSlippage: 0.005,
-      driftThreshold: 0.05,
-    },
-    audit: {
-      allows: ["Swap"],
-      prevents: ["Withdraw"],
-      worstCase: "Loss",
-      warnings: [],
-    },
-  };
-
-  it("accepts a valid deploy response", () => {
-    const result = DeployResponseSchema.safeParse(valid);
-    expect(result.success).toBe(true);
-  });
-
-  it("accepts null audit", () => {
-    const result = DeployResponseSchema.safeParse({
-      ...valid,
-      audit: null,
-    });
-    expect(result.success).toBe(true);
-  });
-
-  it("rejects missing parsed", () => {
-    const { parsed: _, ...rest } = valid;
-    const result = DeployResponseSchema.safeParse(rest);
-    expect(result.success).toBe(false);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// DeployRequestSchema
-// ---------------------------------------------------------------------------
-
-describe("DeployRequestSchema", () => {
-  it("accepts valid deploy request", () => {
-    const result = DeployRequestSchema.safeParse({ intent: "60/40 ETH/USDC" });
-    expect(result.success).toBe(true);
-  });
-
-  it("rejects missing intent", () => {
-    const result = DeployRequestSchema.safeParse({});
-    expect(result.success).toBe(false);
-  });
-
-  it("rejects empty intent", () => {
-    const result = DeployRequestSchema.safeParse({ intent: "" });
-    expect(result.success).toBe(false);
-  });
-
-  it("rejects non-string intent", () => {
-    const result = DeployRequestSchema.safeParse({ intent: 123 });
-    expect(result.success).toBe(false);
-  });
-
-  it("returns parsed data with intent field", () => {
-    const result = DeployRequestSchema.safeParse({ intent: "80/20 ETH/USDC, $100/day" });
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.intent).toBe("80/20 ETH/USDC, $100/day");
-    }
-  });
-});

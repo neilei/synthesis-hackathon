@@ -7,10 +7,10 @@ import { AuditListItem } from "./ui/audit-list-item";
 import { WarningIcon } from "./ui/icons";
 import { PulsingDot } from "./ui/pulsing-dot";
 import { AllocationBar } from "./allocation-bar";
-import type { DeployResponse } from "@veil/common";
+import type { ParsedIntent, AuditReport } from "@veil/common";
 
 interface AuditProps {
-  data: DeployResponse;
+  data: { parsed: ParsedIntent; audit: AuditReport | null };
   onViewMonitor: () => void;
 }
 

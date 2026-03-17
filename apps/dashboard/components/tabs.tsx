@@ -6,6 +6,8 @@
  */
 "use client";
 
+import { ConnectWallet } from "./connect-wallet";
+
 export type TabId = "configure" | "audit" | "monitor";
 
 interface Tab {
@@ -29,6 +31,7 @@ export function Tabs({ activeTab, onTabChange, hasDeployed }: TabsProps) {
 
   return (
     <nav role="tablist" className="flex items-center gap-1 border-b border-border px-6">
+      <div className="flex items-center gap-1 flex-1">
       {tabs.map((tab) => {
         const isActive = activeTab === tab.id;
         const isDisabled = tab.disabled;
@@ -49,6 +52,8 @@ export function Tabs({ activeTab, onTabChange, hasDeployed }: TabsProps) {
           </button>
         );
       })}
+      </div>
+      <ConnectWallet />
     </nav>
   );
 }
