@@ -18,7 +18,7 @@ export interface IntentRouteDeps {
   workerPool: WorkerPool;
 }
 
-export function createIntentRoutes({ repo, workerPool }: IntentRouteDeps) {
+export function createIntentRoutes(deps: IntentRouteDeps) {
   const app = new Hono<AuthEnv>();
 
   // POST / — create intent
@@ -68,7 +68,7 @@ export function createIntentRoutes({ repo, workerPool }: IntentRouteDeps) {
     const now = Math.floor(Date.now() / 1000);
     const expiresAt = computeExpiryTimestamp(parsed.timeWindowDays);
 
-    const intent = repo.createIntent({
+    const intent = deps.repo.createIntent({
       id: intentId,
       walletAddress: wallet,
       intentText,
@@ -89,7 +89,7 @@ export function createIntentRoutes({ repo, workerPool }: IntentRouteDeps) {
     });
 
     try {
-      await workerPool.start(intentId);
+      await deps.workerPool.start(intentId);
     } catch (err) {
       logger.error(
         { err, intentId },
@@ -109,10 +109,10 @@ export function createIntentRoutes({ repo, workerPool }: IntentRouteDeps) {
       return c.json({ error: "Wallet mismatch" }, 403);
     }
 
-    const intents = repo.getIntentsByWallet(wallet);
+    const intents = deps.repo.getIntentsByWallet(wallet);
     const enriched = intents.map((intent) => ({
       ...intent,
-      workerStatus: workerPool.getStatus(intent.id),
+      workerStatus: deps.workerPool.getStatus(intent.id),
     }));
     return c.json(enriched);
   });
@@ -121,7 +121,7 @@ export function createIntentRoutes({ repo, workerPool }: IntentRouteDeps) {
   app.get("/:id", (c) => {
     const wallet = c.var.wallet;
     const intentId = c.req.param("id");
-    const intent = repo.getIntent(intentId);
+    const intent = deps.repo.getIntent(intentId);
     if (!intent) {
       return c.json({ error: "Intent not found" }, 404);
     }
@@ -129,8 +129,8 @@ export function createIntentRoutes({ repo, workerPool }: IntentRouteDeps) {
       return c.json({ error: "Forbidden" }, 403);
     }
 
-    const workerStatus = workerPool.getStatus(intentId);
-    const liveState = workerPool.getState(intentId);
+    const workerStatus = deps.workerPool.getStatus(intentId);
+    const liveState = deps.workerPool.getState(intentId);
     const intentLogger = new IntentLogger(intentId);
     const logs = intentLogger.readAll();
 
@@ -141,7 +141,7 @@ export function createIntentRoutes({ repo, workerPool }: IntentRouteDeps) {
   app.delete("/:id", async (c) => {
     const wallet = c.var.wallet;
     const intentId = c.req.param("id");
-    const intent = repo.getIntent(intentId);
+    const intent = deps.repo.getIntent(intentId);
     if (!intent) {
       return c.json({ error: "Intent not found" }, 404);
     }
@@ -149,8 +149,8 @@ export function createIntentRoutes({ repo, workerPool }: IntentRouteDeps) {
       return c.json({ error: "Forbidden" }, 403);
     }
 
-    await workerPool.stop(intentId);
-    repo.updateIntentStatus(intentId, "cancelled");
+    await deps.workerPool.stop(intentId);
+    deps.repo.updateIntentStatus(intentId, "cancelled");
     return c.json({ status: "cancelled" });
   });
 
@@ -158,7 +158,7 @@ export function createIntentRoutes({ repo, workerPool }: IntentRouteDeps) {
   app.get("/:id/logs", (c) => {
     const wallet = c.var.wallet;
     const intentId = c.req.param("id");
-    const intent = repo.getIntent(intentId);
+    const intent = deps.repo.getIntent(intentId);
     if (!intent) {
       return c.json({ error: "Intent not found" }, 404);
     }

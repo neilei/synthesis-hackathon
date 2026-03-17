@@ -11,7 +11,7 @@ export interface AuthRouteDeps {
   repo: IntentRepository;
 }
 
-export function createAuthRoutes({ repo }: AuthRouteDeps) {
+export function createAuthRoutes(deps: AuthRouteDeps) {
   const app = new Hono();
 
   // GET /nonce?wallet=0x...
@@ -22,7 +22,7 @@ export function createAuthRoutes({ repo }: AuthRouteDeps) {
     }
 
     const nonce = generateNonce();
-    repo.upsertNonce(wallet.toLowerCase(), nonce);
+    deps.repo.upsertNonce(wallet.toLowerCase(), nonce);
     return c.json({ nonce });
   });
 
@@ -38,7 +38,7 @@ export function createAuthRoutes({ repo }: AuthRouteDeps) {
     }
 
     const walletLower = wallet.toLowerCase();
-    const nonceRecord = repo.getNonce(walletLower);
+    const nonceRecord = deps.repo.getNonce(walletLower);
     if (!nonceRecord) {
       return c.json(
         { error: "No nonce found — request /api/auth/nonce first" },
@@ -49,7 +49,7 @@ export function createAuthRoutes({ repo }: AuthRouteDeps) {
     // Check nonce expiry
     const now = Math.floor(Date.now() / 1000);
     if (now - nonceRecord.createdAt > NONCE_TTL_SECONDS) {
-      repo.deleteNonce(walletLower);
+      deps.repo.deleteNonce(walletLower);
       return c.json({ error: "Nonce expired" }, 401);
     }
 
@@ -72,7 +72,7 @@ export function createAuthRoutes({ repo }: AuthRouteDeps) {
     }
 
     // Clean up nonce and issue token
-    repo.deleteNonce(walletLower);
+    deps.repo.deleteNonce(walletLower);
     const token = createAuthToken(walletLower);
     return c.json({ token });
   });
