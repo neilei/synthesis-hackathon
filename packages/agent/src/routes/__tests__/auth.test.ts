@@ -17,6 +17,7 @@ vi.mock("../../auth.js", () => ({
   NONCE_TTL_SECONDS: 300,
 }));
 
+// Partial mock: only methods used by auth route handlers are stubbed
 function createMockRepo(): IntentRepository {
   return {
     upsertNonce: vi.fn(),
@@ -32,7 +33,7 @@ function createMockRepo(): IntentRepository {
     markExpiredIntents: vi.fn(),
     insertSwap: vi.fn(),
     getSwapsByIntent: vi.fn(),
-  } as unknown as IntentRepository;
+  } as unknown as IntentRepository; // partial mock — class has private DB handle we can't construct here
 }
 
 describe("auth routes", () => {
@@ -73,6 +74,7 @@ describe("auth routes", () => {
         nonce: "stored-nonce",
         createdAt: now,
       });
+      // viem's recoverMessageAddress returns `0x${string}` branded type
       mockRecover.mockResolvedValue("0xABCD" as `0x${string}`);
 
       const app = createAuthRoutes({ repo });
@@ -139,6 +141,7 @@ describe("auth routes", () => {
         nonce: "some-nonce",
         createdAt: now,
       });
+      // viem's recoverMessageAddress returns `0x${string}` branded type
       mockRecover.mockResolvedValue("0xDIFFERENT" as `0x${string}`);
 
       const app = createAuthRoutes({ repo });

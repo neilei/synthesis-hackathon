@@ -14,7 +14,7 @@ import { privateKeyToAccount } from "viem/accounts";
 
 import { env } from "./config.js";
 import { registerAgent } from "./identity/erc8004.js";
-import { DEFAULT_AGENT_PORT } from "@veil/common";
+import { DEFAULT_AGENT_PORT, API_PATHS } from "@veil/common";
 import { logger } from "./logging/logger.js";
 import { withRetry } from "./utils/retry.js";
 import { IntentRepository } from "./db/repository.js";
@@ -29,7 +29,7 @@ import { createParseRoutes } from "./routes/parse.js";
 import { createIntentRoutes } from "./routes/intents.js";
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : DEFAULT_AGENT_PORT;
-const DASHBOARD_DIST = join(process.cwd(), "apps", "dashboard", "out");
+const DASHBOARD_DIST = join("apps", "dashboard", "out");
 
 // Singleton instances — initialized at startup
 let repo: IntentRepository;
@@ -41,6 +41,13 @@ const workerPool = new WorkerPool({ maxConcurrency: 5 });
 // ---------------------------------------------------------------------------
 
 export const app = new Hono();
+
+// Global error handler — returns JSON errors and logs via pino
+app.onError((err, c) => {
+  const msg = err instanceof Error ? err.message : String(err);
+  logger.error({ err, method: c.req.method, url: c.req.url }, "Request handler error");
+  return c.json({ error: msg }, 500);
+});
 
 // CORS
 app.use(
@@ -64,17 +71,19 @@ const lazyDeps = {
   },
 };
 
-// Auth routes (no auth middleware required)
-app.route("/api/auth", createAuthRoutes(lazyDeps));
+// Auth routes (no auth middleware required) — mount at /api/auth (covers /nonce and /verify)
+const authBase = API_PATHS.authNonce.replace(/\/nonce$/, "");
+app.route(authBase, createAuthRoutes(lazyDeps));
 
 // Parse intent (no auth required — used before wallet connected)
-app.route("/api/parse-intent", createParseRoutes());
+app.route(API_PATHS.parseIntent, createParseRoutes());
 
 // Intent CRUD routes (auth required)
-app.use("/api/intents/*", requireAuth);
-app.use("/api/intents", requireAuth);
+// Both patterns needed: /* matches sub-paths, bare path matches exact /api/intents
+app.use(`${API_PATHS.intents}/*`, requireAuth);
+app.use(API_PATHS.intents, requireAuth);
 app.route(
-  "/api/intents",
+  API_PATHS.intents,
   createIntentRoutes({ ...lazyDeps, workerPool }),
 );
 
@@ -91,12 +100,16 @@ app.use(
   serveStatic({ root: DASHBOARD_DIST }),
 );
 
-// SPA fallback — serve index.html for all non-API routes
+// SPA fallback — serve index.html for all non-API routes.
+// Read once at mount time to avoid blocking readFileSync on every request.
+const indexPath = join(DASHBOARD_DIST, "index.html");
+const cachedIndexHtml = existsSync(indexPath)
+  ? readFileSync(indexPath, "utf-8")
+  : null;
+
 app.get("*", (c) => {
-  const indexPath = join(DASHBOARD_DIST, "index.html");
-  if (existsSync(indexPath)) {
-    const html = readFileSync(indexPath, "utf-8");
-    return c.html(html);
+  if (cachedIndexHtml) {
+    return c.html(cachedIndexHtml);
   }
 
   return c.html(`<!doctype html>
@@ -128,7 +141,7 @@ async function startup() {
   const dbPath = process.env.DB_PATH || "data/veil.db";
   repo = new IntentRepository(getDb(dbPath));
 
-  // Wire up worker factory
+  // Wire up worker factory so WorkerPool can create AgentWorker instances
   workerPool.setWorkerFactory(
     (intentId) => new DefaultAgentWorker(intentId, { repo, serverAgentId }),
   );
@@ -163,7 +176,7 @@ async function startup() {
     logger.error({ err }, "Startup resumption failed");
   }
 
-  // Register agent identity on Base Sepolia
+  // Register agent identity on Base Sepolia and store the agentId for workers
   try {
     const { txHash, agentId } = await withRetry(
       () => registerAgent(`https://github.com/neilei/veil`, "base-sepolia"),

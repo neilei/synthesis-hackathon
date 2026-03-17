@@ -58,6 +58,7 @@ export function createAuthRoutes(deps: AuthRouteDeps) {
       const message = `Sign this message to authenticate with Veil.\n\nNonce: ${nonceRecord.nonce}`;
       const recovered = await recoverMessageAddress({
         message,
+        // Safe cast: signature is validated as a string above; viem expects hex-prefixed type
         signature: signature as `0x${string}`,
       });
 

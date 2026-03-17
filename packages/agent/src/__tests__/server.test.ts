@@ -229,6 +229,30 @@ describe("Route dispatch", () => {
   });
 });
 
+describe("Error handling", () => {
+  it("POST /api/parse-intent with invalid JSON returns JSON 500", async () => {
+    const res = await app.request("/api/parse-intent", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "not valid json {{{",
+    });
+    expect(res.status).toBe(500);
+    const body = await res.json();
+    expect(body.error).toBeDefined();
+  });
+
+  it("POST /api/auth/verify with empty body returns JSON 500", async () => {
+    const res = await app.request("/api/auth/verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "",
+    });
+    expect(res.status).toBe(500);
+    const body = await res.json();
+    expect(body.error).toBeDefined();
+  });
+});
+
 describe("SPA fallback", () => {
   it("GET / returns HTML", async () => {
     const res = await app.request("/");

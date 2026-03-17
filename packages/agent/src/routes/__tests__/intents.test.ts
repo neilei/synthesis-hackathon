@@ -53,6 +53,7 @@ vi.mock("../../logging/logger.js", () => ({
   logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn() },
 }));
 
+// Partial mock: only methods used by route handlers are stubbed
 function createMockRepo(): IntentRepository {
   return {
     createIntent: vi.fn().mockImplementation((data) => ({
@@ -71,9 +72,11 @@ function createMockRepo(): IntentRepository {
     upsertNonce: vi.fn(),
     getNonce: vi.fn(),
     deleteNonce: vi.fn(),
-  } as unknown as IntentRepository;
+  } as unknown as IntentRepository; // partial mock — class has private DB handle we can't construct here
+
 }
 
+// Partial mock: only methods used by route handlers are stubbed
 function createMockWorkerPool(): WorkerPool {
   return {
     start: vi.fn().mockResolvedValue(undefined),
@@ -84,7 +87,7 @@ function createMockWorkerPool(): WorkerPool {
     queuedCount: vi.fn().mockReturnValue(0),
     shutdown: vi.fn().mockResolvedValue(undefined),
     setWorkerFactory: vi.fn(),
-  } as unknown as WorkerPool;
+  } as unknown as WorkerPool; // partial mock — class requires DB constructor args
 }
 
 const AUTH_HEADER = { Authorization: "Bearer valid-token" };
@@ -173,7 +176,7 @@ describe("intent routes", () => {
     it("returns intents for the authenticated wallet", async () => {
       vi.mocked(repo.getIntentsByWallet).mockReturnValue([
         { id: "i1", walletAddress: "0xwallet123", status: "active" },
-      ] as never);
+      ] as never); // partial intent object — full DB row shape not needed for this test
 
       const app = buildApp(repo, pool);
       const res = await app.request("/", { headers: AUTH_HEADER });
@@ -197,7 +200,7 @@ describe("intent routes", () => {
         id: "i1",
         walletAddress: "0xwallet123",
         status: "active",
-      } as never);
+      } as never); // partial intent object — full DB row shape not needed for this test
 
       const app = buildApp(repo, pool);
       const res = await app.request("/i1", { headers: AUTH_HEADER });
@@ -221,7 +224,7 @@ describe("intent routes", () => {
         id: "i1",
         walletAddress: "0xother",
         status: "active",
-      } as never);
+      } as never); // partial intent object — full DB row shape not needed for this test
 
       const app = buildApp(repo, pool);
       const res = await app.request("/i1", { headers: AUTH_HEADER });
@@ -235,7 +238,7 @@ describe("intent routes", () => {
         id: "i1",
         walletAddress: "0xwallet123",
         status: "active",
-      } as never);
+      } as never); // partial intent object — full DB row shape not needed for this test
 
       const app = buildApp(repo, pool);
       const res = await app.request("/i1", {
@@ -267,7 +270,7 @@ describe("intent routes", () => {
         id: "i1",
         walletAddress: "0xother",
         status: "active",
-      } as never);
+      } as never); // partial intent object — full DB row shape not needed for this test
 
       const app = buildApp(repo, pool);
       const res = await app.request("/i1", {
@@ -284,7 +287,7 @@ describe("intent routes", () => {
         id: "i1",
         walletAddress: "0xwallet123",
         status: "active",
-      } as never);
+      } as never); // partial intent object — full DB row shape not needed for this test
 
       const app = buildApp(repo, pool);
       const res = await app.request("/i1/logs", { headers: AUTH_HEADER });
@@ -308,7 +311,7 @@ describe("intent routes", () => {
         id: "i1",
         walletAddress: "0xother",
         status: "active",
-      } as never);
+      } as never); // partial intent object — full DB row shape not needed for this test
 
       const app = buildApp(repo, pool);
       const res = await app.request("/i1/logs", { headers: AUTH_HEADER });
