@@ -51,6 +51,8 @@ export interface AgentConfig {
   onCycleComplete?: (state: AgentState) => void;
   /** Per-intent logger for writing cycle data to intent-specific JSONL */
   intentLogger?: import("./logging/intent-log.js").IntentLogger;
+  /** Pre-registered ERC-8004 agent ID from server startup — avoids redundant registration per worker */
+  serverAgentId?: bigint;
 }
 
 export interface AgentState {
@@ -151,24 +153,45 @@ export async function runAgentLoop(config: AgentConfig): Promise<void> {
 
   logStart();
 
-  // Register on-chain identity (awaited with retry)
-  try {
-    const { txHash, agentId } = await withRetry(
-      () => registerAgent(`https://github.com/neilei/veil`, "base-sepolia"),
-      { label: "erc8004:register", maxRetries: 3 },
-    );
-    logger.info({ txHash, agentId: agentId?.toString() }, "ERC-8004 agent registered");
-    if (agentId) state.agentId = agentId;
+  // Log privacy guarantee — Venice no-data-retention policy
+  logAction("privacy_guarantee", {
+    tool: "venice-inference",
+    result: {
+      provider: "venice.ai",
+      dataRetention: "none",
+      includeVeniceSystemPrompt: false,
+      modelsUsed: ["qwen3-4b", "gemini-3-flash-preview", "gemini-3-1-pro-preview"],
+      rationale: "DeFi reasoning traces contain alpha-sensitive portfolio data; no-retention inference prevents strategy leakage",
+    },
+  });
+
+  // Use pre-registered agentId from server if available; otherwise register fresh
+  if (config.serverAgentId) {
+    state.agentId = config.serverAgentId;
+    logger.info({ agentId: config.serverAgentId.toString() }, "Using server-registered ERC-8004 agent ID");
     logAction("erc8004_register", {
       tool: "erc8004-identity",
-      result: { txHash, agentId: agentId?.toString() },
+      result: { agentId: config.serverAgentId.toString(), source: "server" },
     });
-  } catch (err) {
-    logger.error({ err }, "ERC-8004 registration failed after retries");
-    logAction("erc8004_register_failed", {
-      tool: "erc8004-identity",
-      error: err instanceof Error ? err.message : String(err),
-    });
+  } else {
+    try {
+      const { txHash, agentId } = await withRetry(
+        () => registerAgent(`https://github.com/neilei/veil`, "base-sepolia"),
+        { label: "erc8004:register", maxRetries: 3 },
+      );
+      logger.info({ txHash, agentId: agentId?.toString() }, "ERC-8004 agent registered");
+      if (agentId) state.agentId = agentId;
+      logAction("erc8004_register", {
+        tool: "erc8004-identity",
+        result: { txHash, agentId: agentId?.toString() },
+      });
+    } catch (err) {
+      logger.error({ err }, "ERC-8004 registration failed after retries");
+      logAction("erc8004_register_failed", {
+        tool: "erc8004-identity",
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
   }
 
   logger.info("=== VEIL AGENT STARTING ===");
@@ -415,17 +438,20 @@ async function gatherMarketData(
         .join(", "),
   );
 
-  // 3. Fetch pool data from The Graph
+  // 3. Fetch pool data from The Graph (top 3 pools for richer LLM context)
   let poolContext = "";
   const startPool = Date.now();
   try {
     const pools = await getPoolData("WETH", "USDC");
     if (pools.length > 0) {
-      const topPool = pools[0];
-      const tvl = Number(topPool.totalValueLockedUSD) || 0;
-      const volume = Number(topPool.volumeUSD) || 0;
-      poolContext = `Top WETH/USDC pool: TVL $${tvl.toLocaleString()}, fee tier ${topPool.feeTier}, volume $${volume.toLocaleString()}`;
-      logger.info(poolContext);
+      const poolSummaries = pools.slice(0, 3).map((p, i) => {
+        const tvl = Number(p.totalValueLockedUSD) || 0;
+        const volume = Number(p.volumeUSD) || 0;
+        const feeBps = Number(p.feeTier) / 100;
+        return `Pool ${i + 1}: fee=${feeBps}bps, TVL=$${tvl.toLocaleString()}, 24h volume=$${volume.toLocaleString()}, txCount=${p.txCount}`;
+      });
+      poolContext = `WETH/USDC Uniswap V3 pools (by TVL):\n${poolSummaries.join("\n")}\n\nPool selection guidance: Higher TVL = deeper liquidity = less slippage. Higher volume = more active trading. Fee tier matters: 5bps (0.05%) is cheapest but may have less liquidity; 30bps (0.3%) is standard; 100bps (1%) is for volatile pairs.`;
+      logger.info({ poolCount: pools.length }, "Pool data fetched for LLM context");
     }
     logAction("pool_data_fetch", {
       cycle,
@@ -489,7 +515,7 @@ ${JSON.stringify(config.intent.targetAllocation, null, 2)}
 Current drift: ${JSON.stringify(market.drift, null, 2)} (max: ${(market.maxDrift * 100).toFixed(1)}%)
 Drift threshold: ${(config.intent.driftThreshold * 100).toFixed(1)}%
 ETH price: $${market.ethPrice.price.toFixed(2)}
-${market.poolContext ? `Pool data: ${market.poolContext}` : ""}
+${market.poolContext ? `\nLiquidity data:\n${market.poolContext}\n\nUse the TVL and volume data above to assess whether sufficient liquidity exists for the proposed swap size. If the swap amount is >1% of pool TVL, consider reducing the trade size or splitting across cycles.` : ""}
 Daily budget: $${config.intent.dailyBudgetUsd}
 Trades executed: ${state.tradesExecuted}
 Total spent: $${state.totalSpentUsd.toFixed(2)} / $${(config.intent.dailyBudgetUsd * config.intent.timeWindowDays).toFixed(2)}
@@ -500,7 +526,7 @@ Decide whether to rebalance. If yes, specify the swap details. Keep swap amounts
     {
       role: "user",
       content:
-        "Should the portfolio be rebalanced now? Consider current market conditions.",
+        "Should the portfolio be rebalanced now? Consider current market conditions and liquidity.",
     },
   ]);
 

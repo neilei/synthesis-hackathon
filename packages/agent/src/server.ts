@@ -41,6 +41,7 @@ const DASHBOARD_DIST = join(process.cwd(), "apps", "dashboard", "out");
 
 // Singleton instances — initialized at startup
 let repo: IntentRepository;
+let serverAgentId: bigint | undefined;
 const workerPool = new WorkerPool({ maxConcurrency: 5 });
 
 const MIME_TYPES: Record<string, string> = {
@@ -577,7 +578,7 @@ async function startup() {
 
   // Wire up worker factory so WorkerPool can create AgentWorker instances
   workerPool.setWorkerFactory(
-    (intentId) => new DefaultAgentWorker(intentId, { repo }),
+    (intentId) => new DefaultAgentWorker(intentId, { repo, serverAgentId }),
   );
 
   const agentAccount = privateKeyToAccount(env.AGENT_PRIVATE_KEY);
@@ -610,18 +611,21 @@ async function startup() {
     logger.error({ err }, "Startup resumption failed");
   }
 
-  // Register agent identity on Base Sepolia (non-blocking)
+  // Register agent identity on Base Sepolia and store the agentId for workers
   try {
     const { txHash, agentId } = await withRetry(
       () => registerAgent(`https://github.com/neilei/veil`, "base-sepolia"),
       { label: "erc8004:register", maxRetries: 3 },
     );
+    if (agentId) {
+      serverAgentId = agentId;
+    }
     logger.info(
       { txHash, agentId: agentId?.toString() },
-      "ERC-8004 agent registered",
+      "ERC-8004 agent registered — ID will be passed to all workers",
     );
   } catch (err) {
-    logger.error({ err }, "ERC-8004 registration failed after retries");
+    logger.error({ err }, "ERC-8004 registration failed after retries — workers will register individually");
   }
 }
 

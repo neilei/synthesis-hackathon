@@ -182,6 +182,24 @@ npm run serve         # http://localhost:3147
 
 ---
 
+## Why Venice: Privacy-Preserving DeFi Reasoning
+
+Traditional AI-powered trading systems leak your strategy. Every prompt you send to OpenAI, Anthropic, or Google contains your portfolio composition, target allocations, budget, and timing — data that, if aggregated, reveals alpha and enables front-running.
+
+Veil uses Venice AI with **no-data-retention inference** (`include_venice_system_prompt: false`, no training on queries) because DeFi agent reasoning is uniquely sensitive:
+
+1. **Portfolio intent is alpha.** "60/40 ETH/USDC with $200/day budget" reveals position sizing and rebalancing triggers. An inference provider that logs queries could trade ahead of or against these signals.
+
+2. **Reasoning traces expose timing.** The agent's internal deliberation — "drift is 8%, waiting for better liquidity" vs "executing now before price moves further" — is a real-time signal of when trades will execute. Venice's no-retention guarantee means these reasoning traces exist only in the agent's local logs, never on a third-party server.
+
+3. **Cumulative queries build a profile.** Over a 7-day trading window with 60-second cycles, the agent makes ~10,000 LLM calls. Each individually is benign; together they paint a complete picture of a trader's risk tolerance, reaction patterns, and portfolio value. Venice treats each call as stateless — no session aggregation, no cross-request correlation.
+
+4. **Multi-model routing without multi-vendor risk.** Veil uses 3 model tiers (qwen3-4b for fast checks, gemini-3-flash-preview for market research with web search, gemini-3-1-pro-preview for rebalancing decisions) — all through Venice's single privacy-preserving API. Without Venice, achieving the same model diversity would require accounts with Google, Meta, and Qwen, each logging your DeFi strategy independently.
+
+The result: every rebalancing decision is **auditable locally** (structured JSONL logs with full reasoning traces) but **private externally** (no inference provider retains your strategy data).
+
+---
+
 ## Hackathon Themes
 
 - **Agents that keep secrets** — Venice no-data-retention inference means strategy never leaves the agent
