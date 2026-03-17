@@ -51,8 +51,12 @@ export interface AgentConfig {
   onCycleComplete?: (state: AgentState) => void;
   /** Per-intent logger for writing cycle data to intent-specific JSONL */
   intentLogger?: import("../logging/intent-log.js").IntentLogger;
-  /** Pre-registered ERC-8004 agent ID from server startup — avoids redundant registration per worker */
-  serverAgentId?: bigint;
+  /** Intent ID for per-intent registration URI */
+  intentId?: string;
+  /** Pre-existing ERC-8004 agent ID from database (persisted from previous run) */
+  existingAgentId?: bigint;
+  /** Callback to persist newly registered agentId to database */
+  onAgentIdRegistered?: (agentId: string) => void;
 }
 
 export interface AgentState {
@@ -137,22 +141,29 @@ export async function runAgentLoop(config: AgentConfig): Promise<void> {
     },
   });
 
-  // Use pre-registered agentId from server if available; otherwise register fresh
-  if (config.serverAgentId) {
-    state.agentId = config.serverAgentId;
-    logger.info({ agentId: config.serverAgentId.toString() }, "Using server-registered ERC-8004 agent ID");
+  // Check for existing agentId (persisted from previous run)
+  if (config.existingAgentId) {
+    state.agentId = config.existingAgentId;
+    logger.info({ agentId: config.existingAgentId.toString() }, "Resuming with existing ERC-8004 agent ID");
     logAction("erc8004_register", {
       tool: "erc8004-identity",
-      result: { agentId: config.serverAgentId.toString(), source: "server" },
+      result: { agentId: config.existingAgentId.toString(), source: "database" },
     });
   } else {
+    // Register new identity for this intent
     try {
+      const intentId = config.intentId ?? "unknown";
+      const agentURI = `https://api.veil.moe/api/intents/${intentId}/identity.json`;
       const { txHash, agentId } = await withRetry(
-        () => registerAgent(`https://github.com/neilei/veil`, "base-sepolia"),
+        () => registerAgent(agentURI, "base-sepolia"),
         { label: "erc8004:register", maxRetries: 3 },
       );
       logger.info({ txHash, agentId: agentId?.toString() }, "ERC-8004 agent registered");
-      if (agentId) state.agentId = agentId;
+      if (agentId) {
+        state.agentId = agentId;
+        // Persist to DB so it survives restarts
+        config.onAgentIdRegistered?.(agentId.toString());
+      }
       logAction("erc8004_register", {
         tool: "erc8004-identity",
         result: { txHash, agentId: agentId?.toString() },

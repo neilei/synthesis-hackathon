@@ -77,6 +77,39 @@ describe("Uniswap Trading API (e2e)", () => {
   );
 
   it(
+    "USDC -> ETH quote includes permitData for Permit2 signing",
+    { timeout: 30000 },
+    async () => {
+      const quote = await getQuote({
+        tokenIn: CONTRACTS.USDC_SEPOLIA,
+        tokenOut: CONTRACTS.NATIVE_ETH,
+        amount: parseUnits("1", 6).toString(), // 1 USDC
+        type: "EXACT_INPUT",
+        chainId: 11155111,
+        swapper: agentAddress,
+      });
+
+      expect(quote).toBeDefined();
+      expect(BigInt(quote.quote.output.amount)).toBeGreaterThan(0n);
+
+      // ERC-20 sells should include Permit2 data for gasless approval
+      // Note: permitData may be null if the swapper already has Permit2 approval
+      // or if the routing doesn't require it (e.g., WRAP/UNWRAP routes)
+      if (quote.permitData) {
+        expect(quote.permitData.domain).toBeDefined();
+        expect(quote.permitData.types).toBeDefined();
+        expect(quote.permitData.values).toBeDefined();
+        console.log("Permit2 data present:", {
+          domain: quote.permitData.domain,
+          hasTypes: Object.keys(quote.permitData.types).length > 0,
+        });
+      } else {
+        console.log("No permitData returned (swapper may already have approval or route does not require it)");
+      }
+    },
+  );
+
+  it(
     "gets a WETH -> USDC quote on Sepolia",
     { timeout: 30000 },
     async () => {

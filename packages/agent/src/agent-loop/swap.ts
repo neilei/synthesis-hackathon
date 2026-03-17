@@ -11,12 +11,13 @@ import { privateKeyToAccount } from "viem/accounts";
 import type { sepolia, base } from "viem/chains";
 
 import type { AgentConfig, AgentState } from "./index.js";
-import { CONTRACTS, rpcTransport } from "../config.js";
+import { CONTRACTS, env, rpcTransport } from "../config.js";
 import { redeemDelegation } from "../delegation/redeemer.js";
 import { getQuote, createSwap, checkApproval } from "../uniswap/trading.js";
 import { signPermit2Data } from "../uniswap/permit2.js";
 import { logAction } from "../logging/agent-log.js";
-import { giveFeedback } from "../identity/erc8004.js";
+import { evaluateSwap } from "../identity/judge.js";
+import type { SwapEvidenceInput } from "../identity/evidence.js";
 import { logger } from "../logging/logger.js";
 
 // ---------------------------------------------------------------------------
@@ -125,6 +126,11 @@ export async function executeSwap(
     }
   }
 
+  // Snapshot pre-swap state for judge evaluation (before any mutation)
+  const beforeSwapAllocation = state.allocation;
+  const beforeSwapDrift = state.drift;
+  const beforeSwapValue = state.totalValue;
+
   const startQuote = Date.now();
   try {
     const quote = await getQuote({
@@ -197,12 +203,25 @@ export async function executeSwap(
       } catch (delegationErr) {
         const delegationMsg =
           delegationErr instanceof Error ? delegationErr.message : String(delegationErr);
-        logger.warn({ err: delegationErr }, "Delegation redemption failed, falling back to direct tx");
-        logAction("delegation_redeem_failed", {
-          cycle: state.cycle,
-          tool: "metamask-delegation",
-          error: delegationMsg,
-        });
+        const isCaveatEnforcement = /Enforcer/i.test(delegationMsg);
+        if (isCaveatEnforcement) {
+          logger.warn(
+            { err: delegationErr },
+            `Delegation caveat enforced: ${delegationMsg}. Safety constraints are working. Falling back to direct tx.`,
+          );
+          logAction("delegation_caveat_enforced", {
+            cycle: state.cycle,
+            tool: "metamask-delegation",
+            result: { enforcer: delegationMsg, action: "fallback_to_direct_tx" },
+          });
+        } else {
+          logger.warn({ err: delegationErr }, "Delegation redemption failed, falling back to direct tx");
+          logAction("delegation_redeem_failed", {
+            cycle: state.cycle,
+            tool: "metamask-delegation",
+            error: delegationMsg,
+          });
+        }
 
         const fallbackQuote = await getQuote({
           tokenIn: sellTokenAddress,
@@ -277,23 +296,93 @@ export async function executeSwap(
       `Status: ${receipt.status} | Gas: ${receipt.gasUsed.toString()}`,
     );
 
-    // ERC-8004: give on-chain feedback for the swap (non-blocking)
-    if (state.agentId) {
+    // ERC-8004: trigger judge evaluation (non-blocking)
+    if (state.agentId && env.JUDGE_PRIVATE_KEY) {
       const currentCycle = state.cycle;
-      giveFeedback(state.agentId, 5, "swap-execution", "defi", "base-sepolia")
-        .then((fbHash) => {
-          logger.info({ txHash: fbHash, agentId: state.agentId?.toString() }, "ERC-8004 feedback submitted");
-          logAction("erc8004_feedback", {
+      const judgeInput: SwapEvidenceInput = {
+        agentId: state.agentId,
+        intentId: config.intentId ?? "unknown",
+        cycle: currentCycle,
+        swapTxHash: txHash,
+        intent: {
+          targetAllocation: config.intent.targetAllocation,
+          dailyBudgetUsd: config.intent.dailyBudgetUsd,
+          driftThreshold: config.intent.driftThreshold,
+          maxSlippage: config.intent.maxSlippage,
+          timeWindowDays: config.intent.timeWindowDays,
+          maxTradesPerDay: config.intent.maxTradesPerDay,
+        },
+        beforeSwap: {
+          allocation: { ...beforeSwapAllocation },
+          drift: beforeSwapDrift,
+          portfolioValueUsd: beforeSwapValue,
+        },
+        afterSwap: {
+          allocation: state.allocation,
+          drift: state.drift,
+          portfolioValueUsd: state.totalValue,
+        },
+        execution: {
+          sellToken: swap.sellToken,
+          buyToken: swap.buyToken,
+          sellAmount: swap.sellAmount,
+          gasUsed: Number(receipt.gasUsed),
+          slippage: 0,
+          viaDelegation: usedDelegation,
+        },
+        agentReasoning: "",
+        marketContext: {
+          ethPriceUsd: ethPriceUsd,
+          poolTvlUsd: 0,
+          pool24hVolume: 0,
+        },
+      };
+
+      logAction("judge_started", { cycle: currentCycle, tool: "venice-judge" });
+
+      evaluateSwap(judgeInput, "rebalance", state.budgetTier === "critical")
+        .then((result) => {
+          logger.info(
+            {
+              composite: result.composite,
+              scores: result.scores,
+              feedbackTxHash: result.feedbackTxHash,
+            },
+            "Judge evaluation complete",
+          );
+          logAction("judge_completed", {
             cycle: currentCycle,
-            tool: "erc8004-reputation",
-            result: { txHash: fbHash, agentId: state.agentId?.toString(), rating: 5, tag: "swap-execution" },
+            tool: "venice-judge",
+            result: {
+              composite: result.composite,
+              scores: result.scores,
+              requestHash: result.requestHash,
+              validationRequestTxHash: result.validationRequestTxHash,
+              validationResponseTxHashes: result.validationResponseTxHashes,
+              feedbackTxHash: result.feedbackTxHash,
+            },
+          });
+          config.intentLogger?.log("judge_completed", {
+            cycle: currentCycle,
+            tool: "venice-judge",
+            result: {
+              composite: result.composite,
+              scores: result.scores,
+            },
           });
         })
-        .catch((fbErr) => {
-          logger.warn({ err: fbErr }, "ERC-8004 feedback failed");
+        .catch((judgeErr) => {
+          logger.warn({ err: judgeErr }, "Judge evaluation failed");
+          logAction("judge_failed", {
+            cycle: currentCycle,
+            tool: "venice-judge",
+            error: judgeErr instanceof Error ? judgeErr.message : String(judgeErr),
+          });
         });
+    } else if (!state.agentId) {
+      logger.warn("Skipping judge evaluation — no agent ID registered");
     } else {
-      logger.warn("Skipping ERC-8004 feedback — no agent ID registered");
+      logger.warn("Skipping judge evaluation — no JUDGE_PRIVATE_KEY configured");
     }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

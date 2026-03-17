@@ -1,61 +1,13 @@
 /**
- * Unit tests for the HTTP server route handlers and CORS behavior.
+ * Integration tests for the Hono server — CORS, routing, SPA fallback.
+ * Route handler logic is tested in routes/__tests__/*.test.ts.
  *
  * @module @veil/agent/server.test
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { EventEmitter } from "events";
-import type { IncomingMessage, ServerResponse } from "http";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // ---------------------------------------------------------------------------
-// Capture the request handler from createServer before import
-// ---------------------------------------------------------------------------
-let capturedHandler: (req: IncomingMessage, res: ServerResponse) => void;
-const mockListen = vi.fn((_port: number, cb?: () => void) => {
-  if (cb) cb();
-});
-const mockServerInstance = { listen: mockListen };
-
-vi.mock("http", () => ({
-  createServer: vi.fn((handler: (req: IncomingMessage, res: ServerResponse) => void) => {
-    capturedHandler = handler;
-    return mockServerInstance;
-  }),
-}));
-
-// Mock fs — we control existsSync, statSync, readFileSync, readFile, createReadStream
-const mockExistsSync = vi.fn();
-const mockStatSync = vi.fn().mockReturnValue({ isFile: () => true });
-const mockReadFileSync = vi.fn();
-const mockReadFile = vi.fn();
-const mockCreateReadStream = vi.fn();
-vi.mock("fs", () => ({
-  existsSync: (...args: unknown[]) => mockExistsSync(...args),
-  statSync: (...args: unknown[]) => mockStatSync(...args),
-  readFileSync: (...args: unknown[]) => mockReadFileSync(...args),
-  readFile: (...args: unknown[]) => mockReadFile(...args),
-  createReadStream: (...args: unknown[]) => mockCreateReadStream(...args),
-}));
-
-// Mock viem/accounts to prevent real crypto in startup()
-vi.mock("viem/accounts", () => ({
-  privateKeyToAccount: vi.fn().mockReturnValue({
-    address: "0xABCDEF1234567890ABCDEF1234567890ABCDEF12",
-  }),
-}));
-
-// Mock viem
-vi.mock("viem", () => ({
-  recoverMessageAddress: vi.fn(),
-}));
-
-// Mock nanoid
-vi.mock("nanoid", () => ({
-  nanoid: vi.fn().mockReturnValue("mock-intent-id"),
-}));
-
-// ---------------------------------------------------------------------------
-// Mock all heavy internal dependencies
+// Mock all heavy dependencies (prevents real crypto/DB/network)
 // ---------------------------------------------------------------------------
 vi.mock("../config.js", () => ({
   env: {
@@ -70,41 +22,13 @@ vi.mock("../config.js", () => ({
   UNISWAP_API_BASE: "",
   THEGRAPH_UNISWAP_V3_BASE: "",
 }));
-vi.mock("../venice/llm.js", () => ({
-  researchLlm: {},
-  reasoningLlm: {},
-  fastLlm: {},
+vi.mock("viem/accounts", () => ({
+  privateKeyToAccount: vi.fn().mockReturnValue({
+    address: "0xABCDEF1234567890ABCDEF1234567890ABCDEF12",
+  }),
 }));
-vi.mock("../data/portfolio.js", () => ({ getPortfolioBalance: vi.fn() }));
-vi.mock("../data/prices.js", () => ({ getTokenPrice: vi.fn() }));
-vi.mock("../data/thegraph.js", () => ({ getPoolData: vi.fn() }));
 vi.mock("../delegation/compiler.js", () => ({
   compileIntent: vi.fn(),
-  createDelegationFromIntent: vi.fn(),
-  detectAdversarialIntent: vi.fn(),
-}));
-vi.mock("../delegation/audit.js", () => ({
-  generateAuditReport: vi.fn(),
-}));
-vi.mock("../delegation/redeemer.js", () => ({
-  createRedeemClient: vi.fn(),
-  redeemDelegation: vi.fn(),
-}));
-vi.mock("../uniswap/trading.js", () => ({
-  getQuote: vi.fn(),
-  createSwap: vi.fn(),
-}));
-vi.mock("../logging/agent-log.js", () => ({
-  logAction: vi.fn(),
-  logStart: vi.fn(),
-  logStop: vi.fn(),
-}));
-vi.mock("../logging/budget.js", () => ({
-  getBudgetTier: vi.fn().mockReturnValue("normal"),
-}));
-vi.mock("../identity/erc8004.js", () => ({
-  registerAgent: vi.fn().mockResolvedValue({ txHash: "0xabc", agentId: 1 }),
-  giveFeedback: vi.fn(),
 }));
 vi.mock("../logging/logger.js", () => ({
   logger: {
@@ -114,11 +38,6 @@ vi.mock("../logging/logger.js", () => ({
     debug: vi.fn(),
   },
 }));
-vi.mock("../utils/retry.js", () => ({
-  withRetry: vi.fn((fn: () => Promise<unknown>) => fn()),
-}));
-
-// Mock new dependencies
 vi.mock("../db/connection.js", () => ({
   getDb: vi.fn().mockReturnValue({}),
 }));
@@ -126,8 +45,8 @@ vi.mock("../db/repository.js", () => {
   class MockRepo {
     createIntent = vi.fn();
     getIntent = vi.fn();
-    getIntentsByWallet = vi.fn();
-    getActiveIntents = vi.fn();
+    getIntentsByWallet = vi.fn().mockReturnValue([]);
+    getActiveIntents = vi.fn().mockReturnValue([]);
     updateIntentStatus = vi.fn();
     updateIntentCycleState = vi.fn();
     updateIntentAgentId = vi.fn();
@@ -183,8 +102,6 @@ vi.mock("../auth.js", () => ({
 vi.mock("../startup.js", () => ({
   resumeActiveIntents: vi.fn().mockResolvedValue({ expired: 0, resumed: 0 }),
 }));
-
-// Mock @veil/common — provide real constant values so server.ts resolves cleanly.
 vi.mock("@veil/common", async () => {
   const { z } = await import("zod");
   return {
@@ -195,17 +112,6 @@ vi.mock("@veil/common", async () => {
       parseIntent: "/api/parse-intent",
       intents: "/api/intents",
     },
-    AgentLogEntrySchema: z.object({
-      timestamp: z.string(),
-      sequence: z.number(),
-      action: z.string(),
-      cycle: z.number().optional(),
-      tool: z.string().optional(),
-      parameters: z.record(z.string(), z.unknown()).optional(),
-      result: z.record(z.string(), z.unknown()).optional(),
-      duration_ms: z.number().optional(),
-      error: z.string().optional(),
-    }),
     ParsedIntentSchema: z.object({
       targetAllocation: z.record(z.string(), z.number()),
       dailyBudgetUsd: z.number(),
@@ -214,7 +120,9 @@ vi.mock("@veil/common", async () => {
       maxSlippage: z.number(),
       driftThreshold: z.number(),
     }),
-    computeExpiryTimestamp: vi.fn().mockReturnValue(Math.floor(Date.now() / 1000) + 86400),
+    computeExpiryTimestamp: vi
+      .fn()
+      .mockReturnValue(Math.floor(Date.now() / 1000) + 86400),
     generateAuditReport: vi.fn().mockReturnValue({
       allows: [],
       prevents: [],
@@ -223,369 +131,141 @@ vi.mock("@veil/common", async () => {
     }),
   };
 });
-
 vi.mock("../agent-loop.js", () => ({}));
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function createMockReq(
-  method: string,
-  url: string,
-  body?: unknown,
-  headers?: Record<string, string>,
-): IncomingMessage {
-  const req = new EventEmitter() as IncomingMessage;
-  req.method = method;
-  req.url = url;
-  req.headers = headers ?? {};
-  if (method === "POST" && body !== undefined) {
-    process.nextTick(() => {
-      const buf = Buffer.from(JSON.stringify(body));
-      req.emit("data", buf);
-      req.emit("end");
-    });
-  } else if (method === "POST") {
-    process.nextTick(() => {
-      req.emit("end");
-    });
-  }
-  return req;
-}
-
-interface MockServerResponse extends ServerResponse {
-  statusCode: number;
-  body: string;
-  headers: Record<string, string>;
-  headWritten: boolean;
-  parsedBody: () => Record<string, unknown>;
-}
-
-function createMockRes(): MockServerResponse {
-  const headers: Record<string, string> = {};
-  let statusCode = 200;
-  let body = "";
-  let headWritten = false;
-
-  return {
-    setHeader: vi.fn((name: string, value: string) => {
-      headers[name.toLowerCase()] = value;
-    }),
-    writeHead: vi.fn((code: number, extraHeaders?: Record<string, string>) => {
-      statusCode = code;
-      headWritten = true;
-      if (extraHeaders) {
-        for (const [k, v] of Object.entries(extraHeaders)) {
-          headers[k.toLowerCase()] = v;
-        }
-      }
-    }),
-    end: vi.fn((data?: string) => {
-      if (data) body = data;
-    }),
-    get statusCode() {
-      return statusCode;
-    },
-    get body() {
-      return body;
-    },
-    get headers() {
-      return headers;
-    },
-    get headWritten() {
-      return headWritten;
-    },
-    parsedBody() {
-      try {
-        return JSON.parse(body);
-      } catch {
-        return null;
-      }
-    },
-  } as unknown as MockServerResponse;
-}
-
-async function callHandler(
-  req: IncomingMessage,
-  res: MockServerResponse,
-): Promise<void> {
-  await capturedHandler(req, res as ServerResponse);
-  await new Promise((r) => setTimeout(r, 10));
-}
+// Mock @hono/node-server so startup() doesn't actually bind a port
+vi.mock("@hono/node-server", () => ({
+  serve: vi.fn((_opts: unknown, cb?: () => void) => {
+    if (cb) cb();
+  }),
+}));
+vi.mock("@hono/node-server/serve-static", () => ({
+  serveStatic: vi.fn().mockReturnValue(
+    async (_c: unknown, next: () => Promise<void>) => next(),
+  ),
+}));
 
 // ---------------------------------------------------------------------------
-// Import server.ts — this triggers startup() and createServer()
+// Import the app AFTER mocks are set up
 // ---------------------------------------------------------------------------
+
+const { app } = await import("../server.js");
+
+// startup() is fire-and-forget at module level — wait for it to complete
+await new Promise((r) => setTimeout(r, 50));
 
 beforeEach(() => {
-  vi.spyOn(console, "log").mockImplementation(() => {});
-  vi.spyOn(console, "error").mockImplementation(() => {});
+  vi.clearAllMocks();
 });
 
-afterEach(() => {
-  vi.restoreAllMocks();
-  mockExistsSync.mockReset();
-  mockReadFileSync.mockReset();
-  mockReadFile.mockReset();
-});
-
-// Trigger the import so capturedHandler gets set
-import("../server.js");
-
-// ==========================================================================
+// ---------------------------------------------------------------------------
 // Tests
-// ==========================================================================
-
-describe("Server startup", () => {
-  it("calls createServer and listen on import", async () => {
-    await new Promise((r) => setTimeout(r, 50));
-    const { createServer } = await import("http");
-    expect(createServer).toHaveBeenCalled();
-    expect(mockListen).toHaveBeenCalled();
-    expect(capturedHandler).toBeDefined();
-  });
-});
-
-// ---------------------------------------------------------------------------
-// parseBody (tested indirectly via POST /api/parse-intent with invalid JSON)
 // ---------------------------------------------------------------------------
 
-describe("parseBody (via POST /api/parse-intent)", () => {
-  it("returns 500 when body is invalid JSON", async () => {
-    const req = new EventEmitter() as IncomingMessage;
-    req.method = "POST";
-    req.url = "/api/parse-intent";
-    req.headers = {};
-
-    process.nextTick(() => {
-      req.emit("data", Buffer.from("not json {{{"));
-      req.emit("end");
+describe("CORS", () => {
+  it("OPTIONS returns 204 with CORS headers", async () => {
+    const res = await app.request("/api/parse-intent", {
+      method: "OPTIONS",
     });
-
-    const res = createMockRes();
-    await callHandler(req, res);
-
-    expect(res.statusCode).toBe(500);
-    const data = res.parsedBody();
-    expect(data.error).toBe("Invalid JSON");
-  });
-
-  it("handles empty body as invalid JSON", async () => {
-    const req = new EventEmitter() as IncomingMessage;
-    req.method = "POST";
-    req.url = "/api/parse-intent";
-    req.headers = {};
-
-    process.nextTick(() => {
-      req.emit("end");
-    });
-
-    const res = createMockRes();
-    await callHandler(req, res);
-
-    expect(res.statusCode).toBe(500);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// handleDashboard (GET /)
-// ---------------------------------------------------------------------------
-
-describe("handleDashboard (GET /)", () => {
-  it("returns HTML when dashboard build exists", async () => {
-    mockExistsSync.mockReturnValue(true);
-    mockReadFile.mockImplementation(
-      (_path: string, cb: Function) => {
-        cb(null, Buffer.from("<html><body>Dashboard</body></html>"));
-      },
-    );
-
-    const req = createMockReq("GET", "/");
-    const res = createMockRes();
-    await callHandler(req, res);
-
-    await new Promise((r) => setTimeout(r, 20));
-
-    expect(res.writeHead).toHaveBeenCalledWith(200, {
-      "Content-Type": "text/html",
-    });
-  });
-
-  it("returns fallback HTML when dashboard is not built", async () => {
-    mockExistsSync.mockReturnValue(false);
-
-    const req = createMockReq("GET", "/");
-    const res = createMockRes();
-    await callHandler(req, res);
-
-    expect(res.writeHead).toHaveBeenCalledWith(200, {
-      "Content-Type": "text/html",
-    });
-    const html = vi.mocked(res.end).mock.calls[0]?.[0] as string;
-    expect(html).toContain("VEIL");
-    expect(html).toContain("/api/intents");
-  });
-
-  it("serves dashboard on /dashboard path", async () => {
-    mockReadFile.mockImplementation(
-      (_path: string, _enc: string, cb: Function) => {
-        cb(null, "<html>dash</html>");
-      },
-    );
-
-    const req = createMockReq("GET", "/dashboard");
-    const res = createMockRes();
-    await callHandler(req, res);
-    await new Promise((r) => setTimeout(r, 20));
-
-    expect(res.writeHead).toHaveBeenCalledWith(200, {
-      "Content-Type": "text/html",
-    });
-  });
-
-  it("serves dashboard on /index.html path", async () => {
-    mockReadFile.mockImplementation(
-      (_path: string, _enc: string, cb: Function) => {
-        cb(null, "<html>index</html>");
-      },
-    );
-
-    const req = createMockReq("GET", "/index.html");
-    const res = createMockRes();
-    await callHandler(req, res);
-    await new Promise((r) => setTimeout(r, 20));
-
-    expect(res.writeHead).toHaveBeenCalledWith(200, {
-      "Content-Type": "text/html",
-    });
-  });
-});
-
-// ---------------------------------------------------------------------------
-// CORS via setCors
-// ---------------------------------------------------------------------------
-
-describe("CORS headers", () => {
-  it("OPTIONS request returns 204 with CORS headers", async () => {
-    const req = createMockReq("OPTIONS", "/api/parse-intent");
-    const res = createMockRes();
-    await callHandler(req, res);
-
-    expect(res.writeHead).toHaveBeenCalledWith(204);
-    expect(res.setHeader).toHaveBeenCalledWith(
-      "Access-Control-Allow-Origin",
-      "*",
-    );
-    expect(res.setHeader).toHaveBeenCalledWith(
-      "Access-Control-Allow-Methods",
-      "GET, POST, DELETE, OPTIONS",
-    );
-    expect(res.setHeader).toHaveBeenCalledWith(
-      "Access-Control-Allow-Headers",
-      "Content-Type, Authorization",
+    expect(res.status).toBe(204);
+    expect(res.headers.get("access-control-allow-origin")).toBe("*");
+    expect(res.headers.get("access-control-allow-methods")).toContain("POST");
+    expect(res.headers.get("access-control-allow-headers")).toContain(
+      "Content-Type",
     );
   });
 
   it("JSON responses include CORS headers", async () => {
-    const req = createMockReq("GET", "/api/auth/nonce?wallet=0x1234");
-    const res = createMockRes();
-    await callHandler(req, res);
-
-    expect(res.setHeader).toHaveBeenCalledWith(
-      "Access-Control-Allow-Origin",
-      "*",
-    );
-  });
-
-  it("OPTIONS on /api/parse-intent also returns CORS headers", async () => {
-    const req = createMockReq("OPTIONS", "/api/parse-intent");
-    const res = createMockRes();
-    await callHandler(req, res);
-
-    expect(res.writeHead).toHaveBeenCalledWith(204);
-    expect(res.setHeader).toHaveBeenCalledWith(
-      "Access-Control-Allow-Origin",
-      "*",
-    );
+    const res = await app.request("/api/auth/nonce?wallet=0x1234");
+    expect(res.headers.get("access-control-allow-origin")).toBe("*");
   });
 });
 
-// ---------------------------------------------------------------------------
-// SPA fallback routes
-// ---------------------------------------------------------------------------
-
-describe("SPA fallback routes", () => {
-  it("serves dashboard for unknown GET paths (SPA fallback)", async () => {
-    const req = createMockReq("GET", "/api/unknown");
-    const res = createMockRes();
-    await callHandler(req, res);
-
-    await new Promise((r) => setTimeout(r, 50));
-
-    const writeHeadCalls = vi.mocked(res.writeHead).mock.calls;
-    if (writeHeadCalls.length > 0) {
-      const status = writeHeadCalls[0][0];
-      expect([200, 404]).toContain(status);
-    }
+describe("Route dispatch", () => {
+  it("GET /api/auth/nonce returns nonce", async () => {
+    const res = await app.request("/api/auth/nonce?wallet=0x1234");
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.nonce).toBe("mock-nonce-123");
   });
 
-  it("serves dashboard for POST to unknown path", async () => {
-    const req = createMockReq("POST", "/api/unknown", { foo: "bar" });
-    const res = createMockRes();
-    await callHandler(req, res);
-
-    await new Promise((r) => setTimeout(r, 50));
-
-    const writeHeadCalls = vi.mocked(res.writeHead).mock.calls;
-    if (writeHeadCalls.length > 0) {
-      const status = writeHeadCalls[0][0];
-      expect([200, 404]).toContain(status);
-    }
+  it("GET /api/auth/nonce returns 400 without wallet", async () => {
+    const res = await app.request("/api/auth/nonce");
+    expect(res.status).toBe(400);
   });
 
-  it("unknown route does not return JSON error", async () => {
-    const req = createMockReq("GET", "/nonexistent");
-    const res = createMockRes();
-    await callHandler(req, res);
+  it("GET /api/intents returns 401 without auth", async () => {
+    const res = await app.request("/api/intents");
+    expect(res.status).toBe(401);
+  });
 
-    await new Promise((r) => setTimeout(r, 50));
+  it("POST /api/parse-intent returns 400 for missing intent", async () => {
+    const res = await app.request("/api/parse-intent", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain("Missing intent");
+  });
 
-    const endCalls = vi.mocked(res.end).mock.calls;
-    if (endCalls.length > 0) {
-      const body = endCalls[0][0];
-      if (typeof body === "string") {
-        try {
-          const parsed = JSON.parse(body);
-          expect(parsed.error).toBeUndefined();
-        } catch {
-          // Not JSON — that's fine (it's HTML)
-        }
-      }
-    }
+  it("DELETE /api/intents/:id returns 401 without auth", async () => {
+    const res = await app.request("/api/intents/some-id", {
+      method: "DELETE",
+    });
+    expect(res.status).toBe(401);
+  });
+
+  it("GET /api/intents/:id/logs returns 401 without auth", async () => {
+    const res = await app.request("/api/intents/some-id/logs");
+    expect(res.status).toBe(401);
   });
 });
 
-// ---------------------------------------------------------------------------
-// New API routes — auth
-// ---------------------------------------------------------------------------
-
-describe("GET /api/auth/nonce", () => {
-  it("returns a nonce for a wallet", async () => {
-    const req = createMockReq("GET", "/api/auth/nonce?wallet=0x1234");
-    const res = createMockRes();
-    await callHandler(req, res);
-
-    expect(res.statusCode).toBe(200);
-    const data = res.parsedBody();
-    expect(data.nonce).toBe("mock-nonce-123");
+describe("Error handling", () => {
+  it("POST /api/parse-intent with invalid JSON returns JSON 500", async () => {
+    const res = await app.request("/api/parse-intent", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "not valid json {{{",
+    });
+    expect(res.status).toBe(500);
+    const body = await res.json();
+    expect(body.error).toBeDefined();
   });
 
-  it("returns 400 when wallet is missing", async () => {
-    const req = createMockReq("GET", "/api/auth/nonce");
-    const res = createMockRes();
-    await callHandler(req, res);
+  it("POST /api/auth/verify with empty body returns JSON 500", async () => {
+    const res = await app.request("/api/auth/verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "",
+    });
+    expect(res.status).toBe(500);
+    const body = await res.json();
+    expect(body.error).toBeDefined();
+  });
+});
 
-    expect(res.statusCode).toBe(400);
+describe("SPA fallback", () => {
+  it("GET / returns HTML", async () => {
+    const res = await app.request("/");
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html).toContain("VEIL");
+  });
+
+  it("GET /nonexistent returns HTML (not JSON 404)", async () => {
+    const res = await app.request("/nonexistent");
+    expect(res.status).toBe(200);
+    const contentType = res.headers.get("content-type") ?? "";
+    expect(contentType).toContain("text/html");
+  });
+
+  it("GET /dashboard returns HTML", async () => {
+    const res = await app.request("/dashboard");
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html).toContain("VEIL");
   });
 });

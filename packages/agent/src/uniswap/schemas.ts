@@ -58,7 +58,7 @@ export const QuoteResponseSchema = z.object({
     ]),
   }),
   routing: z.string(),
-  permitData: PermitDataSchema.optional().nullable(),
+  permitData: PermitDataSchema.nullable().optional(),
 });
 export type QuoteResponse = z.infer<typeof QuoteResponseSchema>;
 

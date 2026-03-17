@@ -13,6 +13,7 @@
     "codegen": "graphql-codegen --config codegen.ts"
   },
   "dependencies": {
+    "@hono/node-server": "^1.19.11",
     "@langchain/core": "^1.1.0",
     "@langchain/openai": "^1.2.0",
     "@metamask/smart-accounts-kit": "0.4.0-beta.1",
@@ -23,6 +24,7 @@
     "graphql": "^16.10.0",
     "graphql-request": "^7.1.2",
     "graphql-tag": "^2.12.6",
+    "hono": "^4.12.8",
     "nanoid": "^5.1.7",
     "pino": "^10.3.1",
     "viem": "^2.31.4",

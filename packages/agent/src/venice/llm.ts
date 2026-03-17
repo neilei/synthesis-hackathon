@@ -36,27 +36,34 @@ export const getVeniceLlm = (options: ChatOpenAIFields) => {
   });
 };
 
+/** Shared params: E2EE on, no Venice system prompt */
+const baseVeniceParams = {
+  enable_e2ee: true,
+  include_venice_system_prompt: false,
+};
+
 const fastVeniceParams = {
   venice_parameters: {
+    ...baseVeniceParams,
     disable_thinking: true,
     enable_web_search: "off" as const,
     enable_web_scraping: false,
     enable_web_citations: false,
     include_search_results_in_stream: false,
     return_search_results_as_documents: false,
-    include_venice_system_prompt: false,
   },
 };
 
 const researchVeniceParams = {
   venice_parameters: {
+    ...baseVeniceParams,
     disable_thinking: false,
     enable_web_search: "on" as const,
     enable_web_scraping: true,
     enable_web_citations: true,
     include_search_results_in_stream: true,
     return_search_results_as_documents: false,
-    include_venice_system_prompt: false,
+    prompt_cache_key: "veil-research",
   },
 };
 
@@ -83,13 +90,14 @@ export const researchLlm = getVeniceLlm({
 
 const reasoningVeniceParams = {
   venice_parameters: {
+    ...baseVeniceParams,
     disable_thinking: false,
     enable_web_search: "off" as const,
-    enable_web_scraping: true,
+    enable_web_scraping: false,
     enable_web_citations: false,
     include_search_results_in_stream: false,
     return_search_results_as_documents: false,
-    include_venice_system_prompt: false,
+    prompt_cache_key: "veil-reasoning",
   },
 };
 
