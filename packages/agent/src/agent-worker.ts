@@ -24,6 +24,7 @@ export interface AgentWorker {
 
 export interface DefaultAgentWorkerDeps {
   repo: IntentRepository;
+  serverAgentId?: bigint;
 }
 
 /**
@@ -88,6 +89,7 @@ export class DefaultAgentWorker implements AgentWorker {
       intervalMs: 60_000,
       signal: this.abortController.signal,
       intentLogger: this.intentLogger,
+      serverAgentId: this.deps.serverAgentId,
       onCycleComplete: (loopState) => {
         // Capture the live state from the running loop
         this.state = loopState;
