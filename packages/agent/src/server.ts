@@ -50,9 +50,10 @@ app.onError((err, c) => {
 app.use(
   "*",
   cors({
-    origin: "*",
+    origin: (origin) => origin || "*",
     allowMethods: ["GET", "POST", "DELETE", "OPTIONS"],
     allowHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
   }),
 );
 
@@ -144,6 +145,7 @@ app.get("*", (c) => {
 <li>GET /api/intents?wallet= — list intents</li>
 <li>GET /api/intents/:id — get intent detail</li>
 <li>DELETE /api/intents/:id — cancel intent</li>
+<li>GET /api/intents/:id/events — SSE stream of live log entries</li>
 <li>GET /api/intents/:id/logs — download intent logs</li>
 <li>GET /api/evidence/:intentId/:hash — retrieve evidence document</li>
 </ul>

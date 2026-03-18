@@ -17,4 +17,5 @@ export const API_PATHS = Object.freeze({
   authVerify: "/api/auth/verify",
   parseIntent: "/api/parse-intent",
   intents: "/api/intents",
+  intentEvents: "/api/intents/:id/events",
 } as const);

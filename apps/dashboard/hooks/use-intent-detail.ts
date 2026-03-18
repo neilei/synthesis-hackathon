@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import type { AgentLogEntry } from "@veil/common";
 import { fetchIntentDetail, type IntentRecord } from "@/lib/api";
 
 export interface IntentDetail extends IntentRecord {
-  logs: unknown[];
+  logs: AgentLogEntry[];
   liveState: unknown;
 }
 

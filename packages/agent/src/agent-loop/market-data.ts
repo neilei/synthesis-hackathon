@@ -12,6 +12,7 @@ import { getTokenPrice } from "../data/prices.js";
 import { getPoolData } from "../data/thegraph.js";
 import { logAction } from "../logging/agent-log.js";
 import { getBudgetTier } from "../logging/budget.js";
+import type { IntentLogger } from "../logging/intent-log.js";
 import { logger } from "../logging/logger.js";
 
 export interface MarketData {
@@ -25,6 +26,7 @@ export async function gatherMarketData(
   chainId: number,
   agentAddress: Address,
   cycle: number,
+  intentLogger?: IntentLogger,
 ): Promise<MarketData> {
   const budgetTier = getBudgetTier();
   if (budgetTier !== "normal") {
@@ -33,6 +35,7 @@ export async function gatherMarketData(
       cycle,
       result: { tier: budgetTier },
     });
+    intentLogger?.log("budget_check", { cycle, result: { tier: budgetTier } });
   }
 
   // 1. Get ETH price
@@ -44,6 +47,7 @@ export async function gatherMarketData(
     duration_ms: Date.now() - startPrice,
     result: { price: ethPrice.price, citation: ethPrice.citation },
   });
+  intentLogger?.log("price_fetch", { cycle, tool: "venice-web-search", duration_ms: Date.now() - startPrice, result: { price: ethPrice.price } });
   logger.info(`ETH price: $${ethPrice.price.toFixed(2)}`);
 
   // 2. Get portfolio balance
@@ -69,6 +73,7 @@ export async function gatherMarketData(
       allocation: portfolio.allocation,
     },
   });
+  intentLogger?.log("portfolio_check", { cycle, tool: "viem", duration_ms: Date.now() - startPortfolio, result: { totalUsdValue: portfolio.totalUsdValue, allocation: portfolio.allocation } });
 
   logger.info(
     `Portfolio: $${portfolio.totalUsdValue.toFixed(2)} | ` +
@@ -98,6 +103,7 @@ export async function gatherMarketData(
       duration_ms: Date.now() - startPool,
       result: { poolCount: pools.length, topPool: pools[0] ?? null },
     });
+    intentLogger?.log("pool_data_fetch", { cycle, tool: "thegraph", duration_ms: Date.now() - startPool, result: { poolCount: pools.length } });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     logger.warn({ err }, "Pool data unavailable");
@@ -107,6 +113,7 @@ export async function gatherMarketData(
       duration_ms: Date.now() - startPool,
       error: msg,
     });
+    intentLogger?.log("pool_data_fetch", { cycle, tool: "thegraph", duration_ms: Date.now() - startPool, error: msg });
   }
 
   return { ethPrice, portfolio, poolContext, budgetTier };

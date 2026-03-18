@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { stream } from "hono/streaming";
+import { stream, streamSSE } from "hono/streaming";
 import { existsSync, createReadStream } from "node:fs";
 import { nanoid } from "nanoid";
 import {
@@ -9,7 +9,7 @@ import {
 } from "@veil/common";
 import type { IntentRepository } from "../db/repository.js";
 import type { WorkerPool } from "../worker-pool.js";
-import { IntentLogger } from "../logging/intent-log.js";
+import { IntentLogger, onLogEntry } from "../logging/intent-log.js";
 import { logger } from "../logging/logger.js";
 import type { AuthEnv } from "../middleware/auth.js";
 
@@ -129,10 +129,15 @@ export function createIntentRoutes(deps: IntentRouteDeps) {
       return c.json({ error: "Forbidden" }, 403);
     }
 
+    const afterSeq = Number(c.req.query("after") ?? -1);
+    const limit = Number(c.req.query("limit") ?? 500);
+
     const workerStatus = deps.workerPool.getStatus(intentId);
     const liveState = deps.workerPool.getState(intentId);
-    const intentLogger = new IntentLogger(intentId);
-    const logs = intentLogger.readAll();
+    const logs = deps.repo.getIntentLogs(intentId, {
+      afterSequence: isNaN(afterSeq) ? -1 : afterSeq,
+      limit: isNaN(limit) || limit < 1 ? 500 : Math.min(limit, 10_000),
+    });
 
     return c.json({ ...intent, workerStatus, liveState, logs });
   });
@@ -152,6 +157,40 @@ export function createIntentRoutes(deps: IntentRouteDeps) {
     await deps.workerPool.stop(intentId);
     deps.repo.updateIntentStatus(intentId, "cancelled");
     return c.json({ status: "cancelled" });
+  });
+
+  // GET /:id/events — SSE stream of live log entries
+  app.get("/:id/events", async (c) => {
+    const wallet = c.var.wallet;
+    const intentId = c.req.param("id");
+    const intent = deps.repo.getIntent(intentId);
+    if (!intent) {
+      return c.json({ error: "Intent not found" }, 404);
+    }
+    if (intent.walletAddress !== wallet) {
+      return c.json({ error: "Forbidden" }, 403);
+    }
+
+    return streamSSE(c, async (stream) => {
+      const unsub = onLogEntry((id, entry) => {
+        if (id !== intentId) return;
+        stream.writeSSE({
+          data: JSON.stringify(entry),
+          event: "log",
+          id: String(entry.sequence),
+        });
+      });
+
+      stream.onAbort(() => {
+        unsub();
+      });
+
+      // Keep connection alive with heartbeat every 30s
+      while (true) {
+        await stream.sleep(30_000);
+        await stream.writeSSE({ data: "", event: "heartbeat", id: "" });
+      }
+    });
   });
 
   // GET /:id/logs — download intent logs as ndjson

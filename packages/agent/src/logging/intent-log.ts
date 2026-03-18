@@ -1,7 +1,21 @@
 import { appendFileSync, readFileSync, existsSync, mkdirSync } from "node:fs";
+import { EventEmitter } from "node:events";
 import { dirname } from "node:path";
 import type { AgentLogEntry } from "@veil/common";
 import { AgentLogEntrySchema } from "@veil/common";
+import type { IntentRepository } from "../db/repository.js";
+
+const logEmitter = new EventEmitter();
+logEmitter.setMaxListeners(50);
+
+export type LogEntryListener = (intentId: string, entry: AgentLogEntry) => void;
+
+export function onLogEntry(listener: LogEntryListener): () => void {
+  logEmitter.on("log", listener);
+  return () => {
+    logEmitter.off("log", listener);
+  };
+}
 
 export class IntentLogger {
   private sequence = 0;
@@ -10,6 +24,7 @@ export class IntentLogger {
   constructor(
     private intentId: string,
     private logDir = "data/logs",
+    private repo?: IntentRepository,
   ) {
     this.filePath = `${this.logDir}/${this.intentId}.jsonl`;
     const dir = dirname(this.filePath);
@@ -36,8 +51,28 @@ export class IntentLogger {
       ...opts,
     };
 
+    // Write to JSONL audit file
     const line = JSON.stringify(entry) + "\n";
     appendFileSync(this.filePath, line, "utf-8");
+
+    // Write to SQLite (if repo provided)
+    if (this.repo) {
+      this.repo.insertLog({
+        intentId: this.intentId,
+        timestamp: entry.timestamp,
+        sequence: entry.sequence,
+        action: entry.action,
+        cycle: entry.cycle ?? null,
+        tool: entry.tool ?? null,
+        parameters: opts?.parameters ? JSON.stringify(opts.parameters) : null,
+        result: opts?.result ? JSON.stringify(opts.result) : null,
+        durationMs: entry.duration_ms ?? null,
+        error: entry.error ?? null,
+      });
+    }
+
+    // Emit for SSE subscribers
+    logEmitter.emit("log", this.intentId, entry);
 
     return entry;
   }

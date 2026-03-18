@@ -47,3 +47,19 @@ export const swaps = sqliteTable("swaps", {
   status: text("status").notNull(),
   timestamp: text("timestamp").notNull(),
 });
+
+export const agentLogs = sqliteTable("agent_logs", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  intentId: text("intent_id")
+    .notNull()
+    .references(() => intents.id),
+  timestamp: text("timestamp").notNull(),
+  sequence: integer("sequence").notNull(),
+  action: text("action").notNull(),
+  cycle: integer("cycle"),
+  tool: text("tool"),
+  parameters: text("parameters"), // JSON blob
+  result: text("result"), // JSON blob
+  durationMs: integer("duration_ms"),
+  error: text("error"),
+});

@@ -62,6 +62,7 @@ describe("verifySignature", () => {
     expect(mockFetch).toHaveBeenCalledWith("/api/auth/verify", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: "include",
       body: JSON.stringify({ wallet: "0xWALLET", signature: "0xSIG" }),
     });
     expect(result).toBe("jwt-token");
@@ -167,6 +168,7 @@ describe("createIntent", () => {
         "Content-Type": "application/json",
         Authorization: "Bearer my-token",
       },
+      credentials: "include",
       body: JSON.stringify(body),
     });
     expect(result).toEqual(mockResponse);
@@ -201,7 +203,7 @@ describe("fetchIntents", () => {
 
     expect(mockFetch).toHaveBeenCalledWith(
       "/api/intents?wallet=0xWALLET",
-      { headers: { Authorization: "Bearer token" } },
+      { headers: { Authorization: "Bearer token" }, credentials: "include" },
     );
     expect(result).toHaveLength(2);
   });
@@ -227,6 +229,7 @@ describe("fetchIntentDetail", () => {
 
     expect(mockFetch).toHaveBeenCalledWith("/api/intents/abc", {
       headers: { Authorization: "Bearer token" },
+      credentials: "include",
     });
     expect(result).toEqual(detail);
   });
@@ -249,6 +252,7 @@ describe("deleteIntent", () => {
     expect(mockFetch).toHaveBeenCalledWith("/api/intents/abc", {
       method: "DELETE",
       headers: { Authorization: "Bearer token" },
+      credentials: "include",
     });
   });
 

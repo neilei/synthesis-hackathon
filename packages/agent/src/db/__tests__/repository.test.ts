@@ -38,6 +38,19 @@ const CREATE_TABLES_SQL = `
     status TEXT NOT NULL,
     timestamp TEXT NOT NULL
   );
+  CREATE TABLE agent_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    intent_id TEXT NOT NULL REFERENCES intents(id),
+    timestamp TEXT NOT NULL,
+    sequence INTEGER NOT NULL,
+    action TEXT NOT NULL,
+    cycle INTEGER,
+    tool TEXT,
+    parameters TEXT,
+    result TEXT,
+    duration_ms INTEGER,
+    error TEXT
+  );
 `;
 
 function createTestDb() {
@@ -319,6 +332,96 @@ describe("IntentRepository", () => {
 
     it("returns null for non-existent wallet", () => {
       expect(repo.getNonce("0xnonexistent")).toBeNull();
+    });
+  });
+
+  describe("agent_logs", () => {
+    it("inserts and retrieves log entries by intent", () => {
+      repo.createIntent(SAMPLE_INTENT);
+      repo.insertLog({
+        intentId: "test-intent-1",
+        timestamp: "2026-03-18T12:00:00Z",
+        sequence: 0,
+        action: "cycle_complete",
+        cycle: 1,
+        result: JSON.stringify({ drift: 0.03 }),
+      });
+      repo.insertLog({
+        intentId: "test-intent-1",
+        timestamp: "2026-03-18T12:01:00Z",
+        sequence: 1,
+        action: "rebalance_decision",
+        cycle: 1,
+        tool: "venice-reasoning",
+        result: JSON.stringify({ shouldRebalance: false, reasoning: "Low drift" }),
+      });
+
+      const logs = repo.getIntentLogs("test-intent-1");
+      expect(logs).toHaveLength(2);
+      expect(logs[0].action).toBe("cycle_complete");
+      expect(logs[1].action).toBe("rebalance_decision");
+    });
+
+    it("getIntentLogs supports afterSequence cursor", () => {
+      repo.createIntent(SAMPLE_INTENT);
+      for (let i = 0; i < 5; i++) {
+        repo.insertLog({
+          intentId: "test-intent-1",
+          timestamp: `2026-03-18T12:0${i}:00Z`,
+          sequence: i,
+          action: `action_${i}`,
+        });
+      }
+
+      const after2 = repo.getIntentLogs("test-intent-1", { afterSequence: 1 });
+      expect(after2).toHaveLength(3);
+      expect(after2[0].sequence).toBe(2);
+    });
+
+    it("getIntentLogs supports limit", () => {
+      repo.createIntent(SAMPLE_INTENT);
+      for (let i = 0; i < 10; i++) {
+        repo.insertLog({
+          intentId: "test-intent-1",
+          timestamp: `2026-03-18T12:00:0${i}Z`,
+          sequence: i,
+          action: `action_${i}`,
+        });
+      }
+
+      const limited = repo.getIntentLogs("test-intent-1", { limit: 3 });
+      expect(limited).toHaveLength(3);
+    });
+
+    it("only returns logs for the requested intent", () => {
+      repo.createIntent(SAMPLE_INTENT);
+      repo.createIntent({ ...SAMPLE_INTENT, id: "other" });
+      repo.insertLog({
+        intentId: "test-intent-1",
+        timestamp: "2026-03-18T12:00:00Z",
+        sequence: 0,
+        action: "a",
+      });
+      repo.insertLog({
+        intentId: "other",
+        timestamp: "2026-03-18T12:00:00Z",
+        sequence: 0,
+        action: "b",
+      });
+
+      expect(repo.getIntentLogs("test-intent-1")).toHaveLength(1);
+      expect(repo.getIntentLogs("other")).toHaveLength(1);
+    });
+
+    it("rejects log with invalid intent_id (FK constraint)", () => {
+      expect(() =>
+        repo.insertLog({
+          intentId: "nonexistent",
+          timestamp: "2026-03-18T12:00:00Z",
+          sequence: 0,
+          action: "test",
+        }),
+      ).toThrow();
     });
   });
 });

@@ -41,6 +41,21 @@ const CREATE_TABLES_SQL = `
     status TEXT NOT NULL,
     timestamp TEXT NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS agent_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    intent_id TEXT NOT NULL REFERENCES intents(id),
+    timestamp TEXT NOT NULL,
+    sequence INTEGER NOT NULL,
+    action TEXT NOT NULL,
+    cycle INTEGER,
+    tool TEXT,
+    parameters TEXT,
+    result TEXT,
+    duration_ms INTEGER,
+    error TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_agent_logs_intent_seq
+    ON agent_logs(intent_id, sequence);
 `;
 
 let _db: BetterSQLite3Database<typeof schema> | null = null;

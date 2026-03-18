@@ -5,7 +5,9 @@ import { useAccount } from "wagmi";
 import { useAuth } from "@/hooks/use-auth";
 import { useIntents } from "@/hooks/use-intents";
 import { useIntentDetail } from "@/hooks/use-intent-detail";
+import { useIntentFeed } from "@/hooks/use-intent-feed";
 import { deleteIntent, getIntentLogsUrl, type IntentRecord } from "@/lib/api";
+import { ActivityFeed } from "./activity-feed";
 import { StatsCard } from "./stats-card";
 import { SponsorBadge } from "./sponsor-badge";
 import { ErrorBanner } from "./error-banner";
@@ -97,6 +99,7 @@ function IntentDetailView({
   onDeleted: () => void;
 }) {
   const { data, error, loading } = useIntentDetail(intentId, token);
+  const { entries: feedEntries } = useIntentFeed(intentId, token);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -121,6 +124,7 @@ function IntentDetailView({
       const url = getIntentLogsUrl(intentId);
       const res = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
+        credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to download logs");
       const blob = await res.blob();
@@ -277,6 +281,9 @@ function IntentDetailView({
           <SponsorBadge text="Identity via ERC-8004" />
         </span>
       </Card>
+
+      {/* Activity Feed (live via SSE) */}
+      <ActivityFeed feed={feedEntries} />
     </div>
   );
 }

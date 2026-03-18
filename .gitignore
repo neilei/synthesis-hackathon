@@ -3,7 +3,6 @@ node_modules/
 dist/
 # __generated__/ is committed — contains stable GraphQL codegen output
 # needed at build time without requiring The Graph API key
-agent_log.jsonl
 .playwright-mcp/
 *.tsbuildinfo
 .turbo/
@@ -27,3 +26,5 @@ THEMES_RAW.md
 UNISWAP_DEEP_INTEGRATION.md
 GITHUB_README_RAW.md
 vps-*.png
+# Temporarily added here, need to purge secrets before committing
+agent_log.jsonl 

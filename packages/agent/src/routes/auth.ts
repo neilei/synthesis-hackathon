@@ -75,6 +75,13 @@ export function createAuthRoutes(deps: AuthRouteDeps) {
     // Clean up nonce and issue token
     deps.repo.deleteNonce(walletLower);
     const token = createAuthToken(walletLower);
+
+    // Set HttpOnly cookie for SSE EventSource (can't set custom headers)
+    c.header(
+      "Set-Cookie",
+      `veil_token=${token}; HttpOnly; SameSite=Strict; Path=/api; Max-Age=86400`,
+    );
+
     return c.json({ token });
   });
 

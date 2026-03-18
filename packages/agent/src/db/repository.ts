@@ -1,15 +1,17 @@
 import { eq, and, gt, lte } from "drizzle-orm";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import * as schema from "./schema.js";
-import { intents, swaps, nonces } from "./schema.js";
+import { intents, swaps, nonces, agentLogs } from "./schema.js";
 
 type IntentInsert = typeof intents.$inferInsert;
 type IntentSelect = typeof intents.$inferSelect;
 type SwapInsert = Omit<typeof swaps.$inferInsert, "id">;
 type SwapSelect = typeof swaps.$inferSelect;
 type NonceSelect = typeof nonces.$inferSelect;
+type AgentLogInsert = Omit<typeof agentLogs.$inferInsert, "id">;
+type AgentLogSelect = typeof agentLogs.$inferSelect;
 
-export type { IntentInsert, IntentSelect, SwapInsert, SwapSelect, NonceSelect };
+export type { IntentInsert, IntentSelect, SwapInsert, SwapSelect, NonceSelect, AgentLogInsert, AgentLogSelect };
 
 export class IntentRepository {
   constructor(private db: BetterSQLite3Database<typeof schema>) {}
@@ -115,5 +117,35 @@ export class IntentRepository {
       .delete(nonces)
       .where(eq(nonces.walletAddress, walletAddress))
       .run();
+  }
+
+  // Agent logs
+  insertLog(data: AgentLogInsert): AgentLogSelect {
+    const result = this.db
+      .insert(agentLogs)
+      .values(data)
+      .returning()
+      .get();
+    return result;
+  }
+
+  getIntentLogs(
+    intentId: string,
+    opts?: { afterSequence?: number; limit?: number },
+  ): AgentLogSelect[] {
+    const afterSeq = opts?.afterSequence ?? -1;
+    const limit = opts?.limit ?? 10_000;
+    return this.db
+      .select()
+      .from(agentLogs)
+      .where(
+        and(
+          eq(agentLogs.intentId, intentId),
+          gt(agentLogs.sequence, afterSeq),
+        ),
+      )
+      .orderBy(agentLogs.sequence)
+      .limit(limit)
+      .all();
   }
 }

@@ -140,12 +140,20 @@ export async function runAgentLoop(config: AgentConfig): Promise<AgentState> {
       rationale: "DeFi reasoning traces contain alpha-sensitive portfolio data; no-retention inference prevents strategy leakage",
     },
   });
+  config.intentLogger?.log("privacy_guarantee", {
+    tool: "venice-inference",
+    result: { provider: "venice.ai", dataRetention: "none", modelsUsed: [FAST_MODEL, RESEARCH_MODEL, REASONING_MODEL] },
+  });
 
   // Check for existing agentId (persisted from previous run)
   if (config.existingAgentId) {
     state.agentId = config.existingAgentId;
     logger.info({ agentId: config.existingAgentId.toString() }, "Resuming with existing ERC-8004 agent ID");
     logAction("erc8004_register", {
+      tool: "erc8004-identity",
+      result: { agentId: config.existingAgentId.toString(), source: "database" },
+    });
+    config.intentLogger?.log("erc8004_register", {
       tool: "erc8004-identity",
       result: { agentId: config.existingAgentId.toString(), source: "database" },
     });
@@ -168,9 +176,17 @@ export async function runAgentLoop(config: AgentConfig): Promise<AgentState> {
         tool: "erc8004-identity",
         result: { txHash, agentId: agentId?.toString() },
       });
+      config.intentLogger?.log("erc8004_register", {
+        tool: "erc8004-identity",
+        result: { txHash, agentId: agentId?.toString() },
+      });
     } catch (err) {
       logger.error({ err }, "ERC-8004 registration failed after retries");
       logAction("erc8004_register_failed", {
+        tool: "erc8004-identity",
+        error: err instanceof Error ? err.message : String(err),
+      });
+      config.intentLogger?.log("erc8004_register_failed", {
         tool: "erc8004-identity",
         error: err instanceof Error ? err.message : String(err),
       });
@@ -200,6 +216,9 @@ export async function runAgentLoop(config: AgentConfig): Promise<AgentState> {
     logAction("adversarial_check", {
       result: { warnings: warnings.map((w) => w.message) },
     });
+    config.intentLogger?.log("adversarial_check", {
+      result: { warnings: warnings.map((w) => w.message) },
+    });
   }
 
   // --- Step 2: Create delegation ---
@@ -227,12 +246,24 @@ export async function runAgentLoop(config: AgentConfig): Promise<AgentState> {
             : 0,
       },
     });
+    config.intentLogger?.log("delegation_created", {
+      tool: "metamask-delegation",
+      duration_ms: Date.now() - startDelegation,
+      result: {
+        delegate: agentAddress,
+        caveatsCount:
+          "caveats" in state.delegation && Array.isArray(state.delegation.caveats)
+            ? state.delegation.caveats.length
+            : 0,
+      },
+    });
     logger.info(
       `Delegation signed: ${state.delegation.signature?.slice(0, 20)}...`,
     );
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     logAction("delegation_failed", { error: msg });
+    config.intentLogger?.log("delegation_failed", { error: msg });
     logger.error({ err }, "Failed to create delegation");
     state.deployError = msg;
     logStop("delegation_failed");
@@ -244,6 +275,14 @@ export async function runAgentLoop(config: AgentConfig): Promise<AgentState> {
   state.audit = report;
   logger.info("\n" + report.formatted);
   logAction("audit_report", {
+    result: {
+      allows: report.allows,
+      prevents: report.prevents,
+      worstCase: report.worstCase,
+      warnings: report.warnings,
+    },
+  });
+  config.intentLogger?.log("audit_report", {
     result: {
       allows: report.allows,
       prevents: report.prevents,
@@ -274,6 +313,10 @@ export async function runAgentLoop(config: AgentConfig): Promise<AgentState> {
       logAction("cycle_error", {
         cycle: state.cycle,
         parameters: { cycle: state.cycle },
+        error: msg,
+      });
+      config.intentLogger?.log("cycle_error", {
+        cycle: state.cycle,
         error: msg,
       });
     }
@@ -440,7 +483,7 @@ async function runCycle(
 ): Promise<void> {
   logger.info(`--- Cycle ${state.cycle} ---`);
 
-  const market = await gatherMarketData(config.chainId, agentAddress, state.cycle);
+  const market = await gatherMarketData(config.chainId, agentAddress, state.cycle, config.intentLogger);
 
   state.ethPrice = market.ethPrice.price;
   state.allocation = market.portfolio.allocation;

@@ -42,7 +42,7 @@ export class DefaultAgentWorker implements AgentWorker {
     public readonly intentId: string,
     private deps: DefaultAgentWorkerDeps,
   ) {
-    this.intentLogger = new IntentLogger(intentId);
+    this.intentLogger = new IntentLogger(intentId, "data/logs", this.deps.repo);
   }
 
   async start(): Promise<void> {

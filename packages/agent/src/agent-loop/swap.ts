@@ -62,12 +62,20 @@ export async function executeSwap(
       cycle: state.cycle,
       result: { reason: "budget_exceeded", swapAmountUsd },
     });
+    config.intentLogger?.log("safety_block", {
+      cycle: state.cycle,
+      result: { reason: "budget_exceeded", swapAmountUsd },
+    });
     return;
   }
 
   if (state.tradesExecuted >= config.intent.maxTradesPerDay) {
     logger.info("SAFETY: Daily trade limit reached. Skipping.");
     logAction("safety_block", {
+      cycle: state.cycle,
+      result: { reason: "trade_limit_reached" },
+    });
+    config.intentLogger?.log("safety_block", {
       cycle: state.cycle,
       result: { reason: "trade_limit_reached" },
     });
@@ -123,6 +131,11 @@ export async function executeSwap(
         tool: "uniswap-permit2",
         result: { txHash: approvalTx, token: swap.sellToken },
       });
+      config.intentLogger?.log("permit2_approval", {
+        cycle: state.cycle,
+        tool: "uniswap-permit2",
+        result: { txHash: approvalTx, token: swap.sellToken },
+      });
     }
   }
 
@@ -155,6 +168,12 @@ export async function executeSwap(
         swapper: swapperAddress,
         viaDelegation: !!canUseDelegation,
       },
+    });
+    config.intentLogger?.log("quote_received", {
+      cycle: state.cycle,
+      tool: "uniswap-trading-api",
+      duration_ms: Date.now() - startQuote,
+      result: { input: quote.quote.input, output: quote.quote.output, viaDelegation: !!canUseDelegation },
     });
 
     logger.info(
@@ -214,9 +233,19 @@ export async function executeSwap(
             tool: "metamask-delegation",
             result: { enforcer: delegationMsg, action: "fallback_to_direct_tx" },
           });
+          config.intentLogger?.log("delegation_caveat_enforced", {
+            cycle: state.cycle,
+            tool: "metamask-delegation",
+            result: { enforcer: delegationMsg, action: "fallback_to_direct_tx" },
+          });
         } else {
           logger.warn({ err: delegationErr }, "Delegation redemption failed, falling back to direct tx");
           logAction("delegation_redeem_failed", {
+            cycle: state.cycle,
+            tool: "metamask-delegation",
+            error: delegationMsg,
+          });
+          config.intentLogger?.log("delegation_redeem_failed", {
             cycle: state.cycle,
             tool: "metamask-delegation",
             error: delegationMsg,
@@ -339,6 +368,7 @@ export async function executeSwap(
       };
 
       logAction("judge_started", { cycle: currentCycle, tool: "venice-judge" });
+      config.intentLogger?.log("judge_started", { cycle: currentCycle, tool: "venice-judge" });
 
       evaluateSwap(judgeInput, "rebalance", state.budgetTier === "critical")
         .then((result) => {
@@ -378,6 +408,11 @@ export async function executeSwap(
             tool: "venice-judge",
             error: judgeErr instanceof Error ? judgeErr.message : String(judgeErr),
           });
+          config.intentLogger?.log("judge_failed", {
+            cycle: currentCycle,
+            tool: "venice-judge",
+            error: judgeErr instanceof Error ? judgeErr.message : String(judgeErr),
+          });
         });
     } else if (!state.agentId) {
       logger.warn("Skipping judge evaluation — no agent ID registered");
@@ -388,6 +423,12 @@ export async function executeSwap(
     const msg = err instanceof Error ? err.message : String(err);
     logger.error({ err }, "Swap failed");
     logAction("swap_failed", {
+      cycle: state.cycle,
+      tool: "uniswap-trading-api",
+      error: msg,
+      duration_ms: Date.now() - startQuote,
+    });
+    config.intentLogger?.log("swap_failed", {
       cycle: state.cycle,
       tool: "uniswap-trading-api",
       error: msg,

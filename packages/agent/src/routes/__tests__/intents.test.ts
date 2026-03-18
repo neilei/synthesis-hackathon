@@ -69,6 +69,8 @@ function createMockRepo(): IntentRepository {
     markExpiredIntents: vi.fn(),
     insertSwap: vi.fn(),
     getSwapsByIntent: vi.fn(),
+    insertLog: vi.fn(),
+    getIntentLogs: vi.fn().mockReturnValue([]),
     upsertNonce: vi.fn(),
     getNonce: vi.fn(),
     deleteNonce: vi.fn(),

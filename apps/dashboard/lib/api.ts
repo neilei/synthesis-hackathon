@@ -3,7 +3,7 @@
  *
  * @module @veil/dashboard/lib/api
  */
-import type { ParsedIntent, AuditReport, IntentRecord } from "@veil/common";
+import type { ParsedIntent, AuditReport, IntentRecord, AgentLogEntry } from "@veil/common";
 
 // ---------------------------------------------------------------------------
 // Auth API
@@ -23,6 +23,7 @@ export async function verifySignature(
   const res = await fetch("/api/auth/verify", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    credentials: "include",
     body: JSON.stringify({ wallet, signature }),
   });
   if (!res.ok) throw new Error("Auth verification failed");
@@ -68,6 +69,7 @@ export async function createIntent(
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
+    credentials: "include",
     body: JSON.stringify(body),
   });
   if (!res.ok) {
@@ -83,6 +85,7 @@ export async function fetchIntents(
 ): Promise<IntentRecord[]> {
   const res = await fetch(`/api/intents?wallet=${encodeURIComponent(wallet)}`, {
     headers: { Authorization: `Bearer ${token}` },
+    credentials: "include",
   });
   if (!res.ok) throw new Error("Failed to fetch intents");
   return res.json();
@@ -91,9 +94,10 @@ export async function fetchIntents(
 export async function fetchIntentDetail(
   intentId: string,
   token: string,
-): Promise<IntentRecord & { logs: unknown[]; liveState: unknown }> {
+): Promise<IntentRecord & { logs: AgentLogEntry[]; liveState: unknown }> {
   const res = await fetch(`/api/intents/${intentId}`, {
     headers: { Authorization: `Bearer ${token}` },
+    credentials: "include",
   });
   if (!res.ok) throw new Error("Failed to fetch intent");
   return res.json();
@@ -106,6 +110,7 @@ export async function deleteIntent(
   const res = await fetch(`/api/intents/${intentId}`, {
     method: "DELETE",
     headers: { Authorization: `Bearer ${token}` },
+    credentials: "include",
   });
   if (!res.ok) throw new Error("Failed to delete intent");
 }
