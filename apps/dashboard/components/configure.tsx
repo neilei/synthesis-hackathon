@@ -38,7 +38,7 @@ const PRESETS = [
 
 export function Configure({ onSuccess }: ConfigureProps) {
   const { isConnected } = useAccount();
-  const { token, isAuthenticated, authenticating } = useAuth();
+  const { token, isAuthenticated, authenticating, authenticate, error: authError } = useAuth();
   const { signDelegation, signing } = useDelegation();
 
   const [intentText, setIntentText] = useState("");
@@ -160,7 +160,7 @@ export function Configure({ onSuccess }: ConfigureProps) {
             <button
               onClick={handlePreview}
               disabled={isEmpty}
-              className="mt-4 flex w-full cursor-pointer items-center justify-center rounded-lg border border-accent-positive px-4 py-3 text-sm font-semibold uppercase tracking-widest text-accent-positive transition-colors hover:bg-accent-positive-dim active:bg-accent-positive/20 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+              className="mt-4 flex w-full cursor-pointer items-center justify-center rounded-lg border border-accent-positive px-4 py-3 min-h-[44px] text-sm font-semibold uppercase tracking-widest text-accent-positive transition-colors hover:bg-accent-positive-dim active:bg-accent-positive/20 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
             >
               Preview Strategy
             </button>
@@ -190,7 +190,7 @@ export function Configure({ onSuccess }: ConfigureProps) {
                 key={preset}
                 onClick={() => setIntentText(preset)}
                 disabled={isParsing}
-                className="cursor-pointer rounded-full border border-border px-3 py-2.5 font-mono text-xs text-text-tertiary transition-colors hover:border-text-secondary hover:text-text-secondary focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive disabled:cursor-not-allowed disabled:opacity-40"
+                className="cursor-pointer rounded-full border border-border px-3 py-2.5 font-mono text-xs text-text-tertiary transition-colors hover:border-text-secondary hover:text-text-secondary focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {preset}
               </button>
@@ -208,7 +208,7 @@ export function Configure({ onSuccess }: ConfigureProps) {
                 <button
                   onClick={handleReset}
                   disabled={isBusy}
-                  className="text-xs text-text-tertiary hover:text-text-secondary transition-colors disabled:opacity-40 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive rounded-sm cursor-pointer"
+                  className="text-xs text-text-tertiary hover:text-text-secondary transition-colors disabled:opacity-50 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive rounded-sm cursor-pointer min-h-[44px] flex items-center"
                 >
                   Edit
                 </button>
@@ -307,21 +307,39 @@ export function Configure({ onSuccess }: ConfigureProps) {
                     Connect your wallet to deploy the agent.
                   </p>
                 ) : !isAuthenticated ? (
-                  <div className="flex items-center justify-center gap-2 text-sm text-text-secondary">
+                  <div className="flex flex-col items-center justify-center gap-2 text-sm">
                     {authenticating ? (
-                      <>
+                      <span className="flex items-center gap-2 text-text-secondary">
                         <Spinner className="h-4 w-4 animate-spin" />
                         Authenticating wallet...
+                      </span>
+                    ) : authError ? (
+                      <>
+                        <p className="text-accent-danger">{authError}</p>
+                        <button
+                          onClick={authenticate}
+                          className="cursor-pointer rounded-lg border border-accent-positive px-4 py-2.5 min-h-[44px] text-sm font-medium text-accent-positive transition-colors hover:bg-accent-positive-dim focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive"
+                        >
+                          Retry Authentication
+                        </button>
                       </>
                     ) : (
-                      "Wallet authentication required."
+                      <>
+                        <p className="text-text-secondary">Wallet authentication required.</p>
+                        <button
+                          onClick={authenticate}
+                          className="cursor-pointer rounded-lg border border-accent-positive px-4 py-2.5 min-h-[44px] text-sm font-medium text-accent-positive transition-colors hover:bg-accent-positive-dim focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive"
+                        >
+                          Authenticate
+                        </button>
+                      </>
                     )}
                   </div>
                 ) : (
                   <button
                     onClick={handleDeploy}
                     disabled={signing || isBusy}
-                    className="flex w-full cursor-pointer items-center justify-center rounded-lg bg-accent-positive px-4 py-3 text-sm font-semibold uppercase tracking-widest text-bg-primary transition-colors hover:bg-accent-positive/90 active:bg-accent-positive/80 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive focus-visible:ring-offset-2 focus-visible:ring-offset-bg-primary disabled:cursor-not-allowed disabled:opacity-40"
+                    className="flex w-full cursor-pointer items-center justify-center rounded-lg bg-accent-positive px-4 py-3 min-h-[44px] text-sm font-semibold uppercase tracking-widest text-bg-primary transition-colors hover:bg-accent-positive/90 active:bg-accent-positive/80 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive focus-visible:ring-offset-2 focus-visible:ring-offset-bg-primary disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Deploy Agent
                   </button>

@@ -1,3 +1,4 @@
+import { memo } from "react";
 import type { AgentLogEntry } from "@veil/common";
 import { Badge } from "./ui/badge";
 import { truncateHash, formatCurrency, formatPercentage, formatAllocationSummary } from "@veil/common";
@@ -91,7 +92,7 @@ function getEntryLabel(action: string): string {
   return labels[action] ?? action.replace(/_/g, " ");
 }
 
-export function FeedEntry({ entry }: FeedEntryProps) {
+export const FeedEntry = memo(function FeedEntry({ entry }: FeedEntryProps) {
   const isError = !!entry.error;
   const res = entry.result;
 
@@ -401,4 +402,4 @@ export function FeedEntry({ entry }: FeedEntryProps) {
       </div>
     </div>
   );
-}
+});

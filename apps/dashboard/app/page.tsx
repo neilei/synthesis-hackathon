@@ -11,6 +11,7 @@ import { Tabs, type TabId } from "@/components/tabs";
 import { Configure } from "@/components/configure";
 import { Monitor } from "@/components/monitor";
 import { Footer } from "@/components/footer";
+import { ErrorBoundary } from "@/components/error-boundary";
 
 function getInitialTab(): TabId {
   if (typeof window === "undefined") return "configure";
@@ -54,7 +55,9 @@ export default function Home() {
           hidden={activeTab !== "configure"}
         >
           {activeTab === "configure" && (
-            <Configure onSuccess={handleDeploySuccess} />
+            <ErrorBoundary>
+              <Configure onSuccess={handleDeploySuccess} />
+            </ErrorBoundary>
           )}
         </div>
         <div
@@ -64,7 +67,9 @@ export default function Home() {
           hidden={activeTab !== "monitor"}
         >
           {activeTab === "monitor" && (
-            <Monitor onNavigateConfigure={handleNavigateConfigure} />
+            <ErrorBoundary>
+              <Monitor onNavigateConfigure={handleNavigateConfigure} />
+            </ErrorBoundary>
           )}
         </div>
       </main>

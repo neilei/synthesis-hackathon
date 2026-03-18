@@ -40,7 +40,7 @@ export function AllocationBar({
             <div
               key={token}
               aria-hidden="true"
-              className={`${getTokenBg(token)} ${ghost ? "opacity-25" : "opacity-90"} flex items-center justify-center ${styles.text} text-white transition-[width] duration-500`}
+              className={`${getTokenBg(token)} ${ghost ? "opacity-25" : "opacity-90"} flex items-center justify-center ${styles.text} text-bg-primary transition-[width] duration-500`}
               style={{ width: `${pct}%` }}
               title={`${getTokenLabel(token)}: ${pct.toFixed(1)}%`}
             >

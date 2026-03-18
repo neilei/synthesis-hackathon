@@ -16,8 +16,8 @@ import { redeemDelegation } from "../delegation/redeemer.js";
 import { getQuote, createSwap, checkApproval } from "../uniswap/trading.js";
 import { signPermit2Data } from "../uniswap/permit2.js";
 import { logAction } from "../logging/agent-log.js";
-import { evaluateSwap } from "../identity/judge.js";
-import type { SwapEvidenceInput } from "../identity/evidence.js";
+import { evaluateSwap, evaluateSwapFailure } from "../identity/judge.js";
+import type { SwapEvidenceInput, SwapFailureEvidenceInput } from "../identity/evidence.js";
 import { logger } from "../logging/logger.js";
 
 // ---------------------------------------------------------------------------
@@ -451,6 +451,83 @@ export async function executeSwap(
       error: msg,
       duration_ms: Date.now() - startQuote,
     });
+
+    // ERC-8004: judge failed swap attempts (non-blocking)
+    if (state.agentId && env.JUDGE_PRIVATE_KEY) {
+      const currentCycle = state.cycle;
+      const failureInput: SwapFailureEvidenceInput = {
+        agentId: state.agentId,
+        intentId: config.intentId ?? "unknown",
+        cycle: currentCycle,
+        intent: {
+          targetAllocation: config.intent.targetAllocation,
+          dailyBudgetUsd: config.intent.dailyBudgetUsd,
+          driftThreshold: config.intent.driftThreshold,
+          maxSlippage: config.intent.maxSlippage,
+          timeWindowDays: config.intent.timeWindowDays,
+          maxTradesPerDay: config.intent.maxTradesPerDay,
+        },
+        beforeSwap: {
+          allocation: { ...beforeSwapAllocation },
+          drift: beforeSwapDrift,
+          portfolioValueUsd: beforeSwapValue,
+        },
+        attemptedSwap: {
+          sellToken: swap.sellToken,
+          buyToken: swap.buyToken,
+          sellAmount: swap.sellAmount,
+        },
+        errorMessage: msg,
+        agentReasoning: "",
+        marketContext: { ethPriceUsd },
+      };
+
+      logAction("judge_started", { cycle: currentCycle, tool: "venice-judge", result: { outcome: "failed" } });
+      config.intentLogger?.log("judge_started", { cycle: currentCycle, tool: "venice-judge", result: { outcome: "failed" } });
+
+      evaluateSwapFailure(failureInput, "rebalance", state.budgetTier === "critical")
+        .then((judgeResult) => {
+          logger.info(
+            { composite: judgeResult.composite, scores: judgeResult.scores },
+            "Judge failure evaluation complete",
+          );
+          logAction("judge_completed", {
+            cycle: currentCycle,
+            tool: "venice-judge",
+            result: {
+              outcome: "failed",
+              composite: judgeResult.composite,
+              scores: judgeResult.scores,
+              requestHash: judgeResult.requestHash,
+              validationRequestTxHash: judgeResult.validationRequestTxHash,
+              validationResponseTxHashes: judgeResult.validationResponseTxHashes,
+              feedbackTxHash: judgeResult.feedbackTxHash,
+            },
+          });
+          config.intentLogger?.log("judge_completed", {
+            cycle: currentCycle,
+            tool: "venice-judge",
+            result: {
+              outcome: "failed",
+              composite: judgeResult.composite,
+              scores: judgeResult.scores,
+            },
+          });
+        })
+        .catch((judgeErr) => {
+          logger.warn({ err: judgeErr }, "Judge failure evaluation failed");
+          logAction("judge_failed", {
+            cycle: currentCycle,
+            tool: "venice-judge",
+            error: judgeErr instanceof Error ? judgeErr.message : String(judgeErr),
+          });
+          config.intentLogger?.log("judge_failed", {
+            cycle: currentCycle,
+            tool: "venice-judge",
+            error: judgeErr instanceof Error ? judgeErr.message : String(judgeErr),
+          });
+        });
+    }
 
     if (state.cycle <= 3) {
       logger.info("Will retry with adjusted params next cycle.");

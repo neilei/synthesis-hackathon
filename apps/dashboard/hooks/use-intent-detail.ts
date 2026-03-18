@@ -12,7 +12,7 @@ export interface IntentDetail extends IntentRecord {
 export function useIntentDetail(
   intentId: string | null,
   token: string | null,
-  intervalMs = 5000,
+  intervalMs = 15000,
 ) {
   const [data, setData] = useState<IntentDetail | null>(null);
   const [error, setError] = useState<string | null>(null);

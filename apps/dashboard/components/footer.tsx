@@ -24,6 +24,7 @@ export function Footer() {
               className="text-text-tertiary underline decoration-border hover:text-text-secondary hover:decoration-text-tertiary transition-colors"
             >
               {s.name}
+              <span className="sr-only"> (opens in new tab)</span>
             </a>
             {i < sponsors.length - 1 && <span className="mx-0.5">·</span>}
           </span>

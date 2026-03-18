@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { useAccount } from "wagmi";
 import { useAuth } from "@/hooks/use-auth";
 import { useIntents } from "@/hooks/use-intents";
@@ -21,12 +21,18 @@ import { PulsingDot } from "./ui/pulsing-dot";
 import { AllocationBar } from "./allocation-bar";
 import { StrategyDetails } from "./strategy-details";
 import { Spinner } from "./ui/icons";
-import { generateAuditReport } from "@veil/common";
 import {
+  generateAuditReport,
   truncateAddress,
   formatCurrency,
 } from "@veil/common";
+import type { ParsedIntent } from "@veil/common";
 
+/** Wraps Audit with memoized audit report generation to avoid recomputing on every render. */
+function MemoizedAudit({ parsed, onViewMonitor }: { parsed: ParsedIntent; onViewMonitor: () => void }) {
+  const audit = useMemo(() => generateAuditReport(parsed), [parsed]);
+  return <Audit data={{ parsed, audit }} onViewMonitor={onViewMonitor} />;
+}
 
 interface MonitorProps {
   onNavigateConfigure: () => void;
@@ -100,12 +106,17 @@ function IntentDetailView({
   const { data, error, loading } = useIntentDetail(intentId, token);
   const { entries: feedEntries, sseError } = useIntentFeed(intentId, token);
   const [deleting, setDeleting] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [showAudit, setShowAudit] = useState(false);
 
   const handleDelete = useCallback(async () => {
-    if (!confirm("Stop this agent? This action cannot be undone.")) return;
+    if (!confirmingDelete) {
+      setConfirmingDelete(true);
+      return;
+    }
     setDeleting(true);
+    setConfirmingDelete(false);
     setActionError(null);
     try {
       await deleteIntent(intentId, token);
@@ -115,7 +126,7 @@ function IntentDetailView({
     } finally {
       setDeleting(false);
     }
-  }, [intentId, token, onDeleted]);
+  }, [intentId, token, onDeleted, confirmingDelete]);
 
   const [downloadingLogs, setDownloadingLogs] = useState(false);
   const handleDownloadLogs = useCallback(async () => {
@@ -159,7 +170,7 @@ function IntentDetailView({
   if (error && !data) {
     return (
       <div className="p-6">
-        <button onClick={onBack} className="mb-4 text-sm text-text-secondary hover:text-text-primary transition-colors cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive rounded-sm">
+        <button onClick={onBack} className="mb-4 text-sm text-text-secondary hover:text-text-primary transition-colors cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive rounded-sm min-h-[44px] flex items-center">
           &larr; Back to intents
         </button>
         <ErrorBanner message={error} />
@@ -199,13 +210,23 @@ function IntentDetailView({
             {downloadingLogs ? "Downloading..." : "Download Logs"}
           </button>
           {dbStatusActive && (
-            <button
-              onClick={handleDelete}
-              disabled={deleting || !workerRunning}
-              className="rounded-md border border-accent-danger/30 px-3 py-2 text-xs font-medium text-accent-danger transition-colors hover:bg-accent-danger/10 cursor-pointer disabled:opacity-50 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-danger min-h-[44px]"
-            >
-              {deleting ? "Stopping..." : "Stop Agent"}
-            </button>
+            <>
+              <button
+                onClick={handleDelete}
+                disabled={deleting || !workerRunning}
+                className={`rounded-md border px-3 py-2 text-xs font-medium transition-colors cursor-pointer disabled:opacity-50 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-danger min-h-[44px] ${confirmingDelete ? "border-accent-danger bg-accent-danger/10 text-accent-danger" : "border-accent-danger/30 text-accent-danger hover:bg-accent-danger/10"}`}
+              >
+                {deleting ? "Stopping..." : confirmingDelete ? "Confirm Stop" : "Stop Agent"}
+              </button>
+              {confirmingDelete && (
+                <button
+                  onClick={() => setConfirmingDelete(false)}
+                  className="rounded-md border border-border px-3 py-2 text-xs font-medium text-text-secondary transition-colors hover:text-text-primary hover:border-text-tertiary cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive min-h-[44px]"
+                >
+                  Cancel
+                </button>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -214,8 +235,8 @@ function IntentDetailView({
 
       {/* Inline Audit */}
       {showAudit && parsed && (
-        <Audit
-          data={{ parsed, audit: generateAuditReport(parsed) }}
+        <MemoizedAudit
+          parsed={parsed}
           onViewMonitor={() => setShowAudit(false)}
         />
       )}
@@ -311,7 +332,7 @@ function getInitialIntentId(): string | null {
 
 export function Monitor({ onNavigateConfigure }: MonitorProps) {
   const { isConnected, address } = useAccount();
-  const { token, isAuthenticated, authenticating } = useAuth();
+  const { token, isAuthenticated, authenticating, authenticate, error: authError } = useAuth();
   const { intents, error, loading, refresh } = useIntents(address, token);
   const [selectedIntentId, setSelectedIntentId] = useState<string | null>(getInitialIntentId);
 
@@ -359,9 +380,25 @@ export function Monitor({ onNavigateConfigure }: MonitorProps) {
             <Spinner className="h-6 w-6 animate-spin text-text-tertiary" />
             <p className="text-sm text-text-secondary">Authenticating wallet...</p>
           </>
+        ) : authError ? (
+          <>
+            <p className="text-sm text-accent-danger">{authError}</p>
+            <button
+              onClick={authenticate}
+              className="mt-2 cursor-pointer rounded-lg border border-accent-positive px-5 py-2.5 min-h-[44px] text-sm font-medium text-accent-positive transition-colors hover:bg-accent-positive-dim active:bg-accent-positive/20 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive"
+            >
+              Retry Authentication
+            </button>
+          </>
         ) : (
           <>
             <p className="text-sm text-text-secondary">Wallet authentication required.</p>
+            <button
+              onClick={authenticate}
+              className="mt-2 cursor-pointer rounded-lg border border-accent-positive px-5 py-2.5 min-h-[44px] text-sm font-medium text-accent-positive transition-colors hover:bg-accent-positive-dim active:bg-accent-positive/20 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive"
+            >
+              Authenticate
+            </button>
           </>
         )}
       </div>
@@ -418,7 +455,7 @@ export function Monitor({ onNavigateConfigure }: MonitorProps) {
         </p>
         <button
           onClick={onNavigateConfigure}
-          className="mt-2 cursor-pointer rounded-lg bg-accent-positive px-5 py-2.5 text-sm font-medium text-bg-primary transition-colors hover:bg-accent-positive/90 active:bg-accent-positive/80 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive focus-visible:ring-offset-2 focus-visible:ring-offset-bg-primary"
+          className="mt-2 cursor-pointer rounded-lg bg-accent-positive px-5 py-2.5 min-h-[44px] text-sm font-medium text-bg-primary transition-colors hover:bg-accent-positive/90 active:bg-accent-positive/80 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive focus-visible:ring-offset-2 focus-visible:ring-offset-bg-primary"
         >
           Go to Configure
         </button>

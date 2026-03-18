@@ -15,8 +15,8 @@
   --text-tertiary: #8b8b95;
   --accent-positive: #10b981;
   --accent-positive-dim: rgba(16, 185, 129, 0.1);
-  --accent-secondary: #6366f1;
-  --accent-secondary-dim: rgba(99, 102, 241, 0.1);
+  --accent-secondary: #818cf8;
+  --accent-secondary-dim: rgba(129, 140, 248, 0.1);
   --accent-danger: #ef4444;
   --accent-danger-dim: rgba(239, 68, 68, 0.1);
   --accent-warning: #f59e0b;
@@ -71,9 +71,11 @@ body {
   }
 }
 
-/* Smooth scrolling */
-html {
-  scroll-behavior: smooth;
+/* Smooth scrolling — only when user has no motion preference */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
 }
 
 /* Selection color */

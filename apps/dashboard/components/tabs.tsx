@@ -32,8 +32,9 @@ export function Tabs({ activeTab, onTabChange }: TabsProps) {
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLElement>) => {
       const enabledTabs = TAB_LIST.filter((t) => !t.disabled);
+      if (enabledTabs.length === 0) return;
       const currentIdx = enabledTabs.findIndex((t) => t.id === activeTab);
-      let nextIdx = currentIdx;
+      let nextIdx = currentIdx === -1 ? 0 : currentIdx;
 
       if (e.key === "ArrowRight") {
         nextIdx = (currentIdx + 1) % enabledTabs.length;

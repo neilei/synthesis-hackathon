@@ -129,7 +129,7 @@ export function Audit({ data, onViewMonitor }: AuditProps) {
         <button
           type="button"
           onClick={onViewMonitor}
-          className="cursor-pointer rounded-lg border border-accent-positive bg-accent-positive/10 px-5 py-2 text-sm font-medium text-accent-positive transition-colors hover:bg-accent-positive/20 active:bg-accent-positive/25 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive"
+          className="cursor-pointer rounded-lg border border-accent-positive bg-accent-positive/10 px-5 py-2 min-h-[44px] text-sm font-medium text-accent-positive transition-colors hover:bg-accent-positive/20 active:bg-accent-positive/25 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive"
         >
           View Monitor
         </button>

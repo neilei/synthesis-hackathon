@@ -76,6 +76,56 @@ export function buildSwapEvidence(input: SwapEvidenceInput): SwapEvidence {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Swap failure evidence
+// ---------------------------------------------------------------------------
+
+export interface SwapFailureEvidenceInput {
+  agentId: bigint;
+  intentId: string;
+  cycle: number;
+  intent: SwapEvidenceInput["intent"];
+  beforeSwap: SwapEvidenceInput["beforeSwap"];
+  attemptedSwap: {
+    sellToken: string;
+    buyToken: string;
+    sellAmount: string;
+  };
+  errorMessage: string;
+  agentReasoning: string;
+  marketContext: { ethPriceUsd: number };
+}
+
+export interface SwapFailureEvidence {
+  agentId: number;
+  intentId: string;
+  cycle: number;
+  outcome: "failed";
+  intent: SwapEvidenceInput["intent"];
+  beforeSwap: SwapEvidenceInput["beforeSwap"];
+  attemptedSwap: SwapFailureEvidenceInput["attemptedSwap"];
+  errorMessage: string;
+  agentReasoning: string;
+  marketContext: SwapFailureEvidenceInput["marketContext"];
+  timestamp: string;
+}
+
+export function buildSwapFailureEvidence(input: SwapFailureEvidenceInput): SwapFailureEvidence {
+  return {
+    agentId: Number(input.agentId),
+    intentId: input.intentId,
+    cycle: input.cycle,
+    outcome: "failed",
+    intent: input.intent,
+    beforeSwap: input.beforeSwap,
+    attemptedSwap: input.attemptedSwap,
+    errorMessage: input.errorMessage,
+    agentReasoning: input.agentReasoning,
+    marketContext: input.marketContext,
+    timestamp: new Date().toISOString(),
+  };
+}
+
 /**
  * Store an evidence document as content-addressed JSON.
  * The file is named by its keccak256 hash, ensuring idempotent writes

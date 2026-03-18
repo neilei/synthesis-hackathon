@@ -32,7 +32,7 @@ export function CycleGroup({ group, defaultExpanded = false }: CycleGroupProps) 
           onClick={() => setExpanded(!expanded)}
           aria-expanded={expanded}
           aria-controls={panelId}
-          className="flex w-full cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-left text-xs font-medium uppercase tracking-wider text-text-tertiary hover:bg-bg-primary focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive"
+          className="flex w-full cursor-pointer items-center gap-2 rounded px-2 py-2.5 min-h-[44px] text-left text-xs font-medium uppercase tracking-wider text-text-tertiary hover:bg-bg-primary focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive"
         >
           <span
             aria-hidden="true"
@@ -68,7 +68,7 @@ export function CycleGroup({ group, defaultExpanded = false }: CycleGroupProps) 
         onClick={() => setExpanded(!expanded)}
         aria-expanded={expanded}
         aria-controls={panelId}
-        className={`flex w-full cursor-pointer items-center gap-3 rounded px-2 py-1.5 text-left text-xs hover:bg-bg-primary focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive ${group.hasError ? "text-accent-danger" : "text-text-secondary"}`}
+        className={`flex w-full cursor-pointer items-center gap-3 rounded px-2 py-2.5 min-h-[44px] text-left text-xs hover:bg-bg-primary focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive ${group.hasError ? "text-accent-danger" : "text-text-secondary"}`}
       >
         <span
           aria-hidden="true"
