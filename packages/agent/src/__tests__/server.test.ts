@@ -269,3 +269,25 @@ describe("SPA fallback", () => {
     expect(html).toContain("VEIL");
   });
 });
+
+describe("Evidence route", () => {
+  it("GET /api/evidence/:intentId/:hash returns 400 for invalid hash", async () => {
+    const res = await app.request("/api/evidence/test-intent/not-a-hash");
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain("Invalid");
+  });
+
+  it("GET /api/evidence/:intentId/:hash returns 404 for missing file", async () => {
+    const res = await app.request(
+      "/api/evidence/nonexistent-intent/0xabc123def456",
+    );
+    expect(res.status).toBe(404);
+  });
+
+  it("GET /api/evidence with no params falls through to SPA", async () => {
+    const res = await app.request("/api/evidence");
+    // Falls through to SPA fallback since no :intentId/:hash
+    expect(res.status).toBe(200);
+  });
+});

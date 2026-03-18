@@ -26,7 +26,7 @@ export function Tabs({ activeTab, onTabChange, hasDeployed }: TabsProps) {
   const tabs: Tab[] = [
     { id: "configure", label: "Configure" },
     { id: "audit", label: "Audit", disabled: !hasDeployed },
-    { id: "monitor", label: "Monitor", disabled: !hasDeployed },
+    { id: "monitor", label: "Monitor" },
   ];
 
   return (

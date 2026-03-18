@@ -14,7 +14,7 @@ import type { Delegation, MetaMaskSmartAccount } from "@metamask/smart-accounts-
 import { env } from "../config.js";
 import type { IntentParse } from "../venice/schemas.js";
 import { RebalanceDecisionSchema } from "../venice/schemas.js";
-import { reasoningLlm, fastLlm } from "../venice/llm.js";
+import { reasoningLlm, fastLlm, FAST_MODEL, RESEARCH_MODEL, REASONING_MODEL } from "../venice/llm.js";
 import {
   compileIntent,
   createDelegationFromIntent,
@@ -136,7 +136,7 @@ export async function runAgentLoop(config: AgentConfig): Promise<AgentState> {
       provider: "venice.ai",
       dataRetention: "none",
       includeVeniceSystemPrompt: false,
-      modelsUsed: ["qwen3-4b", "gemini-3-flash-preview", "gemini-3-1-pro-preview"],
+      modelsUsed: [FAST_MODEL, RESEARCH_MODEL, REASONING_MODEL],
       rationale: "DeFi reasoning traces contain alpha-sensitive portfolio data; no-retention inference prevents strategy leakage",
     },
   });
@@ -404,7 +404,7 @@ Decide whether to rebalance. If yes, specify the swap details. Keep swap amounts
     shouldRebalance: decision.shouldRebalance,
     reasoning: decision.reasoning,
     marketContext: decision.marketContext,
-    model: market.budgetTier === "normal" ? "gemini-3-1-pro-preview" : "qwen3-4b",
+    model: market.budgetTier === "normal" ? REASONING_MODEL : FAST_MODEL,
   };
 
   logAction("rebalance_decision", {

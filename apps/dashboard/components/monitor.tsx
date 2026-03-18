@@ -114,10 +114,30 @@ function IntentDetailView({
     }
   }, [intentId, token, onDeleted]);
 
-  const handleDownloadLogs = useCallback(() => {
-    const url = getIntentLogsUrl(intentId);
-    window.open(url, "_blank");
-  }, [intentId]);
+  const [downloadingLogs, setDownloadingLogs] = useState(false);
+  const handleDownloadLogs = useCallback(async () => {
+    setDownloadingLogs(true);
+    try {
+      const url = getIntentLogsUrl(intentId);
+      const res = await fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error("Failed to download logs");
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = `${intentId}.jsonl`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : "Failed to download logs");
+    } finally {
+      setDownloadingLogs(false);
+    }
+  }, [intentId, token]);
 
   if (loading && !data) {
     return (
@@ -164,9 +184,10 @@ function IntentDetailView({
         <div className="flex items-center gap-2">
           <button
             onClick={handleDownloadLogs}
-            className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:text-text-primary hover:border-text-tertiary cursor-pointer"
+            disabled={downloadingLogs}
+            className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:text-text-primary hover:border-text-tertiary cursor-pointer disabled:opacity-50"
           >
-            Download Logs
+            {downloadingLogs ? "Downloading..." : "Download Logs"}
           </button>
           {isActive && (
             <button

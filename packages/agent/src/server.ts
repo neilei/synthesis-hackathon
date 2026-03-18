@@ -75,6 +75,22 @@ app.route(authBase, createAuthRoutes(lazyDeps));
 // Parse intent (no auth required — used before wallet connected)
 app.route(API_PATHS.parseIntent, createParseRoutes());
 
+// Evidence documents (no auth — public, content-addressed, immutable)
+app.get("/api/evidence/:intentId/:hash", (c) => {
+  const { intentId, hash } = c.req.param();
+  if (!/^[a-zA-Z0-9-]+$/.test(intentId) || !/^0x[a-f0-9]+$/.test(hash)) {
+    return c.json({ error: "Invalid parameters" }, 400);
+  }
+  const filePath = join("data", "evidence", intentId, `${hash}.json`);
+  if (!existsSync(filePath)) {
+    return c.json({ error: "Evidence not found" }, 404);
+  }
+  const content = readFileSync(filePath, "utf-8");
+  c.header("Content-Type", "application/json");
+  c.header("Cache-Control", "public, max-age=31536000, immutable");
+  return c.body(content);
+});
+
 // Intent CRUD routes (auth required)
 // Both patterns needed: /* matches sub-paths, bare path matches exact /api/intents
 app.use(`${API_PATHS.intents}/*`, requireAuth);
@@ -129,6 +145,7 @@ app.get("*", (c) => {
 <li>GET /api/intents/:id — get intent detail</li>
 <li>DELETE /api/intents/:id — cancel intent</li>
 <li>GET /api/intents/:id/logs — download intent logs</li>
+<li>GET /api/evidence/:intentId/:hash — retrieve evidence document</li>
 </ul>
 <p style="color:#6e7681">Build the dashboard: <code>pnpm --filter @veil/dashboard build</code></p>
 </body></html>`);

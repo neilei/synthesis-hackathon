@@ -70,9 +70,14 @@ const researchVeniceParams = {
 // VENICE_MODEL_OVERRIDE forces all tiers to use the same model (for fast testing)
 const override = env.VENICE_MODEL_OVERRIDE;
 
+// Model IDs — exported so log entries can reference the actual model in use
+export const FAST_MODEL = override ?? "qwen3-4b";
+export const RESEARCH_MODEL = override ?? "gemini-3-flash-preview";
+export const REASONING_MODEL = override ?? "gemini-3-flash-preview";
+
 // Fast: quick lookups, balance checks, simple parsing
 export const fastLlm = getVeniceLlm({
-  model: override ?? "qwen3-4b",
+  model: FAST_MODEL,
   temperature: 0.3,
   maxRetries: 1,
   modelKwargs: fastVeniceParams,
@@ -81,7 +86,7 @@ export const fastLlm = getVeniceLlm({
 
 // Research: market analysis, price lookups with web search + citations
 export const researchLlm = getVeniceLlm({
-  model: override ?? "gemini-3-flash-preview",
+  model: RESEARCH_MODEL,
   temperature: 0.5,
   maxRetries: 2,
   modelKwargs: researchVeniceParams,
@@ -103,7 +108,7 @@ const reasoningVeniceParams = {
 
 // Reasoning: complex decisions, intent compilation, rebalance logic
 export const reasoningLlm = getVeniceLlm({
-  model: override ?? "gemini-3-flash-preview",
+  model: REASONING_MODEL,
   temperature: 0,
   maxRetries: 2,
   modelKwargs: reasoningVeniceParams,
