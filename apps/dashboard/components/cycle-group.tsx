@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { CycleGroup as CycleGroupData } from "@/lib/group-feed";
 import { FeedEntry } from "./feed-entry";
-import { formatCurrency, formatPercentage } from "@veil/common";
+import { formatCurrency, formatPercentage, formatAllocationSummary } from "@veil/common";
 
 interface CycleGroupProps {
   group: CycleGroupData;
@@ -22,15 +22,20 @@ export function CycleGroup({ group, defaultExpanded = false }: CycleGroupProps) 
         ? "text-accent-positive"
         : "text-accent-danger";
 
+  const panelId = `cycle-panel-${group.cycle ?? "init"}`;
+
   // Init group (no cycle number)
   if (group.cycle === null) {
     return (
       <div className="border-b border-border-subtle pb-2">
         <button
           onClick={() => setExpanded(!expanded)}
-          className="flex w-full cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-left text-xs font-medium uppercase tracking-wider text-text-tertiary hover:bg-bg-primary"
+          aria-expanded={expanded}
+          aria-controls={panelId}
+          className="flex w-full cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-left text-xs font-medium uppercase tracking-wider text-text-tertiary hover:bg-bg-primary focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive"
         >
           <span
+            aria-hidden="true"
             className={`transition-transform ${expanded ? "rotate-90" : ""}`}
           >
             ▶
@@ -41,7 +46,7 @@ export function CycleGroup({ group, defaultExpanded = false }: CycleGroupProps) 
           </span>
         </button>
         {expanded && (
-          <div className="mt-1 space-y-0 pl-4">
+          <div id={panelId} className="mt-1 space-y-0 pl-4">
             {group.entries.map((entry) => (
               <FeedEntry key={entry.sequence} entry={entry} />
             ))}
@@ -54,18 +59,19 @@ export function CycleGroup({ group, defaultExpanded = false }: CycleGroupProps) 
   const snap = group.snapshot;
   const driftPct = snap ? snap.drift * 100 : null;
   const allocSummary = snap
-    ? Object.entries(snap.allocation)
-        .map(([token, pct]) => `${(pct * 100).toFixed(0)}% ${token}`)
-        .join(" / ")
+    ? formatAllocationSummary(snap.allocation)
     : null;
 
   return (
     <div className="border-b border-border-subtle pb-2">
       <button
         onClick={() => setExpanded(!expanded)}
-        className={`flex w-full cursor-pointer items-center gap-3 rounded px-2 py-1.5 text-left text-xs hover:bg-bg-primary ${group.hasError ? "text-accent-danger" : "text-text-secondary"}`}
+        aria-expanded={expanded}
+        aria-controls={panelId}
+        className={`flex w-full cursor-pointer items-center gap-3 rounded px-2 py-1.5 text-left text-xs hover:bg-bg-primary focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive ${group.hasError ? "text-accent-danger" : "text-text-secondary"}`}
       >
         <span
+          aria-hidden="true"
           className={`transition-transform ${expanded ? "rotate-90" : ""}`}
         >
           ▶
@@ -89,7 +95,10 @@ export function CycleGroup({ group, defaultExpanded = false }: CycleGroupProps) 
           </>
         )}
         {group.hasError && (
-          <span className="inline-flex h-1.5 w-1.5 rounded-full bg-accent-danger" />
+          <>
+            <span aria-hidden="true" className="inline-flex h-1.5 w-1.5 rounded-full bg-accent-danger" />
+            <span className="sr-only">Error in cycle</span>
+          </>
         )}
         {!group.didRebalance && group.cycle !== null && (
           <span className="text-text-tertiary">hold</span>
@@ -99,7 +108,7 @@ export function CycleGroup({ group, defaultExpanded = false }: CycleGroupProps) 
         </span>
       </button>
       {expanded && (
-        <div className="mt-1 space-y-0 pl-4">
+        <div id={panelId} className="mt-1 space-y-0 pl-4">
           {group.entries.map((entry) => (
             <FeedEntry key={entry.sequence} entry={entry} />
           ))}

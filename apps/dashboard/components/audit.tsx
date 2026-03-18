@@ -7,6 +7,7 @@ import { AuditListItem } from "./ui/audit-list-item";
 import { WarningIcon } from "./ui/icons";
 import { PulsingDot } from "./ui/pulsing-dot";
 import { AllocationBar } from "./allocation-bar";
+import { StrategyDetails } from "./strategy-details";
 import { DelegationDetails } from "./delegation-details";
 import type { ParsedIntent, AuditReport } from "@veil/common";
 
@@ -30,38 +31,8 @@ export function Audit({ data, onViewMonitor }: AuditProps) {
             <AllocationBar allocation={parsed.targetAllocation} size="lg" />
           </div>
 
-          {/* Key-value grid */}
-          <div className="mt-6 grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
-            <div>
-              <span className="text-text-secondary">Daily Budget</span>
-              <p className="font-mono text-text-primary">
-                ${parsed.dailyBudgetUsd.toLocaleString()}
-              </p>
-            </div>
-            <div>
-              <span className="text-text-secondary">Time Window</span>
-              <p className="font-mono text-text-primary">
-                {parsed.timeWindowDays} days
-              </p>
-            </div>
-            <div>
-              <span className="text-text-secondary">Max Slippage</span>
-              <p className="font-mono text-text-primary">
-                {(parsed.maxSlippage * 100).toFixed(1)}%
-              </p>
-            </div>
-            <div>
-              <span className="text-text-secondary">Drift Threshold</span>
-              <p className="font-mono text-text-primary">
-                {(parsed.driftThreshold * 100).toFixed(1)}%
-              </p>
-            </div>
-            <div>
-              <span className="text-text-secondary">Max Trades/Day</span>
-              <p className="font-mono text-text-primary">
-                {parsed.maxTradesPerDay}
-              </p>
-            </div>
+          <div className="mt-6">
+            <StrategyDetails parsed={parsed} showDriftThreshold />
           </div>
 
           <div className="mt-5 border-t border-border-subtle pt-3">
@@ -77,7 +48,7 @@ export function Audit({ data, onViewMonitor }: AuditProps) {
             <div className="mt-5 space-y-5">
               {audit.allows.length > 0 && (
                 <div>
-                  <SectionHeading size="xs" className="mb-2 text-accent-positive">
+                  <SectionHeading size="xs" as="h3" className="mb-2 text-accent-positive">
                     Allows
                   </SectionHeading>
                   <ul className="space-y-2">
@@ -92,7 +63,7 @@ export function Audit({ data, onViewMonitor }: AuditProps) {
 
               {audit.prevents.length > 0 && (
                 <div>
-                  <SectionHeading size="xs" className="mb-2 text-accent-danger">
+                  <SectionHeading size="xs" as="h3" className="mb-2 text-accent-danger">
                     Prevents
                   </SectionHeading>
                   <ul className="space-y-2">
@@ -107,7 +78,7 @@ export function Audit({ data, onViewMonitor }: AuditProps) {
 
               {audit.worstCase && (
                 <div>
-                  <SectionHeading size="xs" className="mb-2 text-accent-warning">
+                  <SectionHeading size="xs" as="h3" className="mb-2 text-accent-warning">
                     Worst Case
                   </SectionHeading>
                   <div className="flex items-start gap-2 rounded bg-accent-warning-dim px-3 py-2 text-sm text-text-primary">
@@ -119,7 +90,7 @@ export function Audit({ data, onViewMonitor }: AuditProps) {
 
               {audit.warnings.length > 0 && (
                 <div>
-                  <SectionHeading size="xs" className="mb-2 text-accent-warning">
+                  <SectionHeading size="xs" as="h3" className="mb-2 text-accent-warning">
                     Warnings
                   </SectionHeading>
                   <ul className="space-y-2">

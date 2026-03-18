@@ -68,3 +68,19 @@ export function formatTimestamp(timestamp: string): string {
 export function formatPercentage(value: number, decimals = 1): string {
   return `${(value * 100).toFixed(decimals)}%`;
 }
+
+/**
+ * Format a token allocation record as a human-readable summary.
+ *
+ * @param allocation - Map of token symbol to decimal ratio (e.g. { ETH: 0.6, USDC: 0.4 })
+ * @param decimals - Number of decimal places for percentages (default: 0)
+ * @returns String like "60% ETH / 40% USDC"
+ */
+export function formatAllocationSummary(
+  allocation: Record<string, number>,
+  decimals = 0,
+): string {
+  return Object.entries(allocation)
+    .map(([token, pct]) => `${formatPercentage(pct, decimals)} ${token}`)
+    .join(" / ");
+}

@@ -58,7 +58,7 @@ export function groupFeedByCycle(feed: AgentLogEntry[]): CycleGroup[] {
       entries,
       snapshot: key !== null ? extractSnapshot(entries) : null,
       hasError: entries.some((e) => !!e.error),
-      didRebalance: entries.some((e) => e.action === "rebalance_decision" || e.action === "swap_executed"),
+      didRebalance: entries.some((e) => e.action === "swap_executed"),
     };
   });
 }

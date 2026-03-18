@@ -1,6 +1,6 @@
 import type { AgentLogEntry } from "@veil/common";
 import { Badge } from "./ui/badge";
-import { truncateHash, formatCurrency, formatPercentage } from "@veil/common";
+import { truncateHash, formatCurrency, formatPercentage, formatAllocationSummary } from "@veil/common";
 
 interface FeedEntryProps {
   entry: AgentLogEntry;
@@ -24,6 +24,7 @@ function TxLink({ hash }: { hash: string | undefined }) {
       className="ml-2 font-mono text-xs text-accent-secondary hover:underline"
     >
       {truncateHash(hash)}
+      <span className="sr-only"> (opens in new tab)</span>
     </a>
   );
 }
@@ -38,6 +39,7 @@ function Dot({ color }: { color: "green" | "red" | "blue" | "gray" }) {
   };
   return (
     <span
+      aria-hidden="true"
       className={`mt-0.5 inline-flex h-1.5 w-1.5 shrink-0 rounded-full ${cls[color]}`}
     />
   );
@@ -131,11 +133,6 @@ export function FeedEntry({ entry }: FeedEntryProps) {
   if (entry.action === "portfolio_check" && res) {
     const totalUsdValue = r(res, "totalUsdValue") as number | undefined;
     const allocation = r(res, "allocation") as Record<string, number> | undefined;
-    const allocStr = allocation
-      ? Object.entries(allocation)
-          .map(([token, pct]) => `${formatPercentage(pct, 0)} ${token}`)
-          .join(" / ")
-      : null;
     return (
       <div className="flex items-start gap-2 py-1 text-sm">
         <Dot color="gray" />
@@ -146,9 +143,9 @@ export function FeedEntry({ entry }: FeedEntryProps) {
               {formatCurrency(totalUsdValue)}
             </span>
           )}
-          {allocStr && (
+          {allocation && (
             <span className="ml-1 font-mono tabular-nums text-text-tertiary">
-              | {allocStr}
+              | {formatAllocationSummary(allocation)}
             </span>
           )}
           <Duration ms={entry.duration_ms} />
@@ -333,11 +330,6 @@ export function FeedEntry({ entry }: FeedEntryProps) {
     const drift = r(res, "drift") as number | undefined;
     const ethPrice = r(res, "ethPrice") as number | undefined;
     const allocation = r(res, "allocation") as Record<string, number> | undefined;
-    const allocStr = allocation
-      ? Object.entries(allocation)
-          .map(([token, pct]) => `${formatPercentage(pct, 0)} ${token}`)
-          .join(" / ")
-      : null;
     return (
       <div className="flex items-start gap-2 py-1.5 text-sm">
         <Dot color="green" />
@@ -362,9 +354,9 @@ export function FeedEntry({ entry }: FeedEntryProps) {
               ETH {formatCurrency(ethPrice)}
             </span>
           )}
-          {allocStr && (
+          {allocation && (
             <span className="ml-1 text-text-tertiary hidden sm:inline">
-              | {allocStr}
+              | {formatAllocationSummary(allocation)}
             </span>
           )}
           <Duration ms={entry.duration_ms} />

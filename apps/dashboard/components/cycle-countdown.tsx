@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 
 interface CycleCountdownProps {
   lastCycleAt: number | null | undefined;
@@ -9,11 +9,9 @@ interface CycleCountdownProps {
 }
 
 function computeSecondsLeft(
-  lastCycleAt: number | null | undefined,
+  lastCycleAt: number,
   intervalMs: number,
-  isActive: boolean,
-): number | null {
-  if (!isActive || !lastCycleAt) return null;
+): number {
   const nextCycleAt = lastCycleAt + intervalMs / 1000;
   return Math.max(0, Math.ceil(nextCycleAt - Date.now() / 1000));
 }
@@ -23,17 +21,13 @@ export function CycleCountdown({
   intervalMs,
   isActive,
 }: CycleCountdownProps) {
-  const initial = useMemo(
-    () => computeSecondsLeft(lastCycleAt, intervalMs, isActive),
-    [lastCycleAt, intervalMs, isActive],
-  );
-  const [secondsLeft, setSecondsLeft] = useState<number | null>(initial);
+  const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
 
   useEffect(() => {
     if (!isActive || !lastCycleAt) return;
 
     function tick() {
-      setSecondsLeft(computeSecondsLeft(lastCycleAt, intervalMs, isActive));
+      setSecondsLeft(computeSecondsLeft(lastCycleAt!, intervalMs));
     }
 
     tick();
@@ -41,7 +35,7 @@ export function CycleCountdown({
     return () => clearInterval(id);
   }, [lastCycleAt, intervalMs, isActive]);
 
-  if (secondsLeft == null) return null;
+  if (!isActive || !lastCycleAt || secondsLeft == null) return null;
 
   return (
     <span className="font-mono text-2xl tabular-nums text-text-primary">

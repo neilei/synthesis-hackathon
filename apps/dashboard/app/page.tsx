@@ -1,6 +1,6 @@
 /**
- * Home page. Manages tab state and coordinates data flow between Configure,
- * Audit, and Monitor screens.
+ * Home page. Manages tab state and coordinates data flow between Configure
+ * and Monitor screens.
  *
  * @module @veil/dashboard/app/page
  */
@@ -34,19 +34,39 @@ export default function Home() {
 
   return (
     <div className="flex min-h-screen flex-col">
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-accent-positive focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-bg-primary"
+      >
+        Skip to main content
+      </a>
+
       <Tabs
         activeTab={activeTab}
         onTabChange={setActiveTab}
-        hasDeployed={true}
       />
 
-      <main className="flex-1">
-        {activeTab === "configure" && (
-          <Configure onSuccess={handleDeploySuccess} />
-        )}
-        {activeTab === "monitor" && (
-          <Monitor onNavigateConfigure={handleNavigateConfigure} />
-        )}
+      <main id="main" className="flex-1">
+        <div
+          id="panel-configure"
+          role="tabpanel"
+          aria-labelledby="tab-configure"
+          hidden={activeTab !== "configure"}
+        >
+          {activeTab === "configure" && (
+            <Configure onSuccess={handleDeploySuccess} />
+          )}
+        </div>
+        <div
+          id="panel-monitor"
+          role="tabpanel"
+          aria-labelledby="tab-monitor"
+          hidden={activeTab !== "monitor"}
+        >
+          {activeTab === "monitor" && (
+            <Monitor onNavigateConfigure={handleNavigateConfigure} />
+          )}
+        </div>
       </main>
 
       <Footer />

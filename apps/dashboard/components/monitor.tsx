@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useIntents } from "@/hooks/use-intents";
 import { useIntentDetail } from "@/hooks/use-intent-detail";
 import { useIntentFeed } from "@/hooks/use-intent-feed";
-import { deleteIntent, getIntentLogsUrl, type IntentRecord } from "@/lib/api";
+import { deleteIntent, getIntentLogsUrl, safeParseParsedIntent, type IntentRecord } from "@/lib/api";
 import { ActivityFeed } from "./activity-feed";
 import { Audit } from "./audit";
 import { StatsCard } from "./stats-card";
@@ -19,13 +19,14 @@ import { Badge } from "./ui/badge";
 import { SectionHeading } from "./ui/section-heading";
 import { PulsingDot } from "./ui/pulsing-dot";
 import { AllocationBar } from "./allocation-bar";
+import { StrategyDetails } from "./strategy-details";
 import { Spinner } from "./ui/icons";
 import { generateAuditReport } from "@veil/common";
 import {
   truncateAddress,
   formatCurrency,
 } from "@veil/common";
-import type { ParsedIntent } from "@veil/common";
+
 
 interface MonitorProps {
   onNavigateConfigure: () => void;
@@ -47,12 +48,7 @@ function IntentListItem({
   intent: IntentRecord;
   onSelect: (id: string) => void;
 }) {
-  let parsed: ParsedIntent | null = null;
-  try {
-    parsed = JSON.parse(intent.parsedIntent) as ParsedIntent;
-  } catch {
-    // ignore parse failures
-  }
+  const parsed = safeParseParsedIntent(intent.parsedIntent);
 
   const isActive = intent.status === "active";
   const expiresDate = new Date(intent.expiresAt * 1000);
@@ -78,11 +74,11 @@ function IntentListItem({
           <AllocationBar allocation={parsed.targetAllocation} size="sm" />
         </div>
       )}
-      <div className="mt-2 flex items-center gap-4 text-xs text-text-tertiary">
+      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-tertiary">
         <span>Cycle {intent.cycle}</span>
         <span>{intent.tradesExecuted} trades</span>
         <span>{formatCurrency(intent.totalSpentUsd)} spent</span>
-        <span className="ml-auto">
+        <span className="sm:ml-auto">
           Expires {expiresDate.toLocaleDateString()}
         </span>
       </div>
@@ -104,18 +100,18 @@ function IntentDetailView({
   const { data, error, loading } = useIntentDetail(intentId, token);
   const { entries: feedEntries, sseError } = useIntentFeed(intentId, token);
   const [deleting, setDeleting] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [showAudit, setShowAudit] = useState(false);
 
   const handleDelete = useCallback(async () => {
     if (!confirm("Stop this agent? This action cannot be undone.")) return;
     setDeleting(true);
-    setDeleteError(null);
+    setActionError(null);
     try {
       await deleteIntent(intentId, token);
       onDeleted();
     } catch (err) {
-      setDeleteError(err instanceof Error ? err.message : "Failed to stop agent");
+      setActionError(err instanceof Error ? err.message : "Failed to stop agent");
     } finally {
       setDeleting(false);
     }
@@ -141,7 +137,7 @@ function IntentDetailView({
       a.remove();
       URL.revokeObjectURL(blobUrl);
     } catch (err) {
-      setDeleteError(err instanceof Error ? err.message : "Failed to download logs");
+      setActionError(err instanceof Error ? err.message : "Failed to download logs");
     } finally {
       setDownloadingLogs(false);
     }
@@ -163,7 +159,7 @@ function IntentDetailView({
   if (error && !data) {
     return (
       <div className="p-6">
-        <button onClick={onBack} className="mb-4 text-sm text-text-secondary hover:text-text-primary transition-colors cursor-pointer">
+        <button onClick={onBack} className="mb-4 text-sm text-text-secondary hover:text-text-primary transition-colors cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive rounded-sm">
           &larr; Back to intents
         </button>
         <ErrorBanner message={error} />
@@ -173,12 +169,7 @@ function IntentDetailView({
 
   if (!data) return null;
 
-  let parsed: ParsedIntent | null = null;
-  try {
-    parsed = JSON.parse(data.parsedIntent) as ParsedIntent;
-  } catch {
-    // ignore
-  }
+  const parsed = safeParseParsedIntent(data.parsedIntent);
 
   // Derive active state from both DB status and live worker status.
   // If the worker has stopped but DB hasn't caught up yet, treat as inactive.
@@ -189,21 +180,21 @@ function IntentDetailView({
   return (
     <div className="space-y-6 p-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <button onClick={onBack} className="text-sm text-text-secondary hover:text-text-primary transition-colors cursor-pointer">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <button onClick={onBack} className="self-start text-sm text-text-secondary hover:text-text-primary transition-colors cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive rounded-sm min-h-[44px] flex items-center">
           &larr; Back to intents
         </button>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => setShowAudit(!showAudit)}
-            className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:text-text-primary hover:border-text-tertiary cursor-pointer"
+            className="rounded-md border border-border px-3 py-2 text-xs font-medium text-text-secondary transition-colors hover:text-text-primary hover:border-text-tertiary cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive min-h-[44px]"
           >
             {showAudit ? "Hide Audit" : "View Audit"}
           </button>
           <button
             onClick={handleDownloadLogs}
             disabled={downloadingLogs}
-            className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:text-text-primary hover:border-text-tertiary cursor-pointer disabled:opacity-50"
+            className="rounded-md border border-border px-3 py-2 text-xs font-medium text-text-secondary transition-colors hover:text-text-primary hover:border-text-tertiary cursor-pointer disabled:opacity-50 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive min-h-[44px]"
           >
             {downloadingLogs ? "Downloading..." : "Download Logs"}
           </button>
@@ -211,7 +202,7 @@ function IntentDetailView({
             <button
               onClick={handleDelete}
               disabled={deleting || !workerRunning}
-              className="rounded-md border border-accent-danger/30 px-3 py-1.5 text-xs font-medium text-accent-danger transition-colors hover:bg-accent-danger/10 cursor-pointer disabled:opacity-50"
+              className="rounded-md border border-accent-danger/30 px-3 py-2 text-xs font-medium text-accent-danger transition-colors hover:bg-accent-danger/10 cursor-pointer disabled:opacity-50 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-danger min-h-[44px]"
             >
               {deleting ? "Stopping..." : "Stop Agent"}
             </button>
@@ -219,7 +210,7 @@ function IntentDetailView({
         </div>
       </div>
 
-      {deleteError && <ErrorBanner message={deleteError} />}
+      {actionError && <ErrorBanner message={actionError} />}
 
       {/* Inline Audit */}
       {showAudit && parsed && (
@@ -232,12 +223,12 @@ function IntentDetailView({
       {/* Intent text */}
       <Card className="px-5 py-3">
         <p className="font-mono text-sm text-text-primary">{data.intentText}</p>
-        <div className="mt-2 flex items-center gap-3 text-xs text-text-tertiary">
+        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-tertiary">
           <Badge variant={STATUS_BADGE[data.status] ?? "warning"}>
             {data.status}
           </Badge>
           <span>Cycle {data.cycle}</span>
-          <span>Created {new Date(data.createdAt * 1000).toLocaleDateString()}</span>
+          <span className="hidden sm:inline">Created {new Date(data.createdAt * 1000).toLocaleDateString()}</span>
           <span>Expires {new Date(data.expiresAt * 1000).toLocaleDateString()}</span>
         </div>
       </Card>
@@ -278,23 +269,8 @@ function IntentDetailView({
         <Card className="p-5">
           <SectionHeading className="mb-4">Target Allocation</SectionHeading>
           <AllocationBar allocation={parsed.targetAllocation} size="lg" />
-          <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
-            <div>
-              <span className="text-text-secondary">Daily Budget</span>
-              <p className="font-mono text-text-primary">${parsed.dailyBudgetUsd.toLocaleString()}</p>
-            </div>
-            <div>
-              <span className="text-text-secondary">Time Window</span>
-              <p className="font-mono text-text-primary">{parsed.timeWindowDays} days</p>
-            </div>
-            <div>
-              <span className="text-text-secondary">Max Slippage</span>
-              <p className="font-mono text-text-primary">{(parsed.maxSlippage * 100).toFixed(1)}%</p>
-            </div>
-            <div>
-              <span className="text-text-secondary">Max Trades/Day</span>
-              <p className="font-mono text-text-primary">{parsed.maxTradesPerDay}</p>
-            </div>
+          <div className="mt-4">
+            <StrategyDetails parsed={parsed} compact />
           </div>
         </Card>
       )}
@@ -308,7 +284,7 @@ function IntentDetailView({
           </span>
         ) : (
           <span className="flex items-center gap-2 text-text-secondary">
-            <span className="inline-flex h-2 w-2 rounded-full bg-accent-danger" />
+            <span aria-hidden="true" className="inline-flex h-2 w-2 rounded-full bg-accent-danger" />
             {data.status}
           </span>
         )}
@@ -360,8 +336,8 @@ export function Monitor({ onNavigateConfigure }: MonitorProps) {
   // Not connected
   if (!isConnected) {
     return (
-      <div className="flex flex-col items-center justify-center gap-4 p-16 text-center">
-        <div className="rounded-full bg-bg-surface p-4">
+      <div className="flex flex-col items-center justify-center gap-4 p-8 sm:p-16 text-center">
+        <div aria-hidden="true" className="rounded-full bg-bg-surface p-4">
           <div className="h-3 w-3 rounded-full bg-text-tertiary" />
         </div>
         <h2 className="text-lg font-medium text-text-primary">
@@ -377,7 +353,7 @@ export function Monitor({ onNavigateConfigure }: MonitorProps) {
   // Authenticating
   if (!isAuthenticated) {
     return (
-      <div className="flex flex-col items-center justify-center gap-4 p-16 text-center">
+      <div className="flex flex-col items-center justify-center gap-4 p-8 sm:p-16 text-center">
         {authenticating ? (
           <>
             <Spinner className="h-6 w-6 animate-spin text-text-tertiary" />
@@ -430,8 +406,8 @@ export function Monitor({ onNavigateConfigure }: MonitorProps) {
   // No intents
   if (intents.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center gap-4 p-16 text-center">
-        <div className="rounded-full bg-bg-surface p-4">
+      <div className="flex flex-col items-center justify-center gap-4 p-8 sm:p-16 text-center">
+        <div aria-hidden="true" className="rounded-full bg-bg-surface p-4">
           <div className="h-3 w-3 rounded-full bg-accent-danger" />
         </div>
         <h2 className="text-lg font-medium text-text-primary">
@@ -442,7 +418,7 @@ export function Monitor({ onNavigateConfigure }: MonitorProps) {
         </p>
         <button
           onClick={onNavigateConfigure}
-          className="mt-2 cursor-pointer rounded-lg bg-accent-positive px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-emerald-600 active:bg-emerald-700 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive"
+          className="mt-2 cursor-pointer rounded-lg bg-accent-positive px-5 py-2.5 text-sm font-medium text-bg-primary transition-colors hover:bg-accent-positive/90 active:bg-accent-positive/80 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive focus-visible:ring-offset-2 focus-visible:ring-offset-bg-primary"
         >
           Go to Configure
         </button>

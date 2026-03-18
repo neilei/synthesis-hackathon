@@ -18,6 +18,7 @@ import { Card } from "./ui/card";
 import { SectionHeading } from "./ui/section-heading";
 import { AuditListItem } from "./ui/audit-list-item";
 import { AllocationBar } from "./allocation-bar";
+import { StrategyDetails } from "./strategy-details";
 import { DelegationDetails } from "./delegation-details";
 import { Spinner, WarningIcon } from "./ui/icons";
 import { SponsorBadge } from "./sponsor-badge";
@@ -140,6 +141,7 @@ export function Configure({ onSuccess }: ConfigureProps) {
         {/* Intent input card */}
         <Card className="p-5">
           <textarea
+            aria-label="Describe your portfolio strategy"
             value={intentText}
             onChange={(e) => {
               setIntentText(e.target.value);
@@ -165,16 +167,18 @@ export function Configure({ onSuccess }: ConfigureProps) {
           )}
 
           {/* Loading state */}
-          {statusLabel && (
-            <div className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg border border-border px-4 py-3 text-sm text-text-secondary">
-              <Spinner className="h-4 w-4 animate-spin" />
-              {statusLabel}
-            </div>
-          )}
+          <div role="status" aria-live="polite">
+            {statusLabel && (
+              <div className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg border border-border px-4 py-3 text-sm text-text-secondary">
+                <Spinner className="h-4 w-4 animate-spin" />
+                {statusLabel}
+              </div>
+            )}
+          </div>
 
           {/* Error */}
           {error && (
-            <p className="mt-3 text-sm text-accent-danger">{error}</p>
+            <p role="alert" className="mt-3 text-sm text-accent-danger">{error}</p>
           )}
         </Card>
 
@@ -186,7 +190,7 @@ export function Configure({ onSuccess }: ConfigureProps) {
                 key={preset}
                 onClick={() => setIntentText(preset)}
                 disabled={isParsing}
-                className="cursor-pointer rounded-full border border-border px-3 py-1.5 font-mono text-xs text-text-tertiary transition-colors hover:border-text-secondary hover:text-text-secondary focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive disabled:cursor-not-allowed disabled:opacity-40"
+                className="cursor-pointer rounded-full border border-border px-3 py-2.5 font-mono text-xs text-text-tertiary transition-colors hover:border-text-secondary hover:text-text-secondary focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive disabled:cursor-not-allowed disabled:opacity-40"
               >
                 {preset}
               </button>
@@ -204,7 +208,7 @@ export function Configure({ onSuccess }: ConfigureProps) {
                 <button
                   onClick={handleReset}
                   disabled={isBusy}
-                  className="text-xs text-text-tertiary hover:text-text-secondary transition-colors disabled:opacity-40"
+                  className="text-xs text-text-tertiary hover:text-text-secondary transition-colors disabled:opacity-40 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive rounded-sm cursor-pointer"
                 >
                   Edit
                 </button>
@@ -214,37 +218,8 @@ export function Configure({ onSuccess }: ConfigureProps) {
                 <AllocationBar allocation={parsed.targetAllocation} size="lg" />
               </div>
 
-              <div className="mt-5 grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
-                <div>
-                  <span className="text-text-secondary">Daily Budget</span>
-                  <p className="font-mono text-text-primary">
-                    ${parsed.dailyBudgetUsd.toLocaleString()}
-                  </p>
-                </div>
-                <div>
-                  <span className="text-text-secondary">Time Window</span>
-                  <p className="font-mono text-text-primary">
-                    {parsed.timeWindowDays} days
-                  </p>
-                </div>
-                <div>
-                  <span className="text-text-secondary">Max Slippage</span>
-                  <p className="font-mono text-text-primary">
-                    {(parsed.maxSlippage * 100).toFixed(1)}%
-                  </p>
-                </div>
-                <div>
-                  <span className="text-text-secondary">Drift Threshold</span>
-                  <p className="font-mono text-text-primary">
-                    {(parsed.driftThreshold * 100).toFixed(1)}%
-                  </p>
-                </div>
-                <div>
-                  <span className="text-text-secondary">Max Trades/Day</span>
-                  <p className="font-mono text-text-primary">
-                    {parsed.maxTradesPerDay}
-                  </p>
-                </div>
+              <div className="mt-5">
+                <StrategyDetails parsed={parsed} showDriftThreshold />
               </div>
 
               <div className="mt-4 border-t border-border-subtle pt-3">
@@ -259,7 +234,7 @@ export function Configure({ onSuccess }: ConfigureProps) {
                 <div className="mt-4 space-y-4">
                   {audit.allows.length > 0 && (
                     <div>
-                      <SectionHeading size="xs" className="mb-2 text-accent-positive">
+                      <SectionHeading size="xs" as="h3" className="mb-2 text-accent-positive">
                         Allows
                       </SectionHeading>
                       <ul className="space-y-2">
@@ -274,7 +249,7 @@ export function Configure({ onSuccess }: ConfigureProps) {
 
                   {audit.prevents.length > 0 && (
                     <div>
-                      <SectionHeading size="xs" className="mb-2 text-accent-danger">
+                      <SectionHeading size="xs" as="h3" className="mb-2 text-accent-danger">
                         Prevents
                       </SectionHeading>
                       <ul className="space-y-2">
@@ -289,7 +264,7 @@ export function Configure({ onSuccess }: ConfigureProps) {
 
                   {audit.worstCase && (
                     <div>
-                      <SectionHeading size="xs" className="mb-2 text-accent-warning">
+                      <SectionHeading size="xs" as="h3" className="mb-2 text-accent-warning">
                         Worst Case
                       </SectionHeading>
                       <div className="flex items-start gap-2 rounded bg-accent-warning-dim px-3 py-2 text-sm text-text-primary">
@@ -301,7 +276,7 @@ export function Configure({ onSuccess }: ConfigureProps) {
 
                   {audit.warnings.length > 0 && (
                     <div>
-                      <SectionHeading size="xs" className="mb-2 text-accent-warning">
+                      <SectionHeading size="xs" as="h3" className="mb-2 text-accent-warning">
                         Warnings
                       </SectionHeading>
                       <ul className="space-y-2">

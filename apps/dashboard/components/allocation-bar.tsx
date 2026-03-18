@@ -1,4 +1,4 @@
-import { getTokenBg, getTokenLabel, getTokenLabelColor } from "@veil/common";
+import { getTokenBg, getTokenLabel, getTokenLabelColor, formatAllocationSummary } from "@veil/common";
 
 interface AllocationBarProps {
   allocation: Record<string, number>;
@@ -21,6 +21,7 @@ export function AllocationBar({
   const entries = Object.entries(allocation);
   const total = entries.reduce((sum, [, val]) => sum + val, 0);
   const styles = BAR_SIZE[size];
+  const summary = formatAllocationSummary(allocation);
 
   return (
     <div>
@@ -28,6 +29,8 @@ export function AllocationBar({
         <p className="mb-1.5 text-xs text-text-secondary">{label}</p>
       )}
       <div
+        role="img"
+        aria-label={`Target allocation: ${summary}`}
         className={`flex ${styles.height} w-full overflow-hidden rounded ${ghost ? "border border-dashed border-border" : ""}`}
       >
         {entries.map(([token, value]) => {
@@ -36,7 +39,8 @@ export function AllocationBar({
           return (
             <div
               key={token}
-              className={`${getTokenBg(token)} ${ghost ? "opacity-25" : "opacity-90"} flex items-center justify-center ${styles.text} text-white transition-all duration-500`}
+              aria-hidden="true"
+              className={`${getTokenBg(token)} ${ghost ? "opacity-25" : "opacity-90"} flex items-center justify-center ${styles.text} text-white transition-[width] duration-500`}
               style={{ width: `${pct}%` }}
               title={`${getTokenLabel(token)}: ${pct.toFixed(1)}%`}
             >
@@ -54,6 +58,7 @@ export function AllocationBar({
               className={`flex items-center gap-1 ${styles.labelText} text-text-tertiary`}
             >
               <span
+                aria-hidden="true"
                 className={`inline-block ${styles.swatch} rounded-sm ${getTokenBg(token)}`}
               />
               {size === "lg" ? (

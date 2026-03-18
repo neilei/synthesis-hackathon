@@ -4,33 +4,29 @@
  * starts in an authenticated state with the mock wagmi connector.
  *
  * Usage:
- *   import { test, expect } from "../fixtures/auth";
+ *   import { test, expect, gotoAuthenticated } from "../fixtures/auth";
  *
- *   test("something requiring auth", async ({ page, testWallet }) => {
- *     // testWallet.address  — checksummed 0x address
- *     // testWallet.token    — bearer token for API calls
- *     await page.goto("/");
- *     // sessionStorage already has veil_auth_token injected
+ *   test("something requiring auth", async ({ page, auth }) => {
+ *     // auth.wallet  — lowercase 0x address
+ *     // auth.token   — bearer token for API calls
+ *     await gotoAuthenticated(page, "/", auth);
  *   });
  *
  * @module @veil/dashboard/tests/fixtures/auth
  */
-import { test as base, expect } from "@playwright/test";
+import { test as base, expect, type Page } from "@playwright/test";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 
-const AGENT_URL = process.env.AGENT_URL ?? "http://localhost:3147";
+const agentPort = process.env.AGENT_PORT || "3148";
+const AGENT_URL = process.env.AGENT_URL ?? `http://localhost:${agentPort}`;
 
-interface AuthFixtures {
-  /** Pre-authenticated test wallet: address + bearer token */
-  testWallet: {
-    address: `0x${string}`;
-    token: string;
-  };
+export interface AuthFixture {
+  wallet: string;
+  token: string;
 }
 
-export const test = base.extend<AuthFixtures>({
-  testWallet: async ({ page }, use) => {
-    // Generate a fresh wallet for test isolation
+export const test = base.extend<{ auth: AuthFixture }>({
+  auth: async ({ page }, use) => {
     const privateKey = generatePrivateKey();
     const account = privateKeyToAccount(privateKey);
 
@@ -40,9 +36,7 @@ export const test = base.extend<AuthFixtures>({
     );
     if (!nonceRes.ok) {
       const body = await nonceRes.text().catch(() => "");
-      throw new Error(
-        `Nonce fetch failed: ${nonceRes.status} ${body}`,
-      );
+      throw new Error(`Nonce fetch failed: ${nonceRes.status} ${body}`);
     }
     const { nonce } = (await nonceRes.json()) as { nonce: string };
 
@@ -58,15 +52,11 @@ export const test = base.extend<AuthFixtures>({
     });
     if (!verifyRes.ok) {
       const body = await verifyRes.text().catch(() => "");
-      throw new Error(
-        `Auth verify failed: ${verifyRes.status} ${body}`,
-      );
+      throw new Error(`Auth verify failed: ${verifyRes.status} ${body}`);
     }
     const { token } = (await verifyRes.json()) as { token: string };
 
-    // Step 4: Inject auth token into sessionStorage BEFORE any page navigation.
-    // addInitScript runs in every new document context (navigations, reloads)
-    // so the dashboard's useAuth hook will find a valid stored token immediately.
+    // Step 4: Inject auth token into sessionStorage via addInitScript
     await page.addInitScript(
       ({ wallet, tkn }: { wallet: string; tkn: string }) => {
         sessionStorage.setItem(
@@ -77,8 +67,21 @@ export const test = base.extend<AuthFixtures>({
       { wallet: account.address, tkn: token },
     );
 
-    await use({ address: account.address, token });
+    await use({ wallet: account.address.toLowerCase(), token });
   },
 });
+
+/**
+ * Navigate to a page with auth credentials pre-seeded in sessionStorage.
+ * The addInitScript from the fixture handles injection on every navigation,
+ * so this is a convenience wrapper that just navigates.
+ */
+export async function gotoAuthenticated(
+  page: Page,
+  path: string,
+  _auth: AuthFixture,
+): Promise<void> {
+  await page.goto(path);
+}
 
 export { expect } from "@playwright/test";

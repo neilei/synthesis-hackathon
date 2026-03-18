@@ -1,8 +1,6 @@
-import { DEFAULT_AGENT_PORT, API_PATHS } from "@veil/common";
+import { API_PATHS } from "@veil/common";
 import { type NextRequest } from "next/server";
-
-const AGENT_API_URL =
-  process.env.AGENT_API_URL || `http://localhost:${DEFAULT_AGENT_PORT}`;
+import { AGENT_API_URL } from "@/lib/agent-url";
 
 export const dynamic = "force-dynamic";
 

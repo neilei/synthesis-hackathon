@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef } from "react";
+import { useMemo } from "react";
+
 import type { AgentLogEntry } from "@veil/common";
 import { Card } from "./ui/card";
 import { SectionHeading } from "./ui/section-heading";
@@ -13,18 +14,17 @@ interface ActivityFeedProps {
 }
 
 export function ActivityFeed({ feed }: ActivityFeedProps) {
-  const scrollRef = useRef<HTMLDivElement>(null);
-
   // Reverse so newest cycles appear at the top
-  const groups = groupFeedByCycle(feed).reverse();
+  const groups = useMemo(() => groupFeedByCycle(feed).reverse(), [feed]);
 
   return (
     <Card className="flex flex-col p-5">
       <SectionHeading className="mb-3">Activity Feed</SectionHeading>
       <div
-        ref={scrollRef}
-        className="flex-1 space-y-1 overflow-y-auto"
-        style={{ maxHeight: "400px" }}
+        role="log"
+        aria-label="Agent activity feed"
+        tabIndex={0}
+        className="flex-1 space-y-1 overflow-y-auto focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive rounded max-h-[50vh] sm:max-h-[400px]"
       >
         {groups.length > 0 ? (
           groups.map((group) => (
