@@ -45,21 +45,29 @@ export const ApprovalResponseSchema = z.object({
 });
 export type ApprovalResponse = z.infer<typeof ApprovalResponseSchema>;
 
-export const QuoteResponseSchema = z.object({
-  requestId: z.string(),
-  quote: z.object({
-    chainId: z.number(),
-    input: z.object({ token: hexString, amount: z.string() }),
-    output: z.object({ token: hexString, amount: z.string() }),
-    swapper: hexString,
-    slippage: z.union([
-      z.object({ tolerance: z.number() }),
-      z.number(),
-    ]),
-  }),
-  routing: z.string(),
-  permitData: PermitDataSchema.nullable().optional(),
-});
+export const QuoteResponseSchema = z
+  .object({
+    requestId: z.string(),
+    quote: z
+      .object({
+        chainId: z.number(),
+        input: z
+          .object({ token: hexString, amount: z.string() })
+          .passthrough(),
+        output: z
+          .object({ token: hexString, amount: z.string() })
+          .passthrough(),
+        swapper: hexString,
+        slippage: z.union([
+          z.object({ tolerance: z.number() }),
+          z.number(),
+        ]),
+      })
+      .passthrough(),
+    routing: z.string(),
+    permitData: PermitDataSchema.nullable().optional(),
+  })
+  .passthrough();
 export type QuoteResponse = z.infer<typeof QuoteResponseSchema>;
 
 export const SwapResponseSchema = z.object({

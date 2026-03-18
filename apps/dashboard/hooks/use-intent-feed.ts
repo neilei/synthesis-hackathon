@@ -10,8 +10,11 @@ export function useIntentFeed(
 ) {
   const [entries, setEntries] = useState<AgentLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const maxSeqRef = useRef(-1);
+  const [sseError, setSseError] = useState<string | null>(null);
+  const errorCountRef = useRef(0);
   const esRef = useRef<EventSource | null>(null);
+  const seenSeqRef = useRef(new Set<number>());
+  const lastReloadRef = useRef(0);
 
   const loadHistorical = useCallback(async () => {
     if (!intentId || !token) return;
@@ -19,9 +22,7 @@ export function useIntentFeed(
       const data = await fetchIntentDetail(intentId, token);
       const logs = data.logs ?? [];
       setEntries(logs);
-      maxSeqRef.current = logs.length > 0
-        ? Math.max(...logs.map((e) => e.sequence))
-        : -1;
+      seenSeqRef.current = new Set(logs.map((e) => e.sequence));
     } finally {
       setLoading(false);
     }
@@ -37,30 +38,38 @@ export function useIntentFeed(
     setLoading(true);
     loadHistorical();
 
-    // Connect SSE for live updates
-    const es = new EventSource(`/api/intents/${intentId}/events`);
+    // Connect SSE for live updates (withCredentials sends the HttpOnly cookie)
+    const es = new EventSource(`/api/intents/${intentId}/events`, {
+      withCredentials: true,
+    });
     esRef.current = es;
 
     es.addEventListener("log", (e: MessageEvent) => {
+      // Reset error count on successful message — connection is working
+      errorCountRef.current = 0;
+      setSseError(null);
+
       try {
         const entry = JSON.parse(e.data) as AgentLogEntry;
-        setEntries((prev) => {
-          // Deduplicate by sequence
-          if (prev.some((p) => p.sequence === entry.sequence)) return prev;
-          return [...prev, entry];
-        });
-        if (entry.sequence > maxSeqRef.current) {
-          maxSeqRef.current = entry.sequence;
-        }
+        if (seenSeqRef.current.has(entry.sequence)) return;
+        seenSeqRef.current.add(entry.sequence);
+        setEntries((prev) => [...prev, entry]);
       } catch {
         // Skip malformed SSE data
       }
     });
 
     es.onerror = () => {
-      // EventSource auto-reconnects. On reconnect we may have missed entries,
-      // so reload historical data to fill gaps.
-      loadHistorical();
+      errorCountRef.current++;
+      if (errorCountRef.current >= 3) {
+        setSseError("Live feed disconnected — retrying. Check auth or server status.");
+      }
+      // Debounce historical reloads to at most once per 5 seconds
+      const now = Date.now();
+      if (now - lastReloadRef.current > 5000) {
+        lastReloadRef.current = now;
+        loadHistorical();
+      }
     };
 
     return () => {
@@ -69,5 +78,5 @@ export function useIntentFeed(
     };
   }, [intentId, token, loadHistorical]);
 
-  return { entries, loading };
+  return { entries, loading, sseError };
 }

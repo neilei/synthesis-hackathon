@@ -3,8 +3,10 @@ import { randomBytes, createHmac } from "node:crypto";
 export const NONCE_TTL_SECONDS = 300; // 5 minutes
 const TOKEN_TTL_SECONDS = 86_400; // 24 hours
 
-// Secret for HMAC token signing — generated per server lifecycle
-const TOKEN_SECRET = randomBytes(32).toString("hex");
+// Secret for HMAC token signing. Uses AUTH_TOKEN_SECRET from env if set,
+// otherwise falls back to random bytes (tokens invalidated on restart).
+const TOKEN_SECRET =
+  process.env["AUTH_TOKEN_SECRET"] || randomBytes(32).toString("hex");
 
 export function generateNonce(): string {
   return randomBytes(32).toString("hex");

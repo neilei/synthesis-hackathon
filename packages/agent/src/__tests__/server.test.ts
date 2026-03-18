@@ -41,6 +41,8 @@ vi.mock("../logging/logger.js", () => ({
 vi.mock("../db/connection.js", () => ({
   getDb: vi.fn().mockReturnValue({}),
 }));
+// Track the singleton repo instance created by startup()
+let mockRepoInstance: Record<string, ReturnType<typeof vi.fn>>;
 vi.mock("../db/repository.js", () => {
   class MockRepo {
     createIntent = vi.fn();
@@ -58,6 +60,10 @@ vi.mock("../db/repository.js", () => {
     upsertNonce = vi.fn();
     getNonce = vi.fn();
     deleteNonce = vi.fn();
+    constructor() {
+      // eslint-disable-next-line @typescript-eslint/no-this-alias
+      mockRepoInstance = this as unknown as Record<string, ReturnType<typeof vi.fn>>;
+    }
   }
   return { IntentRepository: MockRepo };
 });
@@ -349,5 +355,93 @@ describe("Evidence route", () => {
     const res = await app.request("/api/evidence");
     // Falls through to SPA fallback since no :intentId/:hash
     expect(res.status).toBe(200);
+  });
+});
+
+describe("Identity JSON route", () => {
+  it("GET /api/intents/:id/identity.json returns registration JSON without auth", async () => {
+    mockRepoInstance.getIntent.mockReturnValueOnce({
+      id: "test-intent-123",
+      walletAddress: "0x1234",
+      intentText: "60/40 ETH/USDC, $100/day, 7 days",
+      parsedIntent: JSON.stringify({
+        targetAllocation: { ETH: 0.6, USDC: 0.4 },
+        dailyBudgetUsd: 100,
+        timeWindowDays: 7,
+        maxTradesPerDay: 5,
+        maxSlippage: 0.005,
+        driftThreshold: 0.05,
+      }),
+      status: "active",
+      createdAt: 1000000,
+      expiresAt: 2000000,
+      signedDelegation: "{}",
+      delegatorSmartAccount: "0xabc",
+      cycle: 0,
+      tradesExecuted: 0,
+      totalSpentUsd: 0,
+      lastCycleAt: null,
+      agentId: null,
+      permissionsContext: null,
+      delegationManager: null,
+    });
+
+    const res = await app.request("/api/intents/test-intent-123/identity.json");
+    expect(res.status).toBe(200);
+
+    const body = await res.json();
+    expect(body.type).toBe("https://eips.ethereum.org/EIPS/eip-8004#registration-v1");
+    expect(body.name).toBe("Veil Rebalancer — test-int");
+    expect(body.description).toContain("60% ETH");
+    expect(body.description).toContain("40% USDC");
+    expect(body.description).toContain("$100/day");
+    expect(body.description).toContain("7 days");
+    expect(body.active).toBe(true);
+    expect(body.services).toHaveLength(1);
+    expect(body.services[0].name).toBe("veil-api");
+    expect(body.supportedTrust).toEqual(["reputation"]);
+    expect(res.headers.get("cache-control")).toContain("public");
+  });
+
+  it("GET /api/intents/:id/identity.json returns 404 for missing intent", async () => {
+    mockRepoInstance.getIntent.mockReturnValueOnce(null);
+
+    const res = await app.request("/api/intents/nonexistent/identity.json");
+    expect(res.status).toBe(404);
+    const body = await res.json();
+    expect(body.error).toContain("not found");
+  });
+
+  it("GET /api/intents/:id/identity.json sets active=false for completed intent", async () => {
+    mockRepoInstance.getIntent.mockReturnValueOnce({
+      id: "done-intent",
+      walletAddress: "0x1234",
+      intentText: "test",
+      parsedIntent: JSON.stringify({
+        targetAllocation: { ETH: 0.5, USDC: 0.5 },
+        dailyBudgetUsd: 50,
+        timeWindowDays: 3,
+        maxTradesPerDay: 5,
+        maxSlippage: 0.005,
+        driftThreshold: 0.05,
+      }),
+      status: "completed",
+      createdAt: 1000000,
+      expiresAt: 2000000,
+      signedDelegation: "{}",
+      delegatorSmartAccount: "0xabc",
+      cycle: 0,
+      tradesExecuted: 0,
+      totalSpentUsd: 0,
+      lastCycleAt: null,
+      agentId: null,
+      permissionsContext: null,
+      delegationManager: null,
+    });
+
+    const res = await app.request("/api/intents/done-intent/identity.json");
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.active).toBe(false);
   });
 });

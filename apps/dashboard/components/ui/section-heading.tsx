@@ -1,6 +1,7 @@
 interface SectionHeadingProps {
   children: React.ReactNode;
   size?: "sm" | "xs";
+  as?: "h2" | "h3" | "h4";
   className?: string;
 }
 
@@ -12,9 +13,10 @@ const SIZE_CLASSES = {
 export function SectionHeading({
   children,
   size = "sm",
+  as: Tag = "h2",
   className = "",
 }: SectionHeadingProps) {
   return (
-    <h2 className={`${SIZE_CLASSES[size]} ${className}`}>{children}</h2>
+    <Tag className={`${SIZE_CLASSES[size]} ${className}`}>{children}</Tag>
   );
 }

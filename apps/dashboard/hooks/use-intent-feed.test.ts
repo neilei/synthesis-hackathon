@@ -21,12 +21,14 @@ vi.mock("@/lib/api", () => ({
 class MockEventSource {
   static instances: MockEventSource[] = [];
   url: string;
+  options: Record<string, unknown>;
   listeners: Record<string, ((e: MessageEvent) => void)[]> = {};
   onerror: (() => void) | null = null;
   closed = false;
 
-  constructor(url: string) {
+  constructor(url: string, options?: Record<string, unknown>) {
     this.url = url;
+    this.options = options ?? {};
     MockEventSource.instances.push(this);
   }
 
@@ -101,7 +103,7 @@ describe("useIntentFeed", () => {
     expect(MockEventSource.instances).toHaveLength(0);
   });
 
-  it("connects EventSource to correct URL", async () => {
+  it("connects EventSource to correct URL with credentials", async () => {
     mockFetchIntentDetail.mockResolvedValueOnce({ logs: [] });
 
     renderHook(() => useIntentFeed("my-intent", "tok"));
@@ -111,6 +113,9 @@ describe("useIntentFeed", () => {
     expect(MockEventSource.instances[0].url).toBe(
       "/api/intents/my-intent/events",
     );
+    expect(MockEventSource.instances[0].options).toEqual({
+      withCredentials: true,
+    });
   });
 
   it("appends live SSE entries", async () => {

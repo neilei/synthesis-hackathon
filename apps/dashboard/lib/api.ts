@@ -118,3 +118,11 @@ export async function deleteIntent(
 export function getIntentLogsUrl(intentId: string): string {
   return `/api/intents/${intentId}/logs`;
 }
+
+export function safeParseParsedIntent(raw: string): ParsedIntent | null {
+  try {
+    return JSON.parse(raw) as ParsedIntent;
+  } catch {
+    return null;
+  }
+}

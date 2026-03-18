@@ -84,6 +84,7 @@ function createMockWorkerPool(): WorkerPool {
     start: vi.fn().mockResolvedValue(undefined),
     stop: vi.fn().mockResolvedValue(undefined),
     getStatus: vi.fn().mockReturnValue("stopped"),
+    getQueuePosition: vi.fn().mockReturnValue(null),
     getState: vi.fn().mockReturnValue(null),
     activeCount: vi.fn().mockReturnValue(0),
     queuedCount: vi.fn().mockReturnValue(0),
@@ -231,6 +232,70 @@ describe("intent routes", () => {
       const app = buildApp(repo, pool);
       const res = await app.request("/i1", { headers: AUTH_HEADER });
       expect(res.status).toBe(403);
+    });
+
+    it("parses JSON blob result and parameters in logs", async () => {
+      vi.mocked(repo.getIntent).mockReturnValue({
+        id: "i1",
+        walletAddress: "0xwallet123",
+        status: "active",
+      } as never);
+
+      vi.mocked(repo.getIntentLogs).mockReturnValue([
+        {
+          id: 1,
+          intentId: "i1",
+          timestamp: "2026-03-18T00:00:00Z",
+          sequence: 0,
+          action: "price_fetch",
+          cycle: 1,
+          tool: null,
+          parameters: '{"token":"ETH"}',
+          result: '{"price":2331.2}',
+          durationMs: 150,
+          error: null,
+        },
+        {
+          id: 2,
+          intentId: "i1",
+          timestamp: "2026-03-18T00:01:00Z",
+          sequence: 1,
+          action: "worker_start",
+          cycle: null,
+          tool: null,
+          parameters: null,
+          result: null,
+          durationMs: null,
+          error: null,
+        },
+      ] as never);
+
+      const app = buildApp(repo, pool);
+      const res = await app.request("/i1", { headers: AUTH_HEADER });
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.logs).toHaveLength(2);
+      // Verify JSON blobs are parsed into objects
+      expect(body.logs[0].result).toEqual({ price: 2331.2 });
+      expect(body.logs[0].parameters).toEqual({ token: "ETH" });
+      // Verify null blobs become undefined
+      expect(body.logs[1].result).toBeUndefined();
+      expect(body.logs[1].parameters).toBeUndefined();
+    });
+
+    it("includes queuePosition in response", async () => {
+      vi.mocked(repo.getIntent).mockReturnValue({
+        id: "i1",
+        walletAddress: "0xwallet123",
+        status: "active",
+      } as never);
+      vi.mocked(pool.getQueuePosition).mockReturnValue(2);
+
+      const app = buildApp(repo, pool);
+      const res = await app.request("/i1", { headers: AUTH_HEADER });
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.queuePosition).toBe(2);
     });
   });
 

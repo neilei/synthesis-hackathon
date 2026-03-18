@@ -18,6 +18,7 @@ import { Card } from "./ui/card";
 import { SectionHeading } from "./ui/section-heading";
 import { AuditListItem } from "./ui/audit-list-item";
 import { AllocationBar } from "./allocation-bar";
+import { StrategyDetails } from "./strategy-details";
 import { DelegationDetails } from "./delegation-details";
 import { Spinner, WarningIcon } from "./ui/icons";
 import { SponsorBadge } from "./sponsor-badge";
@@ -37,7 +38,7 @@ const PRESETS = [
 
 export function Configure({ onSuccess }: ConfigureProps) {
   const { isConnected } = useAccount();
-  const { token, isAuthenticated, authenticating } = useAuth();
+  const { token, isAuthenticated, authenticating, authenticate, error: authError } = useAuth();
   const { signDelegation, signing } = useDelegation();
 
   const [intentText, setIntentText] = useState("");
@@ -140,6 +141,7 @@ export function Configure({ onSuccess }: ConfigureProps) {
         {/* Intent input card */}
         <Card className="p-5">
           <textarea
+            aria-label="Describe your portfolio strategy"
             value={intentText}
             onChange={(e) => {
               setIntentText(e.target.value);
@@ -158,23 +160,25 @@ export function Configure({ onSuccess }: ConfigureProps) {
             <button
               onClick={handlePreview}
               disabled={isEmpty}
-              className="mt-4 flex w-full cursor-pointer items-center justify-center rounded-lg border border-accent-positive px-4 py-3 text-sm font-semibold uppercase tracking-widest text-accent-positive transition-colors hover:bg-accent-positive-dim active:bg-accent-positive/20 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+              className="mt-4 flex w-full cursor-pointer items-center justify-center rounded-lg border border-accent-positive px-4 py-3 min-h-[44px] text-sm font-semibold uppercase tracking-widest text-accent-positive transition-colors hover:bg-accent-positive-dim active:bg-accent-positive/20 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
             >
               Preview Strategy
             </button>
           )}
 
           {/* Loading state */}
-          {statusLabel && (
-            <div className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg border border-border px-4 py-3 text-sm text-text-secondary">
-              <Spinner className="h-4 w-4 animate-spin" />
-              {statusLabel}
-            </div>
-          )}
+          <div role="status" aria-live="polite">
+            {statusLabel && (
+              <div className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg border border-border px-4 py-3 text-sm text-text-secondary">
+                <Spinner className="h-4 w-4 animate-spin" />
+                {statusLabel}
+              </div>
+            )}
+          </div>
 
           {/* Error */}
           {error && (
-            <p className="mt-3 text-sm text-accent-danger">{error}</p>
+            <p role="alert" className="mt-3 text-sm text-accent-danger">{error}</p>
           )}
         </Card>
 
@@ -186,7 +190,7 @@ export function Configure({ onSuccess }: ConfigureProps) {
                 key={preset}
                 onClick={() => setIntentText(preset)}
                 disabled={isParsing}
-                className="cursor-pointer rounded-full border border-border px-3 py-1.5 font-mono text-xs text-text-tertiary transition-colors hover:border-text-secondary hover:text-text-secondary focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive disabled:cursor-not-allowed disabled:opacity-40"
+                className="cursor-pointer rounded-full border border-border px-3 py-2.5 font-mono text-xs text-text-tertiary transition-colors hover:border-text-secondary hover:text-text-secondary focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {preset}
               </button>
@@ -204,7 +208,7 @@ export function Configure({ onSuccess }: ConfigureProps) {
                 <button
                   onClick={handleReset}
                   disabled={isBusy}
-                  className="text-xs text-text-tertiary hover:text-text-secondary transition-colors disabled:opacity-40"
+                  className="text-xs text-text-tertiary hover:text-text-secondary transition-colors disabled:opacity-50 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive rounded-sm cursor-pointer min-h-[44px] flex items-center"
                 >
                   Edit
                 </button>
@@ -214,37 +218,8 @@ export function Configure({ onSuccess }: ConfigureProps) {
                 <AllocationBar allocation={parsed.targetAllocation} size="lg" />
               </div>
 
-              <div className="mt-5 grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
-                <div>
-                  <span className="text-text-secondary">Daily Budget</span>
-                  <p className="font-mono text-text-primary">
-                    ${parsed.dailyBudgetUsd.toLocaleString()}
-                  </p>
-                </div>
-                <div>
-                  <span className="text-text-secondary">Time Window</span>
-                  <p className="font-mono text-text-primary">
-                    {parsed.timeWindowDays} days
-                  </p>
-                </div>
-                <div>
-                  <span className="text-text-secondary">Max Slippage</span>
-                  <p className="font-mono text-text-primary">
-                    {(parsed.maxSlippage * 100).toFixed(1)}%
-                  </p>
-                </div>
-                <div>
-                  <span className="text-text-secondary">Drift Threshold</span>
-                  <p className="font-mono text-text-primary">
-                    {(parsed.driftThreshold * 100).toFixed(1)}%
-                  </p>
-                </div>
-                <div>
-                  <span className="text-text-secondary">Max Trades/Day</span>
-                  <p className="font-mono text-text-primary">
-                    {parsed.maxTradesPerDay}
-                  </p>
-                </div>
+              <div className="mt-5">
+                <StrategyDetails parsed={parsed} showDriftThreshold />
               </div>
 
               <div className="mt-4 border-t border-border-subtle pt-3">
@@ -259,7 +234,7 @@ export function Configure({ onSuccess }: ConfigureProps) {
                 <div className="mt-4 space-y-4">
                   {audit.allows.length > 0 && (
                     <div>
-                      <SectionHeading size="xs" className="mb-2 text-accent-positive">
+                      <SectionHeading size="xs" as="h3" className="mb-2 text-accent-positive">
                         Allows
                       </SectionHeading>
                       <ul className="space-y-2">
@@ -274,7 +249,7 @@ export function Configure({ onSuccess }: ConfigureProps) {
 
                   {audit.prevents.length > 0 && (
                     <div>
-                      <SectionHeading size="xs" className="mb-2 text-accent-danger">
+                      <SectionHeading size="xs" as="h3" className="mb-2 text-accent-danger">
                         Prevents
                       </SectionHeading>
                       <ul className="space-y-2">
@@ -289,7 +264,7 @@ export function Configure({ onSuccess }: ConfigureProps) {
 
                   {audit.worstCase && (
                     <div>
-                      <SectionHeading size="xs" className="mb-2 text-accent-warning">
+                      <SectionHeading size="xs" as="h3" className="mb-2 text-accent-warning">
                         Worst Case
                       </SectionHeading>
                       <div className="flex items-start gap-2 rounded bg-accent-warning-dim px-3 py-2 text-sm text-text-primary">
@@ -301,7 +276,7 @@ export function Configure({ onSuccess }: ConfigureProps) {
 
                   {audit.warnings.length > 0 && (
                     <div>
-                      <SectionHeading size="xs" className="mb-2 text-accent-warning">
+                      <SectionHeading size="xs" as="h3" className="mb-2 text-accent-warning">
                         Warnings
                       </SectionHeading>
                       <ul className="space-y-2">
@@ -332,21 +307,39 @@ export function Configure({ onSuccess }: ConfigureProps) {
                     Connect your wallet to deploy the agent.
                   </p>
                 ) : !isAuthenticated ? (
-                  <div className="flex items-center justify-center gap-2 text-sm text-text-secondary">
+                  <div className="flex flex-col items-center justify-center gap-2 text-sm">
                     {authenticating ? (
-                      <>
+                      <span className="flex items-center gap-2 text-text-secondary">
                         <Spinner className="h-4 w-4 animate-spin" />
                         Authenticating wallet...
+                      </span>
+                    ) : authError ? (
+                      <>
+                        <p className="text-accent-danger">{authError}</p>
+                        <button
+                          onClick={authenticate}
+                          className="cursor-pointer rounded-lg border border-accent-positive px-4 py-2.5 min-h-[44px] text-sm font-medium text-accent-positive transition-colors hover:bg-accent-positive-dim focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive"
+                        >
+                          Retry Authentication
+                        </button>
                       </>
                     ) : (
-                      "Wallet authentication required."
+                      <>
+                        <p className="text-text-secondary">Wallet authentication required.</p>
+                        <button
+                          onClick={authenticate}
+                          className="cursor-pointer rounded-lg border border-accent-positive px-4 py-2.5 min-h-[44px] text-sm font-medium text-accent-positive transition-colors hover:bg-accent-positive-dim focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive"
+                        >
+                          Authenticate
+                        </button>
+                      </>
                     )}
                   </div>
                 ) : (
                   <button
                     onClick={handleDeploy}
                     disabled={signing || isBusy}
-                    className="flex w-full cursor-pointer items-center justify-center rounded-lg bg-accent-positive px-4 py-3 text-sm font-semibold uppercase tracking-widest text-bg-primary transition-colors hover:bg-accent-positive/90 active:bg-accent-positive/80 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive focus-visible:ring-offset-2 focus-visible:ring-offset-bg-primary disabled:cursor-not-allowed disabled:opacity-40"
+                    className="flex w-full cursor-pointer items-center justify-center rounded-lg bg-accent-positive px-4 py-3 min-h-[44px] text-sm font-semibold uppercase tracking-widest text-bg-primary transition-colors hover:bg-accent-positive/90 active:bg-accent-positive/80 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive focus-visible:ring-offset-2 focus-visible:ring-offset-bg-primary disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Deploy Agent
                   </button>

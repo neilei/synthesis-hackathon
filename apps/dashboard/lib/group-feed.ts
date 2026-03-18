@@ -12,6 +12,7 @@ export interface CycleGroup {
   entries: AgentLogEntry[];
   snapshot: CycleSnapshot | null;
   hasError: boolean;
+  didRebalance: boolean;
 }
 
 function extractSnapshot(entries: AgentLogEntry[]): CycleSnapshot | null {
@@ -57,6 +58,7 @@ export function groupFeedByCycle(feed: AgentLogEntry[]): CycleGroup[] {
       entries,
       snapshot: key !== null ? extractSnapshot(entries) : null,
       hasError: entries.some((e) => !!e.error),
+      didRebalance: entries.some((e) => e.action === "swap_executed"),
     };
   });
 }

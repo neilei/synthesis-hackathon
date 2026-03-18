@@ -113,6 +113,7 @@ export function createIntentRoutes(deps: IntentRouteDeps) {
     const enriched = intents.map((intent) => ({
       ...intent,
       workerStatus: deps.workerPool.getStatus(intent.id),
+      queuePosition: deps.workerPool.getQueuePosition(intent.id),
     }));
     return c.json(enriched);
   });
@@ -133,13 +134,25 @@ export function createIntentRoutes(deps: IntentRouteDeps) {
     const limit = Number(c.req.query("limit") ?? 500);
 
     const workerStatus = deps.workerPool.getStatus(intentId);
-    const liveState = deps.workerPool.getState(intentId);
-    const logs = deps.repo.getIntentLogs(intentId, {
+    const queuePosition = deps.workerPool.getQueuePosition(intentId);
+    const rawLiveState = deps.workerPool.getState(intentId);
+    // BigInts (e.g. agentId) can't be JSON-serialized — convert to strings
+    const liveState = rawLiveState
+      ? JSON.parse(JSON.stringify(rawLiveState, (_k, v) => typeof v === "bigint" ? v.toString() : v))
+      : null;
+    const rawLogs = deps.repo.getIntentLogs(intentId, {
       afterSequence: isNaN(afterSeq) ? -1 : afterSeq,
       limit: isNaN(limit) || limit < 1 ? 500 : Math.min(limit, 10_000),
     });
 
-    return c.json({ ...intent, workerStatus, liveState, logs });
+    // Parse JSON blob columns so the frontend receives objects, not strings
+    const logs = rawLogs.map((log) => ({
+      ...log,
+      result: log.result ? JSON.parse(log.result) : undefined,
+      parameters: log.parameters ? JSON.parse(log.parameters) : undefined,
+    }));
+
+    return c.json({ ...intent, workerStatus, queuePosition, liveState, logs });
   });
 
   // DELETE /:id — cancel intent

@@ -29,7 +29,7 @@ export function DelegationDetails({ parsed }: DelegationDetailsProps) {
         constraints
       </p>
 
-      <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-3">
+      <div className="mt-4 grid grid-cols-1 gap-x-6 gap-y-3 text-sm sm:grid-cols-2 md:grid-cols-3">
         <div>
           <span className="text-text-secondary">Delegate (Agent)</span>
           <p className="font-mono text-text-primary">
@@ -74,7 +74,7 @@ export function DelegationDetails({ parsed }: DelegationDetailsProps) {
       </div>
 
       <div className="mt-4 space-y-1.5">
-        <SectionHeading size="xs" className="text-text-secondary">
+        <SectionHeading size="xs" as="h3" className="text-text-secondary">
           Caveat Enforcers
         </SectionHeading>
         <div className="flex flex-wrap gap-2">

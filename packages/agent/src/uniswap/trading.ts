@@ -132,6 +132,9 @@ export async function createSwap(
   options?: { disableSimulation?: boolean },
 ): Promise<SwapResponse> {
   const body: Record<string, unknown> = {
+    // Pass the full quote object from /quote to /swap — the API expects the
+    // complete quote including tradeType, route, quoteId, recipient, etc.
+    // Our Zod schema uses .passthrough() to preserve these fields.
     quote: quote.quote,
     // Disable simulation when:
     // 1. Permit data is present — nonces haven't been consumed yet

@@ -154,7 +154,7 @@ agent.json                   PAM spec manifest — capabilities, tools, security
 
 Veil's design is built around the cross-integration of four sponsor technologies. A single intent flows through all four in sequence: Venice parses it, MetaMask constrains it, Uniswap executes it, and Protocol Labs records it.
 
-### Venice AI — Private Reasoning Engine ($11.5K)
+### Venice AI — "Private Agents, Trusted Actions" ($11.5K)
 
 Venice provides the agent's intelligence layer with a critical guarantee: **no data retention**. Every LLM call is stateless — no session aggregation, no cross-request correlation, no training on queries.
 
@@ -171,7 +171,7 @@ This matters because DeFi agent reasoning is uniquely sensitive. Over a 7-day tr
 | **Budget tracking** | Compute cost awareness | Custom fetch wrapper captures `x-venice-balance-usd` header; agent switches to cheaper models automatically |
 | **LLM-as-judge** | Swap quality evaluation | Venice reasoning model scores each swap across 3 dimensions for ERC-8004 reputation |
 
-### MetaMask Delegation SDK — On-Chain Safety Cage ($5K)
+### MetaMask — "Best Use of Delegations" ($5K)
 
 MetaMask's delegation framework gives Veil its core safety property: **the agent operates inside an on-chain cage it cannot escape**. The human defines constraints once, and the DelegationManager smart contract enforces them on every transaction.
 
@@ -185,7 +185,7 @@ MetaMask's delegation framework gives Veil its core safety property: **the agent
 
 **On-chain enforcement proof:** The `ValueLteEnforcer` has been observed actively blocking unauthorized swaps (`value-too-high` reverts on Sepolia), proving the constraints are real and not just decorative.
 
-### Uniswap Trading API + Permit2 — Trade Execution ($5K)
+### Uniswap — "Agentic Finance" ($5K)
 
 Uniswap is Veil's execution layer. The agent uses the Trading API for optimal routing and Permit2 for gasless token approvals.
 
@@ -193,15 +193,15 @@ Uniswap is Veil's execution layer. The agent uses the Trading API for optimal ro
 
 | Component | What It Does | Code |
 |---|---|---|
-| **Trading API (quote)** | Fetches optimal swap routes with configurable slippage | `getQuote()` in `uniswap/trading.ts` |
-| **Trading API (swap)** | Creates executable swap transactions, supports `disableSimulation` for smart account swappers | `createSwap()` in `uniswap/trading.ts` |
-| **Permit2** | EIP-712 typed data signing for gasless ERC-20 approvals | `signPermit2Data()` in `uniswap/permit2.ts` |
-| **Approval check** | Queries whether Permit2 allowance exists before each swap | `checkApproval()` in `uniswap/trading.ts` |
-| **The Graph** | Fetches top 3 WETH/USDC Uniswap V3 pools by TVL — fed into LLM reasoning prompt with liquidity guidance | `getPoolData()` in `data/thegraph.ts` |
+| **Trading API (quote)** | Fetches optimal swap routes with configurable slippage | `getQuote()` in [uniswap/trading.ts](packages/agent/src/uniswap/trading.ts) |
+| **Trading API (swap)** | Creates executable swap transactions, supports `disableSimulation` for smart account swappers | `createSwap()` in [uniswap/trading.ts](packages/agent/src/uniswap/trading.ts) |
+| **Permit2** | EIP-712 typed data signing for gasless ERC-20 approvals | `signPermit2Data()` in [uniswap/permit2.ts](packages/agent/src/uniswap/permit2.ts) |
+| **Approval check** | Queries whether Permit2 allowance exists before each swap | `checkApproval()` in [uniswap/trading.ts](packages/agent/src/uniswap/trading.ts) |
+| **The Graph** | Fetches top 3 WETH/USDC Uniswap V3 pools by TVL — fed into LLM reasoning prompt with liquidity guidance | `getPoolData()` in [data/thegraph.ts](packages/agent/src/data/thegraph.ts) |
 
 The agent uses The Graph pool data to make liquidity-aware decisions. When the reasoning LLM considers a rebalance, it sees TVL, 24h volume, and fee tiers for the top 3 pools, with explicit guidance about when swap size relative to pool TVL suggests splitting across cycles.
 
-### Protocol Labs — Agent Identity + Reputation ($16K)
+### Protocol Labs — "Let the Agent Cook" + "Agents With Receipts" ($16K)
 
 Protocol Labs' ERC-8004 gives Veil a verifiable on-chain identity and a reputation system where every swap is independently scored.
 
@@ -209,9 +209,9 @@ Protocol Labs' ERC-8004 gives Veil a verifiable on-chain identity and a reputati
 
 | Registry | Purpose | Wallet |
 |---|---|---|
-| **Identity Registry** | Per-intent NFT registration. Each intent gets its own `agentId`, persisted in SQLite across restarts. | Agent wallet |
-| **Validation Registry** | Per-swap evidence chain. Agent submits a `validationRequest` with content-addressed evidence; judge wallet responds with scores per dimension. | Agent wallet (request), Judge wallet (responses) |
-| **Reputation Registry** | Composite swap quality score. `giveFeedback` with a weighted 0-10 score, linked to a content-addressed feedback document. | Judge wallet |
+| **[Identity Registry](https://sepolia.basescan.org/address/0x8004A818BFB912233c491871b3d84c89A494BD9e)** | Per-intent NFT registration. Each intent gets its own `agentId`, persisted in SQLite across restarts. | Agent wallet |
+| **[Validation Registry](https://sepolia.basescan.org/address/0x8004Cb1BF31DAf7788923b405b754f57acEB4272)** | Per-swap evidence chain. Agent submits a `validationRequest` with content-addressed evidence; judge wallet responds with scores per dimension. | Agent wallet (request), Judge wallet (responses) |
+| **[Reputation Registry](https://sepolia.basescan.org/address/0x8004B663056A597Dffe9eCcC1965A193B7388713)** | Composite swap quality score. `giveFeedback` with a weighted 0-10 score, linked to a content-addressed feedback document. | Judge wallet |
 
 **Scoring dimensions** (extensible per intent type):
 
@@ -223,7 +223,7 @@ Evidence documents are content-addressed JSON hosted at `https://api.veil.moe/ap
 
 **Additional Protocol Labs integrations:**
 
-- **agent.json** — PAM spec manifest declaring capabilities, tools, security policies, and observability config
+- **[agent.json](agent.json)** — PAM spec manifest declaring capabilities, tools, security policies, and observability config
 - **Per-intent JSONL logs** — Each intent gets `data/logs/{intentId}.jsonl`, downloadable via `GET /api/intents/:id/logs`
 
 ---
@@ -281,43 +281,90 @@ pnpm run dev:dashboard
 
 ---
 
-## Why Venice: Privacy-Preserving DeFi Reasoning
+## Verification Guide
 
-Traditional AI-powered trading systems leak your strategy. Every prompt you send to OpenAI, Anthropic, or Google contains your portfolio composition, target allocations, budget, and timing — data that, if aggregated, reveals alpha and enables front-running.
+A structured map of every sponsor integration claim, where to find the implementation, how to verify it, and the on-chain contracts involved. Designed for systematic verification.
 
-Veil uses Venice AI with **no-data-retention inference** (`include_venice_system_prompt: false`, no training on queries) because DeFi agent reasoning is uniquely sensitive:
+**Test coverage:** 400+ unit tests and 13 e2e test suites across 43 test files. Run `pnpm test` (unit) or `pnpm run test:e2e` (integration, requires API keys). All test paths are listed in the sponsor tables below.
 
-1. **Portfolio intent is alpha.** "60/40 ETH/USDC with $200/day budget" reveals position sizing and rebalancing triggers. An inference provider that logs queries could trade ahead of or against these signals.
+### On-Chain Contracts
 
-2. **Reasoning traces expose timing.** The agent's internal deliberation — "drift is 8%, waiting for better liquidity" vs "executing now before price moves further" — is a real-time signal of when trades will execute. Venice's no-retention guarantee means these reasoning traces exist only in the agent's local logs, never on a third-party server.
+| Contract | Chain | Address | Explorer |
+|----------|-------|---------|----------|
+| ERC-8004 Identity Registry | Base Sepolia | `0x8004A818BFB912233c491871b3d84c89A494BD9e` | [basescan](https://sepolia.basescan.org/address/0x8004A818BFB912233c491871b3d84c89A494BD9e) |
+| ERC-8004 Reputation Registry | Base Sepolia | `0x8004B663056A597Dffe9eCcC1965A193B7388713` | [basescan](https://sepolia.basescan.org/address/0x8004B663056A597Dffe9eCcC1965A193B7388713) |
+| ERC-8004 Validation Registry | Base Sepolia | `0x8004Cb1BF31DAf7788923b405b754f57acEB4272` | [basescan](https://sepolia.basescan.org/address/0x8004Cb1BF31DAf7788923b405b754f57acEB4272) |
+| MetaMask DelegationManager | Eth Sepolia | `0xdb9B1e94B5b69Df7e401DDbedE43491141047dB3` | [etherscan](https://sepolia.etherscan.io/address/0xdb9B1e94B5b69Df7e401DDbedE43491141047dB3) |
+| Uniswap Universal Router | Eth Sepolia | `0x3A9D48AB9751398BbFa63ad67599Bb04e4BdF98b` | [etherscan](https://sepolia.etherscan.io/address/0x3A9D48AB9751398BbFa63ad67599Bb04e4BdF98b) |
+| Permit2 | Eth Sepolia | `0x000000000022D473030F116dDEE9F6B43aC78BA3` | [etherscan](https://sepolia.etherscan.io/address/0x000000000022D473030F116dDEE9F6B43aC78BA3) |
 
-3. **Cumulative queries build a profile.** Over a 7-day trading window with 60-second cycles, the agent makes ~10,000 LLM calls. Each individually is benign; together they paint a complete picture of a trader's risk tolerance, reaction patterns, and portfolio value. Venice treats each call as stateless — no session aggregation, no cross-request correlation.
+Agent wallet: [`0xf13021F02E23a8113C1bD826575a1682F6Fac927`](https://sepolia.etherscan.io/address/0xf13021F02E23a8113C1bD826575a1682F6Fac927) — check transaction history for swap and delegation activity.
 
-4. **Multi-model routing without multi-vendor risk.** Veil uses 3 model tiers (qwen3-4b for fast checks, gemini-3-flash-preview for market research with web search, gemini-3-flash-preview for rebalancing decisions) — all through Venice's single privacy-preserving API. Without Venice, achieving the same model diversity would require accounts with Google, Meta, and Qwen, each logging your DeFi strategy independently.
+### Sponsor Verification Map
 
-The result: every rebalancing decision is **auditable locally** (structured JSONL logs with full reasoning traces) but **private externally** (no inference provider retains your strategy data).
+Each row links a sponsor prize claim to the implementation file, the test that proves it works, and what to look for.
 
----
+**Venice ($11.5K) — "Private Agents, Trusted Actions"**
 
-## On-Chain Evidence
+| Claim | Implementation | Test | What to verify |
+|-------|---------------|------|----------------|
+| Private cognition over sensitive DeFi data (no data retention) | [venice/llm.ts](packages/agent/src/venice/llm.ts) | [llm.test.ts](packages/agent/src/venice/__tests__/llm.test.ts) | `include_venice_system_prompt: false`, `enable_e2ee: true` in `baseVeniceParams`; portfolio strategy never leaves the agent |
+| Trustworthy outputs for public on-chain systems | [venice/schemas.ts](packages/agent/src/venice/schemas.ts) | [schemas.test.ts](packages/agent/src/venice/__tests__/schemas.test.ts) | `IntentParseSchema`, `RebalanceDecisionSchema`; `.withStructuredOutput()` + `safeParse()` — validated outputs drive on-chain delegation and swap execution |
+| Multi-model routing via `venice_parameters` | [venice/llm.ts](packages/agent/src/venice/llm.ts) | [llm.test.ts](packages/agent/src/venice/__tests__/llm.test.ts), [llm.e2e.test.ts](packages/agent/src/venice/__tests__/llm.e2e.test.ts) | 3 tiers: `qwen3-4b` (fast), `gemini-3-flash-preview` (web search + reasoning) — auto-downgrades when balance is low |
+| Web search with citations + web scraping | [data/prices.ts](packages/agent/src/data/prices.ts) | [prices.test.ts](packages/agent/src/data/__tests__/prices.test.ts), [prices.e2e.test.ts](packages/agent/src/data/__tests__/prices.e2e.test.ts) | `enable_web_search: "on"`, `enable_web_scraping: true`, `enable_web_citations: true`; real ETH price from CoinDesk/CoinGecko |
+| Compute budget awareness | [logging/budget.ts](packages/agent/src/logging/budget.ts) | [budget.test.ts](packages/agent/src/logging/__tests__/budget.test.ts) | Custom fetch wrapper captures `x-venice-balance-usd` header; auto-switches to cheaper model tier |
+| Novel use: LLM-as-judge for on-chain reputation | [identity/judge.ts](packages/agent/src/identity/judge.ts) | [judge.test.ts](packages/agent/src/identity/__tests__/judge.test.ts) | Venice reasoning model evaluates each swap across 3 dimensions, scores feed into [Reputation Registry](https://sepolia.basescan.org/address/0x8004B663056A597Dffe9eCcC1965A193B7388713) |
 
-### Ethereum Sepolia
+**MetaMask ($5K) — "Best Use of Delegations"**
 
-| Type | TX Hash | Status |
-|------|---------|--------|
-| Uniswap swap (0.0048 ETH -> USDC) | `0x9c2f1064c3e8affa46877a79a29ee7b2de25709b84ae275241662b76e9832f9b` | success |
-| Uniswap swap (0.01 ETH -> USDC) | `0x8c72a20e36595b76ded652b2577b39ca3a16a8fa1222264cd7097b4c15bdacb0` | success |
-| Delegation redemption proof | `0x725ba2904c3cd1b902fc656f201ef4786af84df56d8dc996a5cbb666b622f573` | success |
-| Delegation swap (debug script) | `0x371ae19acba8f1ef4f57149d4051e644c476254a8a2b9891f094afc917f4d61c` | success |
+| Claim | Implementation | Test | What to verify |
+|-------|---------------|------|----------------|
+| Intent-based delegations as core pattern (NL → ERC-7715) | [delegation/compiler.ts](packages/agent/src/delegation/compiler.ts) | [compiler.test.ts](packages/agent/src/delegation/__tests__/compiler.test.ts), [compiler.e2e.test.ts](packages/agent/src/delegation/__tests__/compiler.e2e.test.ts) | `compileIntent()` parses NL via Venice → `createDelegationFromIntent()` generates scoped ERC-7715 delegation — intent-to-delegation is the entire product |
+| Creative caveat usage (3 enforcer types) | [delegation/compiler.ts](packages/agent/src/delegation/compiler.ts) | [compiler.e2e.test.ts](packages/agent/src/delegation/__tests__/compiler.e2e.test.ts) | `ValueLteEnforcer` (budget cap), `TimestampEnforcer` (time expiry), `LimitedCallsEnforcer` (trade count) + `functionCall` scope ([Uniswap router](https://sepolia.etherscan.io/address/0x3A9D48AB9751398BbFa63ad67599Bb04e4BdF98b) + `execute()` selector only) |
+| Scoped permissions for AI agent trading | [delegation/redeemer.ts](packages/agent/src/delegation/redeemer.ts) | [redeemer.test.ts](packages/agent/src/delegation/__tests__/redeemer.test.ts), [redeemer.e2e.test.ts](packages/agent/src/delegation/__tests__/redeemer.e2e.test.ts) | `toMetaMaskSmartAccount()` creates delegator, `deployDelegatorIfNeeded()` deploys on-chain, smart account holds assets — agent can only execute within scope |
+| ERC-7710 permission redemption (server-side, no browser) | [delegation/redeemer.ts](packages/agent/src/delegation/redeemer.ts) | [redeemer.test.ts](packages/agent/src/delegation/__tests__/redeemer.test.ts) | `redeemDelegation()` encodes and sends to [DelegationManager](https://sepolia.etherscan.io/address/0xdb9B1e94B5b69Df7e401DDbedE43491141047dB3) — autonomous execution without repeated user signatures |
+| Novel: human-readable audit report before execution | [delegation/audit.ts](packages/agent/src/delegation/audit.ts) | [audit.test.ts](packages/agent/src/delegation/__tests__/audit.test.ts), [audit.e2e.test.ts](packages/agent/src/delegation/__tests__/audit.e2e.test.ts) | ALLOWS / PREVENTS / WORST CASE / WARNINGS — user sees exactly what agent can and cannot do before approving |
+| Safety: adversarial intent detection | [delegation/compiler.ts](packages/agent/src/delegation/compiler.ts) | [compiler.test.ts](packages/agent/src/delegation/__tests__/compiler.test.ts) | `detectAdversarialIntent()` flags dangerous configs (budget > $1K, slippage > 2%, window > 30d) before delegation creation |
 
-### Base Sepolia
+**Uniswap ($5K) — "Agentic Finance (Best Uniswap API Integration)"**
 
-| Type | TX Hash | Status |
-|------|---------|--------|
-| ERC-8004 registration | `0x97237b74dfc3e4c332eed65b79aa9d73664a7afc1090ec9456a45a0dcfce829e` | success |
-| ERC-8004 registration (2nd intent) | `0xb804d4794d6f8c4e0a006e07d63a311531dc88ffd9d6b99b2fa82a205b3d5078` | success |
-| ERC-8004 feedback | `0x4db757c8d7e02e1ae3f1762cea2d1ed9c623161581b41b611651aa1a452523e8` | success |
-| ERC-8004 feedback (2nd intent) | `0x882193f06e39cb3f90345839e8cdb284402ed641f38370d7f1dd3e4380a06c92` | success |
+| Claim | Implementation | Test | What to verify |
+|-------|---------------|------|----------------|
+| Real Dev Platform API key + real TxIDs on Sepolia | [uniswap/trading.ts](packages/agent/src/uniswap/trading.ts) | [trading.test.ts](packages/agent/src/uniswap/__tests__/trading.test.ts), [trading.e2e.test.ts](packages/agent/src/uniswap/__tests__/trading.e2e.test.ts) | `getQuote()`, `createSwap()` with authenticated Uniswap Trading API; real swaps visible in [agent wallet history](https://sepolia.etherscan.io/address/0xf13021F02E23a8113C1bD826575a1682F6Fac927) |
+| Deeper stack: Permit2 (EIP-712 typed data signing) | [uniswap/permit2.ts](packages/agent/src/uniswap/permit2.ts) | [permit2.test.ts](packages/agent/src/uniswap/__tests__/permit2.test.ts), [permit2.e2e.test.ts](packages/agent/src/uniswap/__tests__/permit2.e2e.test.ts) | `signPermit2Data()` signs PermitSingle against [Permit2 contract](https://sepolia.etherscan.io/address/0x000000000022D473030F116dDEE9F6B43aC78BA3); full flow: approval check → quote → signature → swap |
+| Deeper stack: The Graph subgraph integration | [data/thegraph.ts](packages/agent/src/data/thegraph.ts) | [thegraph.test.ts](packages/agent/src/data/__tests__/thegraph.test.ts), [thegraph.e2e.test.ts](packages/agent/src/data/__tests__/thegraph.e2e.test.ts) | `getPoolData()` queries Uniswap V3 subgraph (top 3 WETH/USDC pools by TVL); pool data fed into LLM reasoning at [market-data.ts](packages/agent/src/agent-loop/market-data.ts) |
+| Agentic finance: autonomous delegation-routed swaps | [agent-loop/swap.ts](packages/agent/src/agent-loop/swap.ts) | [agent-loop.test.ts](packages/agent/src/__tests__/agent-loop.test.ts) | `canUseDelegation` branch: quotes with smart account, `disableSimulation: true`, redeems via [DelegationManager](https://sepolia.etherscan.io/address/0xdb9B1e94B5b69Df7e401DDbedE43491141047dB3) — fully autonomous |
+
+**Protocol Labs ($16K) — "Let the Agent Cook" + "Agents With Receipts"**
+
+*Bounty 1 checklist: autonomous execution, self-correction, ERC-8004 identity, agent.json, structured logs, real tool use, safety guardrails, compute budget awareness.*
+*Bounty 2 checklist: real on-chain txns with identity/reputation/validation registries, autonomous architecture, agent identity + operator model, on-chain verifiability, agent.json + agent_log.json.*
+
+| Claim | Implementation | Test | What to verify |
+|-------|---------------|------|----------------|
+| Autonomous execution with self-correction loop | [agent-loop/index.ts](packages/agent/src/agent-loop/index.ts) | [agent-loop.test.ts](packages/agent/src/__tests__/agent-loop.test.ts) | `runAgentLoop()` runs 60s cycles: gather data → calculate drift → reason → execute → log → repeat. Delegation fallback on failure = self-correction |
+| ERC-8004 identity linked to operator wallet | [identity/erc8004.ts](packages/agent/src/identity/erc8004.ts) | [erc8004.test.ts](packages/agent/src/identity/__tests__/erc8004.test.ts), [erc8004.e2e.test.ts](packages/agent/src/identity/__tests__/erc8004.e2e.test.ts) | `registerAgent()` mints per-intent NFT on [Identity Registry](https://sepolia.basescan.org/address/0x8004A818BFB912233c491871b3d84c89A494BD9e); `agentId` persisted in SQLite |
+| Real on-chain txns: identity/reputation/validation registries | [identity/erc8004.ts](packages/agent/src/identity/erc8004.ts) | [erc8004.test.ts](packages/agent/src/identity/__tests__/erc8004.test.ts) | `registerAgent()` → [Identity](https://sepolia.basescan.org/address/0x8004A818BFB912233c491871b3d84c89A494BD9e), `giveFeedback()` → [Reputation](https://sepolia.basescan.org/address/0x8004B663056A597Dffe9eCcC1965A193B7388713), `submitValidationRequest/Response()` → [Validation](https://sepolia.basescan.org/address/0x8004Cb1BF31DAf7788923b405b754f57acEB4272) |
+| On-chain verifiability (block explorer) | [identity/evidence.ts](packages/agent/src/identity/evidence.ts) | [evidence.test.ts](packages/agent/src/identity/__tests__/evidence.test.ts) | Content-addressed JSON at `https://api.veil.moe/api/evidence/{intentId}/{hash}`; keccak256 hash on-chain matches hosted document |
+| Agent capability manifest (`agent.json`) | [agent.json](agent.json) | — | 3 profiles (core/exec/gov), 6 tools, 3 capabilities, security policies — valid JSON Agents PAM spec |
+| Structured execution logs (`agent_log.json`) | [logging/agent-log.ts](packages/agent/src/logging/agent-log.ts) | [agent-log.test.ts](packages/agent/src/logging/__tests__/agent-log.test.ts) | JSONL with decisions, tool calls, cycle results, errors; per-intent logs at `data/logs/{intentId}.jsonl` |
+| Real tool use (Venice, Uniswap, The Graph, viem) | [agent-loop/](packages/agent/src/agent-loop/) | [agent-loop.test.ts](packages/agent/src/__tests__/agent-loop.test.ts) | Each cycle calls: Venice web search (prices), viem RPC (balances), The Graph (pools), Venice reasoning (decisions), Uniswap Trading API (quotes/swaps) |
+| Safety guardrails before irreversible actions | [agent-loop/swap.ts](packages/agent/src/agent-loop/swap.ts) | [agent-loop.test.ts](packages/agent/src/__tests__/agent-loop.test.ts) | Budget guard, trade limit guard, adversarial intent detection, on-chain delegation caveat enforcement — all checked before every swap |
+| Compute budget awareness | [logging/budget.ts](packages/agent/src/logging/budget.ts) | [budget.test.ts](packages/agent/src/logging/__tests__/budget.test.ts) | Venice balance tracked via `x-venice-balance-usd` header; auto-downgrades model tier when budget is low |
+| Venice LLM judge + 3-dimension validation | [identity/judge.ts](packages/agent/src/identity/judge.ts) | [judge.test.ts](packages/agent/src/identity/__tests__/judge.test.ts) | `evaluateSwap()` orchestrates: evidence → [Validation Registry](https://sepolia.basescan.org/address/0x8004Cb1BF31DAf7788923b405b754f57acEB4272) request → LLM scoring → 3x validation responses → [Reputation Registry](https://sepolia.basescan.org/address/0x8004B663056A597Dffe9eCcC1965A193B7388713) feedback |
+| Per-intent downloadable logs | [logging/intent-log.ts](packages/agent/src/logging/intent-log.ts) | [intent-log.test.ts](packages/agent/src/logging/__tests__/intent-log.test.ts) | `IntentLogger` class; downloadable via `GET /api/intents/:id/logs` |
+
+### API Endpoints (Live)
+
+| Endpoint | Purpose | Auth |
+|----------|---------|------|
+| `GET https://api.veil.moe/api/auth/nonce?wallet=0x...` | Get signing nonce | None |
+| `POST https://api.veil.moe/api/auth/verify` | Verify wallet signature, get bearer token | None |
+| `POST https://api.veil.moe/api/intents` | Create new intent | Bearer token |
+| `GET https://api.veil.moe/api/intents` | List intents for wallet | Bearer token |
+| `GET https://api.veil.moe/api/intents/:id` | Get intent detail + live agent state | Bearer token |
+| `GET https://api.veil.moe/api/intents/:id/logs` | Download per-intent JSONL log | Bearer token |
+| `GET https://api.veil.moe/api/evidence/:intentId/:hash` | Content-addressed evidence document | None (public, immutable) |
 
 ---
 

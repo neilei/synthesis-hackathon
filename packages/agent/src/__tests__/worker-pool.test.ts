@@ -2,13 +2,16 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { WorkerPool } from "../worker-pool.js";
 import type { AgentWorker } from "../agent-worker.js";
 
-function createMockWorker(intentId: string): AgentWorker {
+function createMockWorker(intentId: string): AgentWorker & { resolve: () => void } {
+  let resolve: () => void;
+  const startPromise = new Promise<void>((r) => { resolve = r; });
   return {
     intentId,
-    start: vi.fn().mockResolvedValue(undefined),
+    start: vi.fn().mockReturnValue(startPromise),
     stop: vi.fn().mockResolvedValue(undefined),
     isRunning: vi.fn().mockReturnValue(false),
     getState: vi.fn().mockReturnValue(null),
+    resolve: resolve!,
   };
 }
 
@@ -67,7 +70,7 @@ describe("WorkerPool", () => {
   });
 
   it("stops a running worker", async () => {
-    const workers = new Map<string, AgentWorker>();
+    const workers = new Map<string, ReturnType<typeof createMockWorker>>();
     pool.setWorkerFactory((id) => {
       const w = createMockWorker(id);
       workers.set(id, w);
@@ -102,7 +105,7 @@ describe("WorkerPool", () => {
   });
 
   it("shuts down all workers", async () => {
-    const workers = new Map<string, AgentWorker>();
+    const workers = new Map<string, ReturnType<typeof createMockWorker>>();
     pool.setWorkerFactory((id) => {
       const w = createMockWorker(id);
       workers.set(id, w);
@@ -118,5 +121,29 @@ describe("WorkerPool", () => {
 
   it("throws if no worker factory is set", async () => {
     await expect(pool.start("intent-1")).rejects.toThrow("no worker factory");
+  });
+
+  it("cleans up active worker and drains queue when worker completes", async () => {
+    const workers = new Map<string, ReturnType<typeof createMockWorker>>();
+    pool.setWorkerFactory((id) => {
+      const w = createMockWorker(id);
+      workers.set(id, w);
+      return w;
+    });
+    await pool.start("intent-1");
+    await pool.start("intent-2");
+    await pool.start("intent-3");
+    expect(pool.activeCount()).toBe(2);
+    expect(pool.queuedCount()).toBe(1);
+
+    // Simulate intent-1 completing naturally
+    workers.get("intent-1")!.resolve();
+    // Wait for microtask queue to process .then() handler
+    await new Promise((r) => setTimeout(r, 10));
+
+    expect(pool.activeCount()).toBe(2); // intent-2 + intent-3 (promoted from queue)
+    expect(pool.getStatus("intent-1")).toBe("stopped");
+    expect(pool.getStatus("intent-3")).toBe("running");
+    expect(pool.queuedCount()).toBe(0);
   });
 });

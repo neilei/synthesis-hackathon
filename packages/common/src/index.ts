@@ -28,6 +28,7 @@ export {
   formatCurrency,
   formatTimestamp,
   formatPercentage,
+  formatAllocationSummary,
 } from "./format.js";
 
 export {

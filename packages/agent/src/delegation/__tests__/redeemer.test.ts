@@ -12,6 +12,7 @@ const {
   mockGetCode,
   mockGetBalance,
   mockWaitForTransactionReceipt,
+  mockEstimateGas,
 } = vi.hoisted(() => ({
   mockSendTransaction: vi.fn().mockResolvedValue("0xTxHash"),
   mockGetCode: vi.fn().mockResolvedValue("0x1234"),
@@ -19,6 +20,7 @@ const {
   mockWaitForTransactionReceipt: vi
     .fn()
     .mockResolvedValue({ status: "success" }),
+  mockEstimateGas: vi.fn().mockResolvedValue(21000n),
 }));
 
 vi.mock("viem", async (importOriginal) => {
@@ -34,6 +36,7 @@ vi.mock("viem", async (importOriginal) => {
       getCode: mockGetCode,
       getBalance: mockGetBalance,
       waitForTransactionReceipt: mockWaitForTransactionReceipt,
+      estimateGas: mockEstimateGas,
     }),
     http: vi.fn().mockReturnValue("http-transport"),
   };

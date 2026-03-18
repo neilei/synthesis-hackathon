@@ -16,7 +16,7 @@ export function ConnectWallet() {
         </span>
         <button
           onClick={() => disconnect()}
-          className="px-3 py-1.5 text-xs font-medium text-text-secondary border border-border rounded-md hover:text-text-primary hover:border-text-tertiary transition-colors"
+          className="px-3 py-2 min-h-[44px] text-xs font-medium text-text-secondary border border-border rounded-md hover:text-text-primary hover:border-text-tertiary transition-colors cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive"
         >
           Disconnect
         </button>
@@ -31,7 +31,7 @@ export function ConnectWallet() {
         if (injected) connect({ connector: injected });
       }}
       disabled={isPending}
-      className="px-4 py-1.5 text-xs font-medium bg-accent-positive/10 text-accent-positive border border-accent-positive/20 rounded-md hover:bg-accent-positive/20 transition-colors disabled:opacity-50"
+      className="px-4 py-2 min-h-[44px] text-xs font-medium bg-accent-positive/10 text-accent-positive border border-accent-positive/20 rounded-md hover:bg-accent-positive/20 transition-colors disabled:opacity-50 cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive"
     >
       {isPending ? "Connecting…" : "Connect Wallet"}
     </button>

@@ -86,7 +86,9 @@ export const IntentRecordSchema = z.object({
   cycle: z.number(),
   tradesExecuted: z.number(),
   totalSpentUsd: z.number(),
+  lastCycleAt: z.number().nullable().optional(),
   workerStatus: z.string().optional(),
+  queuePosition: z.number().nullable().optional(),
 });
 
 export type IntentRecord = z.infer<typeof IntentRecordSchema>;

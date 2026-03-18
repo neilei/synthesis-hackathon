@@ -189,8 +189,14 @@ export async function redeemDelegation(
   });
 
   // 5. Send the redeem tx from the agent EOA to the DelegationManager
+  const account = privateKeyToAccount(agentPrivateKey);
   const walletClient = createWalletClient({
-    account: privateKeyToAccount(agentPrivateKey),
+    account,
+    chain,
+    transport: rpcTransport(chain),
+  });
+
+  const publicClient = createPublicClient({
     chain,
     transport: rpcTransport(chain),
   });
@@ -198,6 +204,19 @@ export async function redeemDelegation(
   const delegationManagerAddr = getSmartAccountsEnvironment(
     chain.id,
   ).DelegationManager as Hex;
+
+  // Pre-flight simulation to catch reverts before spending gas
+  try {
+    await publicClient.estimateGas({
+      account: account.address,
+      to: delegationManagerAddr,
+      data: redeemCalldata,
+    });
+  } catch (simErr) {
+    const simMsg = simErr instanceof Error ? simErr.message : String(simErr);
+    logger.error({ err: simErr }, `Delegation redemption simulation failed: ${simMsg}`);
+    throw new Error(`Delegation redemption would revert: ${simMsg}`);
+  }
 
   const txHash = await walletClient.sendTransaction({
     to: delegationManagerAddr,

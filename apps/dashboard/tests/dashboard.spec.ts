@@ -14,19 +14,11 @@ test.describe("Dashboard Navigation", () => {
     await expect(page).toHaveTitle(/Veil/);
   });
 
-  test("shows three tabs", async ({ page }) => {
+  test("shows two tabs", async ({ page }) => {
     await expect(
       page.getByRole("tab", { name: /configure/i }),
     ).toBeVisible();
-    await expect(page.getByRole("tab", { name: /audit/i })).toBeVisible();
     await expect(page.getByRole("tab", { name: /monitor/i })).toBeVisible();
-  });
-
-  test("audit and monitor tabs disabled before deploy", async ({ page }) => {
-    const auditTab = page.getByRole("tab", { name: /audit/i });
-    const monitorTab = page.getByRole("tab", { name: /monitor/i });
-    await expect(auditTab).toBeDisabled();
-    await expect(monitorTab).toBeDisabled();
   });
 
   test("shows Connect Wallet button", async ({ page }) => {

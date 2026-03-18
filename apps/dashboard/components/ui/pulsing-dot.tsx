@@ -10,7 +10,7 @@ const SIZE_MAP = {
 export function PulsingDot({ size = "md" }: PulsingDotProps) {
   const sizeClass = SIZE_MAP[size];
   return (
-    <span className={`relative flex ${sizeClass}`}>
+    <span aria-hidden="true" className={`relative flex ${sizeClass}`}>
       <span
         className={`absolute inline-flex h-full w-full animate-ping rounded-full bg-accent-positive opacity-75`}
       />

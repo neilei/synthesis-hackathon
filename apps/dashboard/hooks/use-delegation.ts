@@ -3,7 +3,7 @@
 import { useState, useCallback } from "react";
 import { useAccount } from "wagmi";
 import type { ParsedIntent } from "@veil/common";
-import { computeMaxValueWei, computeExpiryTimestamp, computeMaxCalls } from "@veil/common";
+import { AGENT_ADDRESS, computeMaxValueWei, computeExpiryTimestamp, computeMaxCalls } from "@veil/common";
 
 interface DelegationResult {
   signedDelegation: string;
@@ -45,7 +45,7 @@ export function useDelegation() {
         // that the agent backend can use for ERC-7710 redemption.
         const delegation = {
           delegator: address,
-          delegate: "0xf13021F02E23a8113C1bD826575a1682F6Fac927", // Agent EOA
+          delegate: AGENT_ADDRESS,
           authority: "0x0000000000000000000000000000000000000000000000000000000000000000",
           caveats: [
             {

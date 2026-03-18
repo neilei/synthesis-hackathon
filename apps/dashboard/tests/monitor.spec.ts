@@ -11,12 +11,6 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("Monitor Screen", () => {
-  test("tabs disabled before deploy", async ({ page }) => {
-    await page.goto("/");
-    await expect(page.getByRole("tab", { name: /monitor/i })).toBeDisabled();
-    await expect(page.getByRole("tab", { name: /audit/i })).toBeDisabled();
-  });
-
   test("shows connect wallet prompt when not connected", async ({ page }) => {
     // We need to get past the disabled tabs. Mock parse-intent so we can
     // go through preview → audit → monitor path.

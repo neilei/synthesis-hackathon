@@ -1,6 +1,6 @@
 /**
- * Home page. Manages tab state and coordinates data flow between Configure,
- * Audit, and Monitor screens.
+ * Home page. Manages tab state and coordinates data flow between Configure
+ * and Monitor screens.
  *
  * @module @veil/dashboard/app/page
  */
@@ -9,34 +9,25 @@
 import { useState, useCallback } from "react";
 import { Tabs, type TabId } from "@/components/tabs";
 import { Configure } from "@/components/configure";
-import { Audit } from "@/components/audit";
 import { Monitor } from "@/components/monitor";
 import { Footer } from "@/components/footer";
-import type { AuditReport, ParsedIntent } from "@veil/common";
-import type { IntentRecord } from "@/lib/api";
+import { ErrorBoundary } from "@/components/error-boundary";
 
-interface DeployedState {
-  intent: IntentRecord;
-  parsed: ParsedIntent;
-  audit: AuditReport;
+function getInitialTab(): TabId {
+  if (typeof window === "undefined") return "configure";
+  const params = new URLSearchParams(window.location.search);
+  if (params.has("intent") || params.get("tab") === "monitor") return "monitor";
+  if (params.get("tab") === "configure") return "configure";
+  return "configure";
 }
 
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<TabId>("configure");
-  const [deployedState, setDeployedState] = useState<DeployedState | null>(null);
+  const [activeTab, setActiveTab] = useState<TabId>(getInitialTab);
 
   const handleDeploySuccess = useCallback(
-    (intent: IntentRecord, audit: AuditReport) => {
-      const parsed: ParsedIntent = JSON.parse(intent.parsedIntent);
-      setDeployedState({ intent, parsed, audit });
-      setActiveTab("audit");
-    },
+    () => setActiveTab("monitor"),
     [],
   );
-
-  const handleViewMonitor = useCallback(() => {
-    setActiveTab("monitor");
-  }, []);
 
   const handleNavigateConfigure = useCallback(() => {
     setActiveTab("configure");
@@ -44,25 +35,43 @@ export default function Home() {
 
   return (
     <div className="flex min-h-screen flex-col">
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded-md focus:bg-accent-positive focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-bg-primary"
+      >
+        Skip to main content
+      </a>
+
       <Tabs
         activeTab={activeTab}
         onTabChange={setActiveTab}
-        hasDeployed={deployedState !== null}
       />
 
-      <main className="flex-1">
-        {activeTab === "configure" && (
-          <Configure onSuccess={handleDeploySuccess} />
-        )}
-        {activeTab === "audit" && deployedState && (
-          <Audit
-            data={{ parsed: deployedState.parsed, audit: deployedState.audit }}
-            onViewMonitor={handleViewMonitor}
-          />
-        )}
-        {activeTab === "monitor" && (
-          <Monitor onNavigateConfigure={handleNavigateConfigure} />
-        )}
+      <main id="main" className="flex-1">
+        <div
+          id="panel-configure"
+          role="tabpanel"
+          aria-labelledby="tab-configure"
+          hidden={activeTab !== "configure"}
+        >
+          {activeTab === "configure" && (
+            <ErrorBoundary>
+              <Configure onSuccess={handleDeploySuccess} />
+            </ErrorBoundary>
+          )}
+        </div>
+        <div
+          id="panel-monitor"
+          role="tabpanel"
+          aria-labelledby="tab-monitor"
+          hidden={activeTab !== "monitor"}
+        >
+          {activeTab === "monitor" && (
+            <ErrorBoundary>
+              <Monitor onNavigateConfigure={handleNavigateConfigure} />
+            </ErrorBoundary>
+          )}
+        </div>
       </main>
 
       <Footer />

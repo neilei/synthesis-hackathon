@@ -16,9 +16,12 @@ import {
 } from "./dimensions.js";
 import {
   buildSwapEvidence,
+  buildSwapFailureEvidence,
   storeEvidence,
   type SwapEvidence,
   type SwapEvidenceInput,
+  type SwapFailureEvidence,
+  type SwapFailureEvidenceInput,
 } from "./evidence.js";
 import {
   submitValidationRequest,
@@ -44,15 +47,33 @@ Calibration — what scores mean:
 
 Most routine, well-executed swaps should score 65-80. Reserve extreme scores for genuinely exceptional or genuinely poor performance.`;
 
+const JUDGE_FAILURE_SYSTEM_PROMPT = `You are an independent validator auditing an autonomous DeFi agent. The agent attempted a swap that FAILED. You receive structured evidence about the failed attempt. Your job: determine whether the agent's decision to attempt this swap was justified, and how the failure affects its track record.
+
+For each dimension, provide:
+1. A score from 0-100
+2. Your reasoning, citing specific numbers from the evidence
+
+Calibration for failed swaps:
+  Execution Quality: Always 0 — the swap failed, no execution occurred.
+  Goal Progress: Always 0 — portfolio unchanged, no progress made.
+  Decision Quality: Judge independently — was the attempt reasonable given the data?
+    70-89: Failure was due to external factors (network, liquidity); decision was sound.
+    40-69: Decision was borderline; agent should have anticipated the failure risk.
+    0-39:  Decision was poor; obvious signs the swap would fail were ignored.
+
+The error message and market context are critical inputs for judging decision quality.`;
+
 export function buildJudgePrompt(
   dimensions: EvaluationDimension[],
-  evidence: SwapEvidence,
+  evidence: SwapEvidence | SwapFailureEvidence,
 ): { systemPrompt: string; userPrompt: string } {
   const dimensionBlocks = dimensions
     .map((d) => `${d.name.toUpperCase()}:\n${d.criteria}`)
     .join("\n\n---\n\n");
 
-  const systemPrompt = `${JUDGE_SYSTEM_PROMPT}\n\n${dimensionBlocks}`;
+  const isFailure = "outcome" in evidence && evidence.outcome === "failed";
+  const base = isFailure ? JUDGE_FAILURE_SYSTEM_PROMPT : JUDGE_SYSTEM_PROMPT;
+  const systemPrompt = `${base}\n\n${dimensionBlocks}`;
   const userPrompt = JSON.stringify(evidence, null, 2);
 
   return { systemPrompt, userPrompt };
@@ -204,6 +225,159 @@ export async function evaluateSwap(
   logger.info(
     { composite: compositeScaled, feedbackTxHash },
     "Judge: reputation feedback submitted",
+  );
+
+  return {
+    scores,
+    reasonings,
+    composite: compositeScaled,
+    requestHash,
+    validationRequestTxHash,
+    validationResponseTxHashes,
+    feedbackTxHash,
+  };
+}
+
+/**
+ * Evaluate a failed swap attempt. Uses the same on-chain pipeline as
+ * successful swaps but with failure-specific evidence and system prompt.
+ * Execution quality and goal progress are scored by the LLM (expected ~0),
+ * while decision quality is judged on whether the attempt was reasonable.
+ */
+export async function evaluateSwapFailure(
+  input: SwapFailureEvidenceInput,
+  intentType: string = "rebalance",
+  budgetCritical: boolean = false,
+): Promise<JudgeResult> {
+  if (!env.JUDGE_PRIVATE_KEY) {
+    throw new Error("JUDGE_PRIVATE_KEY is required for swap evaluation");
+  }
+
+  const judgeAccount = privateKeyToAccount(env.JUDGE_PRIVATE_KEY);
+  const judgeAddress = judgeAccount.address;
+
+  // 1. Build & store failure evidence
+  const evidence = buildSwapFailureEvidence(input);
+  const { hash: requestHash, url: requestURI } = storeEvidence(
+    input.intentId,
+    evidence,
+  );
+
+  logger.info(
+    { intentId: input.intentId, cycle: input.cycle, requestHash },
+    "Judge: failure evidence stored, submitting validation request",
+  );
+
+  // 2. Submit validation request on-chain (agent wallet)
+  const validationRequestTxHash = await submitValidationRequest(
+    input.agentId,
+    judgeAddress,
+    requestURI,
+    requestHash,
+  );
+
+  logger.info(
+    { txHash: validationRequestTxHash },
+    "Judge: failure validation request submitted",
+  );
+
+  // 3. Venice LLM evaluation
+  const dimensions = getDimensionsForIntent(intentType);
+  const schema = buildEvaluationSchema(dimensions);
+  const { systemPrompt, userPrompt } = buildJudgePrompt(dimensions, evidence);
+
+  const llm = budgetCritical ? fastLlm : reasoningLlm;
+  const structuredLlm = llm.withStructuredOutput(schema);
+  const llmResult = await structuredLlm.invoke([
+    { role: "system", content: systemPrompt },
+    { role: "user", content: userPrompt },
+  ]);
+
+  const validated = schema.safeParse(llmResult);
+  if (!validated.success) {
+    throw new Error(
+      `LLM failure evaluation failed validation: ${validated.error.message}`,
+    );
+  }
+
+  // 4. Extract scores and reasonings
+  const scores: Record<string, number> = {};
+  const reasonings: Record<string, string> = {};
+  for (const dim of dimensions) {
+    const camel = toCamelCase(dim.tag);
+    const scoreVal = validated.data[`${camel}Score`];
+    const reasoningVal = validated.data[`${camel}Reasoning`];
+    scores[dim.tag] = typeof scoreVal === "number" ? scoreVal : 0;
+    reasonings[dim.tag] = typeof reasoningVal === "string" ? reasoningVal : "";
+  }
+
+  logger.info({ scores }, "Judge: LLM failure evaluation complete");
+
+  // 5. Submit validation responses on-chain (judge wallet, one per dimension)
+  const validationResponseTxHashes: Record<string, Hex> = {};
+  for (const dim of dimensions) {
+    const responseDoc = {
+      requestHash,
+      dimension: dim.tag,
+      score: scores[dim.tag],
+      reasoning: reasonings[dim.tag],
+      outcome: "failed",
+      model: budgetCritical ? "qwen3-4b" : "gemini-3-flash-preview",
+      evaluatedAt: new Date().toISOString(),
+    };
+    const { hash: responseHash, url: responseURI } = storeEvidence(
+      input.intentId,
+      responseDoc,
+    );
+
+    const txHash = await submitValidationResponse(
+      requestHash,
+      scores[dim.tag]!,
+      responseURI,
+      responseHash,
+      dim.tag,
+    );
+    validationResponseTxHashes[dim.tag] = txHash;
+
+    logger.info(
+      { dimension: dim.tag, score: scores[dim.tag], txHash },
+      "Judge: failure validation response submitted",
+    );
+  }
+
+  // 6. Compute composite score and submit reputation feedback (judge wallet)
+  const composite = computeCompositeScore(dimensions, scores);
+  const compositeScaled = composite / 10;
+
+  const feedbackDoc = {
+    agentId: Number(input.agentId),
+    intentId: input.intentId,
+    cycle: input.cycle,
+    composite: compositeScaled,
+    outcome: "failed",
+    weights: Object.fromEntries(dimensions.map((d) => [d.tag, d.weight])),
+    dimensions: scores,
+    errorMessage: input.errorMessage,
+    timestamp: new Date().toISOString(),
+  };
+  const { hash: feedbackHash, url: feedbackURI } = storeEvidence(
+    input.intentId,
+    feedbackDoc,
+  );
+
+  const feedbackTxHash = await giveFeedback(
+    input.agentId,
+    compositeScaled,
+    "swap-quality",
+    intentType,
+    "base-sepolia",
+    feedbackURI,
+    feedbackHash,
+  );
+
+  logger.info(
+    { composite: compositeScaled, feedbackTxHash },
+    "Judge: failure reputation feedback submitted",
   );
 
   return {

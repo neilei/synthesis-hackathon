@@ -13,7 +13,7 @@ const sponsors = [
 export function Footer() {
   return (
     <footer className="border-t border-border px-6 py-4">
-      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-1 gap-y-1 text-xs text-text-tertiary">
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs text-text-tertiary">
         <span>Built with</span>
         {sponsors.map((s, i) => (
           <span key={s.name}>
@@ -21,9 +21,10 @@ export function Footer() {
               href={s.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-text-tertiary hover:text-text-secondary transition-colors"
+              className="text-text-tertiary underline decoration-border hover:text-text-secondary hover:decoration-text-tertiary transition-colors"
             >
               {s.name}
+              <span className="sr-only"> (opens in new tab)</span>
             </a>
             {i < sponsors.length - 1 && <span className="mx-0.5">·</span>}
           </span>
