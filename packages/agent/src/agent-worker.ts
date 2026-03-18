@@ -96,7 +96,7 @@ export class DefaultAgentWorker implements AgentWorker {
       signal: this.abortController.signal,
       intentLogger: this.intentLogger,
       intentId: this.intentId,
-      existingAgentId: intent.agentId ? BigInt(intent.agentId) : undefined,
+      existingAgentId: intent.agentId != null ? BigInt(intent.agentId) : undefined,
       onAgentIdRegistered: (agentId: string) => {
         this.deps.repo.updateIntentAgentId(this.intentId, agentId);
       },
@@ -107,7 +107,8 @@ export class DefaultAgentWorker implements AgentWorker {
       },
     };
 
-    // Run the agent loop in the background
+    // Run the agent loop — await so the WorkerPool knows when we're done.
+    // The pool's .then() cleanup removes us from the active map on completion.
     this.loopPromise = runAgentLoop(config)
       .then((finalState) => {
         // runAgentLoop returns normally even on delegation failure — check state
@@ -136,6 +137,8 @@ export class DefaultAgentWorker implements AgentWorker {
       .finally(() => {
         this.running = false;
       });
+
+    await this.loopPromise;
   }
 
   async stop(): Promise<void> {
