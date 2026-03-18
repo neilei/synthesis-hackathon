@@ -70,12 +70,12 @@ function RuntimeTag({ ms }: { ms: number | undefined }) {
 }
 
 /** Venice DIEM token usage — shows total tokens with DIEM logo. */
-function TokenUsageTag({ usage }: { usage: { inputTokens?: number; outputTokens?: number; totalTokens?: number } | undefined }) {
+function TokenUsageTag({ usage, showSymbol = true }: { usage: { inputTokens?: number; outputTokens?: number; totalTokens?: number } | undefined; showSymbol?: boolean }) {
   if (!usage?.totalTokens) return null;
   return (
-    <span className="inline-flex items-center gap-0.5 font-mono text-[10px] tabular-nums text-text-tertiary/60">
-      <Image src="/sponsors/diem.png" alt="DIEM" width={10} height={10} className="shrink-0 rounded-full" />
-      {usage.totalTokens.toLocaleString()}
+    <span className="inline-flex items-center gap-1 font-mono text-[10px] tabular-nums text-[#4A90D9]">
+      <Image src="/sponsors/diem.png" alt="DIEM" width={12} height={12} className="shrink-0 rounded-full" />
+      {usage.totalTokens.toLocaleString()}{showSymbol ? " DIEM" : ""}
     </span>
   );
 }

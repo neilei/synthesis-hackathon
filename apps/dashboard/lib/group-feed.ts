@@ -22,6 +22,8 @@ export interface CycleGroup {
   snapshot: CycleSnapshot | null;
   hasError: boolean;
   didRebalance: boolean;
+  /** True when a safety_block prevented a swap the agent wanted to execute. */
+  wasSafetyBlocked: boolean;
   /** True when the cycle has a terminal entry (cycle_complete or cycle_error). */
   isComplete: boolean;
   /** Step progress for the cycle. */
@@ -219,6 +221,7 @@ export function groupFeedByCycle(feed: AgentLogEntry[]): CycleGroup[] {
       snapshot: key !== null ? extractSnapshot(entries) : null,
       hasError: entries.some((e) => !!e.error),
       didRebalance: entries.some((e) => e.action === "swap_executed"),
+      wasSafetyBlocked: entries.some((e) => e.action === "safety_block"),
       isComplete: entries.some((e) => e.action === "cycle_complete" || e.action === "cycle_error"),
       progress: key !== null
         ? computeProgress(entries)

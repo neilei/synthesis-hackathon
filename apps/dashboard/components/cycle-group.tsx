@@ -116,7 +116,9 @@ export function CycleGroup({ group, defaultExpanded = false }: CycleGroupProps) 
           </>
         )}
         {group.isComplete && !group.didRebalance && group.cycle !== null && (
-          <span className="text-text-tertiary">hold</span>
+          <span className={group.wasSafetyBlocked ? "text-amber-400" : "text-text-tertiary"}>
+            {group.wasSafetyBlocked ? "blocked" : "hold"}
+          </span>
         )}
         <span className={`ml-auto font-mono tabular-nums ${stepCountColor}`}>
           {completed}/{total}
