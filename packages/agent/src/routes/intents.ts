@@ -135,7 +135,11 @@ export function createIntentRoutes(deps: IntentRouteDeps) {
 
     const workerStatus = deps.workerPool.getStatus(intentId);
     const queuePosition = deps.workerPool.getQueuePosition(intentId);
-    const liveState = deps.workerPool.getState(intentId);
+    const rawLiveState = deps.workerPool.getState(intentId);
+    // BigInts (e.g. agentId) can't be JSON-serialized — convert to strings
+    const liveState = rawLiveState
+      ? JSON.parse(JSON.stringify(rawLiveState, (_k, v) => typeof v === "bigint" ? v.toString() : v))
+      : null;
     const rawLogs = deps.repo.getIntentLogs(intentId, {
       afterSequence: isNaN(afterSeq) ? -1 : afterSeq,
       limit: isNaN(limit) || limit < 1 ? 500 : Math.min(limit, 10_000),
