@@ -82,10 +82,15 @@ export class WorkerPool {
     const worker = this.workerFactory(intentId);
     this.active.set(intentId, worker);
 
-    worker.start().catch(() => {
-      this.active.delete(intentId);
-      this.drainQueue();
-    });
+    worker.start()
+      .then(() => {
+        this.active.delete(intentId);
+        this.drainQueue();
+      })
+      .catch(() => {
+        this.active.delete(intentId);
+        this.drainQueue();
+      });
   }
 
   private async drainQueue(): Promise<void> {

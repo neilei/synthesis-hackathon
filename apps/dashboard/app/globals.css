@@ -50,6 +50,11 @@ body {
   color: var(--text-primary);
 }
 
+/* Safelist: dynamically-generated token color classes used by AllocationBar.
+   Tailwind v4 cannot detect these via static analysis since they come from
+   getTokenBg()/getTokenLabelColor() in @veil/common at runtime. */
+@source "../../../packages/common/src/tokens.ts";
+
 /* Tabular numbers for data alignment */
 .tabular-nums {
   font-variant-numeric: tabular-nums;

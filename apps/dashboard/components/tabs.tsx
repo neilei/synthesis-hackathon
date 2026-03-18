@@ -19,13 +19,12 @@ interface Tab {
 interface TabsProps {
   activeTab: TabId;
   onTabChange: (tab: TabId) => void;
-  hasDeployed: boolean;
+  hasDeployed?: boolean;
 }
 
-export function Tabs({ activeTab, onTabChange, hasDeployed }: TabsProps) {
+export function Tabs({ activeTab, onTabChange }: TabsProps) {
   const tabs: Tab[] = [
     { id: "configure", label: "Configure" },
-    { id: "audit", label: "Audit", disabled: !hasDeployed },
     { id: "monitor", label: "Monitor" },
   ];
 

@@ -8,6 +8,7 @@ import { useIntentDetail } from "@/hooks/use-intent-detail";
 import { useIntentFeed } from "@/hooks/use-intent-feed";
 import { deleteIntent, getIntentLogsUrl, type IntentRecord } from "@/lib/api";
 import { ActivityFeed } from "./activity-feed";
+import { Audit } from "./audit";
 import { StatsCard } from "./stats-card";
 import { SponsorBadge } from "./sponsor-badge";
 import { ErrorBanner } from "./error-banner";
@@ -19,6 +20,7 @@ import { SectionHeading } from "./ui/section-heading";
 import { PulsingDot } from "./ui/pulsing-dot";
 import { AllocationBar } from "./allocation-bar";
 import { Spinner } from "./ui/icons";
+import { generateAuditReport } from "@veil/common";
 import {
   truncateAddress,
   formatCurrency,
@@ -103,6 +105,7 @@ function IntentDetailView({
   const { entries: feedEntries, sseError } = useIntentFeed(intentId, token);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [showAudit, setShowAudit] = useState(false);
 
   const handleDelete = useCallback(async () => {
     if (!confirm("Stop this agent? This action cannot be undone.")) return;
@@ -188,6 +191,12 @@ function IntentDetailView({
         </button>
         <div className="flex items-center gap-2">
           <button
+            onClick={() => setShowAudit(!showAudit)}
+            className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:text-text-primary hover:border-text-tertiary cursor-pointer"
+          >
+            {showAudit ? "Hide Audit" : "View Audit"}
+          </button>
+          <button
             onClick={handleDownloadLogs}
             disabled={downloadingLogs}
             className="rounded-md border border-border px-3 py-1.5 text-xs font-medium text-text-secondary transition-colors hover:text-text-primary hover:border-text-tertiary cursor-pointer disabled:opacity-50"
@@ -207,6 +216,14 @@ function IntentDetailView({
       </div>
 
       {deleteError && <ErrorBanner message={deleteError} />}
+
+      {/* Inline Audit */}
+      {showAudit && parsed && (
+        <Audit
+          data={{ parsed, audit: generateAuditReport(parsed) }}
+          onViewMonitor={() => setShowAudit(false)}
+        />
+      )}
 
       {/* Intent text */}
       <Card className="px-5 py-3">
@@ -311,11 +328,7 @@ export function Monitor({ onNavigateConfigure }: MonitorProps) {
   const { isConnected, address } = useAccount();
   const { token, isAuthenticated, authenticating } = useAuth();
   const { intents, error, loading, refresh } = useIntents(address, token);
-  const [selectedIntentId, setSelectedIntentId] = useState<string | null>(() => {
-    if (typeof window === "undefined") return null;
-    const params = new URLSearchParams(window.location.search);
-    return params.get("intent");
-  });
+  const [selectedIntentId, setSelectedIntentId] = useState<string | null>(null);
 
   const selectIntent = useCallback((id: string | null) => {
     if (id) {

@@ -91,6 +91,9 @@ export function CycleGroup({ group, defaultExpanded = false }: CycleGroupProps) 
         {group.hasError && (
           <span className="inline-flex h-1.5 w-1.5 rounded-full bg-accent-danger" />
         )}
+        {!group.didRebalance && group.cycle !== null && (
+          <span className="text-text-tertiary">hold</span>
+        )}
         <span className={`ml-auto font-mono tabular-nums ${stepCountColor}`}>
           {successCount}/{total} steps
         </span>
