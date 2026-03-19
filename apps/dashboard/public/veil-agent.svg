@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <rect width="512" height="512" rx="64" fill="#09090b"/>
+  <rect x="4" y="4" width="504" height="504" rx="60" stroke="#10b981" stroke-width="2" fill="none"/>
+  <!-- Shield shape -->
+  <path d="M256 80 L380 140 L380 280 Q380 380 256 440 Q132 380 132 280 L132 140 Z" fill="#10b981" fill-opacity="0.1" stroke="#10b981" stroke-width="3"/>
+  <!-- V letter -->
+  <path d="M200 180 L256 340 L312 180" stroke="#10b981" stroke-width="24" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <!-- Signal lines (representing autonomous agent) -->
+  <path d="M176 380 Q216 360 256 380 Q296 400 336 380" stroke="#6366f1" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.6"/>
+  <path d="M186 400 Q226 380 256 400 Q286 420 326 400" stroke="#6366f1" stroke-width="2" stroke-linecap="round" fill="none" opacity="0.4"/>
+</svg>

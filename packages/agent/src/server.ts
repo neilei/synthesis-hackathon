@@ -25,6 +25,7 @@ import { requireAuth } from "./middleware/auth.js";
 import { createAuthRoutes } from "./routes/auth.js";
 import { createParseRoutes } from "./routes/parse.js";
 import { createIntentRoutes } from "./routes/intents.js";
+import { createIdentityRoutes } from "./routes/identity.js";
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : DEFAULT_AGENT_PORT;
 const DASHBOARD_DIST = join("apps", "dashboard", "out");
@@ -92,6 +93,16 @@ app.get("/api/evidence/:intentId/:hash", (c) => {
   return c.body(content);
 });
 
+// Identity JSON (public — referenced by on-chain agentURI, must be before auth middleware)
+app.route(
+  API_PATHS.intents,
+  createIdentityRoutes({
+    get repo() {
+      return repo;
+    },
+  }),
+);
+
 // Intent CRUD routes (auth required)
 // Both patterns needed: /* matches sub-paths, bare path matches exact /api/intents
 app.use(`${API_PATHS.intents}/*`, requireAuth);
@@ -116,6 +127,10 @@ app.use(
 );
 app.use(
   "/favicon.ico",
+  serveStatic({ root: DASHBOARD_DIST }),
+);
+app.use(
+  "/veil-agent.svg",
   serveStatic({ root: DASHBOARD_DIST }),
 );
 
@@ -147,6 +162,7 @@ app.get("*", (c) => {
 <li>DELETE /api/intents/:id — cancel intent</li>
 <li>GET /api/intents/:id/events — SSE stream of live log entries</li>
 <li>GET /api/intents/:id/logs — download intent logs</li>
+<li>GET /api/intents/:id/identity.json — agent identity (public, no auth)</li>
 <li>GET /api/evidence/:intentId/:hash — retrieve evidence document</li>
 </ul>
 <p style="color:#6e7681">Build the dashboard: <code>pnpm --filter @veil/dashboard build</code></p>
