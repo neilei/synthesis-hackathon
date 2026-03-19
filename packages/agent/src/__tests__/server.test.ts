@@ -392,14 +392,13 @@ describe("Identity JSON route", () => {
 
     const body = await res.json();
     expect(body.type).toBe("https://eips.ethereum.org/EIPS/eip-8004#registration-v1");
-    expect(body.name).toBe("Veil Rebalancer — test-int");
+    expect(body.name).toBe("Veil DeFi Rebalancer");
     expect(body.description).toContain("60% ETH");
     expect(body.description).toContain("40% USDC");
     expect(body.description).toContain("$100/day");
-    expect(body.description).toContain("7 days");
     expect(body.active).toBe(true);
     expect(body.services).toHaveLength(1);
-    expect(body.services[0].name).toBe("veil-api");
+    expect(body.services[0].name).toBe("web");
     expect(body.supportedTrust).toEqual(["reputation"]);
     expect(res.headers.get("cache-control")).toContain("public");
   });

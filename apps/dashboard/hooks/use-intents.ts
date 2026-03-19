@@ -16,8 +16,7 @@ export function useIntents(
     if (!wallet || !token) return;
     try {
       const data = await fetchIntents(wallet, token);
-      data.sort((a, b) => b.createdAt - a.createdAt);
-      setIntents(data);
+      setIntents([...data].sort((a, b) => b.createdAt - a.createdAt));
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch intents");

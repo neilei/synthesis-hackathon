@@ -25,6 +25,7 @@ import { generateDetailedAudit, type DetailedAuditReport } from "../delegation/a
 import { logAction, logStart, logStop } from "../logging/agent-log.js";
 import { getBudgetTier } from "../logging/budget.js";
 import { registerAgent } from "../identity/erc8004.js";
+import { generateAgentAvatar } from "../venice/image.js";
 import { logger } from "../logging/logger.js";
 import { withRetry } from "../utils/retry.js";
 
@@ -195,6 +196,24 @@ export async function runAgentLoop(config: AgentConfig): Promise<AgentState> {
       });
       config.intentLogger?.log("erc8004_register_failed", {
         tool: "erc8004-identity",
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  // Generate unique avatar image for this agent
+  if (state.agentId != null && config.intentId) {
+    try {
+      await generateAgentAvatar(config.intentId, config.intent);
+      logger.info({ intentId: config.intentId }, "Agent avatar generated");
+      config.intentLogger?.log("avatar_generated", {
+        tool: "venice-image",
+        result: { intentId: config.intentId, model: "nano-banana-2" },
+      });
+    } catch (err) {
+      logger.warn({ err, intentId: config.intentId }, "Avatar generation failed — continuing with fallback SVG");
+      config.intentLogger?.log("avatar_generation_failed", {
+        tool: "venice-image",
         error: err instanceof Error ? err.message : String(err),
       });
     }

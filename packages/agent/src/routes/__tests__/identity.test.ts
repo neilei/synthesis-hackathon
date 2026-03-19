@@ -135,4 +135,14 @@ describe("identity.json route", () => {
 
     expect(body.active).toBe(false);
   });
+
+  it("falls back to SVG when no avatar image exists", async () => {
+    const repo = createMockRepo(SAMPLE_INTENT);
+    app.route("/api/intents", createIdentityRoutes({ repo }));
+
+    const res = await app.request("/api/intents/test-intent-123/identity.json");
+    const body = await res.json();
+
+    expect(body.image).toBe("https://api.veil.moe/veil-agent.svg");
+  });
 });

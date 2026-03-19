@@ -22,6 +22,7 @@ export function ActivityFeed({ feed }: ActivityFeedProps) {
       <div
         role="log"
         aria-label="Agent activity feed"
+        aria-relevant="additions"
         tabIndex={0}
         className="flex-1 space-y-1 overflow-y-auto focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive rounded max-h-[50vh] sm:max-h-[400px]"
       >

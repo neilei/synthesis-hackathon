@@ -105,9 +105,9 @@ UNITEOF
   ssh_run "sudo systemctl daemon-reload"
   ssh_run "sudo systemctl enable ${SERVICE_NAME}"
 
-  # 4. Create data directories for SQLite and per-intent logs
+  # 4. Create data directories for SQLite, per-intent logs, and avatar images
   log "Creating data directories..."
-  ssh_run "mkdir -p ${APP_DIR}/data/logs"
+  ssh_run "mkdir -p ${APP_DIR}/data/logs ${APP_DIR}/data/images"
 
   # 5. Open firewall port if ufw is active
   ssh_run "which ufw >/dev/null 2>&1 && sudo ufw allow ${PORT}/tcp || true"
@@ -141,7 +141,7 @@ cmd_deploy() {
 
   # Ensure data directory exists (SQLite DB + per-intent JSONL logs)
   log "Creating data directories..."
-  ssh_run "mkdir -p ${APP_DIR}/data/logs ${APP_DIR}/data/evidence"
+  ssh_run "mkdir -p ${APP_DIR}/data/logs ${APP_DIR}/data/evidence ${APP_DIR}/data/images"
 
   # Install dependencies
   log "Installing dependencies..."
@@ -211,24 +211,82 @@ cmd_wipedb() {
   log "Wiping VPS database and evidence (forces fresh ERC-8004 registration)..."
   ssh_run "rm -f ${APP_DIR}/data/veil.db ${APP_DIR}/data/veil.db-wal ${APP_DIR}/data/veil.db-shm"
   ssh_run "rm -rf ${APP_DIR}/data/evidence ${APP_DIR}/data/logs"
-  ssh_run "mkdir -p ${APP_DIR}/data/logs ${APP_DIR}/data/evidence"
+  ssh_run "mkdir -p ${APP_DIR}/data/logs ${APP_DIR}/data/evidence ${APP_DIR}/data/images"
   log "Database wiped. Restart the service to re-register agents."
+}
+
+# --------------------------------------------------------------------------
+# HAProxy cache for avatar images
+# --------------------------------------------------------------------------
+cmd_haproxy_cache() {
+  log "Configuring HAProxy cache for avatar images..."
+
+  # Check if cache is already configured
+  if ssh_run "grep -q 'cache veil_avatars' /etc/haproxy/haproxy.cfg 2>/dev/null"; then
+    log "HAProxy cache already configured, skipping."
+    return
+  fi
+
+  # Back up current config
+  ssh_run "sudo cp /etc/haproxy/haproxy.cfg /etc/haproxy/haproxy.cfg.bak"
+
+  # Add cache section after defaults block, and caching rules to veil-agent backend
+  ssh_run "sudo python3 -c \"
+import re
+
+with open('/etc/haproxy/haproxy.cfg') as f:
+    cfg = f.read()
+
+# Add cache section after defaults block (before first frontend)
+cache_section = '''
+cache veil_avatars
+  total-max-size 50
+  max-object-size 2097152
+  max-age 86400
+
+'''
+cfg = cfg.replace('frontend http-in', cache_section + 'frontend http-in', 1)
+
+# Add caching rules to veil-agent backend
+old_backend = 'backend veil-agent\n\tserver veil 127.0.0.1:3147 check'
+new_backend = '''backend veil-agent
+\tacl is_avatar path_end .webp
+\thttp-request cache-use veil_avatars if is_avatar
+\thttp-response cache-store veil_avatars if is_avatar
+\tserver veil 127.0.0.1:3147 check'''
+cfg = cfg.replace(old_backend, new_backend)
+
+with open('/etc/haproxy/haproxy.cfg', 'w') as f:
+    f.write(cfg)
+\""
+
+  # Validate config
+  if ssh_run "sudo haproxy -c -f /etc/haproxy/haproxy.cfg"; then
+    log "HAProxy config valid, reloading..."
+    ssh_run "sudo systemctl reload haproxy"
+    log "HAProxy cache configured and active."
+  else
+    err "HAProxy config validation failed, restoring backup..."
+    ssh_run "sudo cp /etc/haproxy/haproxy.cfg.bak /etc/haproxy/haproxy.cfg"
+    err "Backup restored. Please check the config manually."
+  fi
 }
 
 # --------------------------------------------------------------------------
 # Main
 # --------------------------------------------------------------------------
 case "${1:-deploy}" in
-  setup)   cmd_setup ;;
-  deploy)  cmd_deploy ;;
-  restart) cmd_restart ;;
-  logs)    cmd_logs ;;
-  status)  cmd_status ;;
-  env)     cmd_env ;;
-  wipedb)  cmd_wipedb ;;
+  setup)          cmd_setup ;;
+  deploy)         cmd_deploy ;;
+  restart)        cmd_restart ;;
+  logs)           cmd_logs ;;
+  status)         cmd_status ;;
+  env)            cmd_env ;;
+  wipedb)         cmd_wipedb ;;
+  haproxy-cache)  cmd_haproxy_cache ;;
   *)
     err "Unknown command: $1"
-    err "Usage: $0 {setup|deploy|restart|logs|status|env|wipedb}"
+    err "Usage: $0 {setup|deploy|restart|logs|status|env|wipedb|haproxy-cache}"
     exit 1
     ;;
 esac

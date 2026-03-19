@@ -47,6 +47,10 @@ export class IntentRepository {
       .all();
   }
 
+  getAllIntents(): IntentSelect[] {
+    return this.db.select().from(intents).all();
+  }
+
   updateIntentStatus(id: string, status: IntentSelect["status"]): void {
     this.db.update(intents).set({ status }).where(eq(intents.id, id)).run();
   }

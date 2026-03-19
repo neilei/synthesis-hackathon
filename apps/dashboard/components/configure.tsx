@@ -15,12 +15,14 @@ import { useAuth } from "@/hooks/use-auth";
 import { useDelegation } from "@/hooks/use-delegation";
 import { parseIntent, createIntent, type IntentRecord } from "@/lib/api";
 import { Card } from "./ui/card";
+import { CardFooter } from "./ui/card-footer";
+import { Button } from "./ui/button";
 import { SectionHeading } from "./ui/section-heading";
-import { AuditListItem } from "./ui/audit-list-item";
 import { AllocationBar } from "./allocation-bar";
 import { StrategyDetails } from "./strategy-details";
 import { DelegationDetails } from "./delegation-details";
-import { Spinner, WarningIcon } from "./ui/icons";
+import { AuditReportSection } from "./audit-report-section";
+import { Spinner } from "./ui/icons";
 import { SponsorChip } from "./sponsor-chip";
 import { AuthPrompt } from "./auth-prompt";
 import type { ParsedIntent, AuditReport } from "@veil/common";
@@ -158,13 +160,15 @@ export function Configure({ onSuccess }: ConfigureProps) {
 
           {/* Preview button (before parsing) */}
           {step === "input" && (
-            <button
+            <Button
+              variant="outline"
+              size="md"
               onClick={handlePreview}
               disabled={isEmpty}
-              className="mt-4 flex w-full cursor-pointer items-center justify-center rounded-lg border border-accent-positive px-4 py-3 min-h-[44px] text-sm font-semibold uppercase tracking-widest text-accent-positive transition-colors hover:bg-accent-positive-dim active:bg-accent-positive/20 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent"
+              className="mt-4 w-full font-semibold uppercase tracking-widest"
             >
               Preview Strategy
-            </button>
+            </Button>
           )}
 
           {/* Loading state */}
@@ -191,7 +195,7 @@ export function Configure({ onSuccess }: ConfigureProps) {
                 key={preset}
                 onClick={() => setIntentText(preset)}
                 disabled={isParsing}
-                className="cursor-pointer rounded-full border border-border px-3 py-2.5 font-mono text-xs text-text-tertiary transition-colors hover:border-text-secondary hover:text-text-secondary focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive disabled:cursor-not-allowed disabled:opacity-50"
+                className="cursor-pointer rounded-full border border-border px-3 py-2.5 min-h-[44px] font-mono text-xs text-text-tertiary transition-colors hover:border-text-secondary hover:text-text-secondary focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {preset}
               </button>
@@ -206,13 +210,9 @@ export function Configure({ onSuccess }: ConfigureProps) {
             <Card className="p-5">
               <div className="flex items-center justify-between">
                 <SectionHeading>Your Strategy</SectionHeading>
-                <button
-                  onClick={handleReset}
-                  disabled={isBusy}
-                  className="text-xs text-text-tertiary hover:text-text-secondary transition-colors disabled:opacity-50 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive rounded-sm cursor-pointer min-h-[44px] flex items-center"
-                >
+                <Button variant="text" onClick={handleReset} disabled={isBusy} className="text-text-tertiary hover:text-text-secondary">
                   Edit
-                </button>
+                </Button>
               </div>
 
               <div className="mt-4">
@@ -223,77 +223,21 @@ export function Configure({ onSuccess }: ConfigureProps) {
                 <StrategyDetails parsed={parsed} showDriftThreshold />
               </div>
 
-              <div className="mt-4 border-t border-border-subtle pt-3">
+              <CardFooter>
                 <SponsorChip sponsor="venice" text="Powered by Venice.ai" />
-              </div>
+              </CardFooter>
             </Card>
 
             {/* Audit report */}
             {audit && (
               <Card className="p-5">
                 <SectionHeading>Delegation Report</SectionHeading>
-                <div className="mt-4 space-y-4">
-                  {audit.allows.length > 0 && (
-                    <div>
-                      <SectionHeading size="xs" as="h3" className="mb-2 text-accent-positive">
-                        Allows
-                      </SectionHeading>
-                      <ul className="space-y-2">
-                        {audit.allows.map((item, i) => (
-                          <AuditListItem key={i} variant="allows">
-                            {item}
-                          </AuditListItem>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  {audit.prevents.length > 0 && (
-                    <div>
-                      <SectionHeading size="xs" as="h3" className="mb-2 text-accent-danger">
-                        Prevents
-                      </SectionHeading>
-                      <ul className="space-y-2">
-                        {audit.prevents.map((item, i) => (
-                          <AuditListItem key={i} variant="prevents">
-                            {item}
-                          </AuditListItem>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  {audit.worstCase && (
-                    <div>
-                      <SectionHeading size="xs" as="h3" className="mb-2 text-accent-warning">
-                        Worst Case
-                      </SectionHeading>
-                      <div className="flex items-start gap-2 rounded bg-accent-warning-dim px-3 py-2 text-sm text-text-primary">
-                        <WarningIcon />
-                        <span>{audit.worstCase}</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {audit.warnings.length > 0 && (
-                    <div>
-                      <SectionHeading size="xs" as="h3" className="mb-2 text-accent-warning">
-                        Warnings
-                      </SectionHeading>
-                      <ul className="space-y-2">
-                        {audit.warnings.map((item, i) => (
-                          <AuditListItem key={i} variant="warning">
-                            {item}
-                          </AuditListItem>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
+                <div className="mt-4">
+                  <AuditReportSection audit={audit} />
                 </div>
-
-                <div className="mt-4 border-t border-border-subtle pt-3">
+                <CardFooter>
                   <SponsorChip sponsor="metamask" text="Enforced by MetaMask Delegation" />
-                </div>
+                </CardFooter>
               </Card>
             )}
 
@@ -312,13 +256,15 @@ export function Configure({ onSuccess }: ConfigureProps) {
                     <AuthPrompt authenticating={authenticating} error={authError} onAuthenticate={authenticate} />
                   </div>
                 ) : (
-                  <button
+                  <Button
+                    variant="solid"
+                    size="md"
                     onClick={handleDeploy}
                     disabled={signing || isBusy}
-                    className="flex w-full cursor-pointer items-center justify-center rounded-lg bg-accent-positive px-4 py-3 min-h-[44px] text-sm font-semibold uppercase tracking-widest text-bg-primary transition-colors hover:bg-accent-positive/90 active:bg-accent-positive/80 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive focus-visible:ring-offset-2 focus-visible:ring-offset-bg-primary disabled:cursor-not-allowed disabled:opacity-50"
+                    className="w-full font-semibold uppercase tracking-widest"
                   >
                     Deploy Agent
-                  </button>
+                  </Button>
                 )}
               </div>
             )}

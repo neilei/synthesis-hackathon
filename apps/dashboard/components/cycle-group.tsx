@@ -116,7 +116,7 @@ export function CycleGroup({ group, defaultExpanded = false }: CycleGroupProps) 
           </>
         )}
         {group.isComplete && !group.didRebalance && group.cycle !== null && (
-          <span className={group.wasSafetyBlocked ? "text-amber-400" : "text-text-tertiary"}>
+          <span className={group.wasSafetyBlocked ? "text-accent-warning" : "text-text-tertiary"}>
             {group.wasSafetyBlocked ? "blocked" : "hold"}
           </span>
         )}

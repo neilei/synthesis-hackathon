@@ -210,11 +210,12 @@ export function groupFeedByCycle(feed: AgentLogEntry[]): CycleGroup[] {
       map.set(key, []);
       order.push(key);
     }
-    map.get(key)!.push(entry);
+    const group = map.get(key);
+    if (group) group.push(entry);
   }
 
   return order.map((key) => {
-    const entries = map.get(key)!;
+    const entries = map.get(key) ?? [];
     return {
       cycle: key,
       entries,

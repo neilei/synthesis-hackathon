@@ -2,6 +2,7 @@
 
 import { useAccount, useConnect, useDisconnect } from "wagmi";
 import { truncateAddress } from "@veil/common";
+import { Button } from "./ui/button";
 
 export function ConnectWallet() {
   const { address, isConnected } = useAccount();
@@ -14,26 +15,24 @@ export function ConnectWallet() {
         <span className="font-mono text-xs text-text-secondary">
           {truncateAddress(address)}
         </span>
-        <button
-          onClick={() => disconnect()}
-          className="px-3 py-2 min-h-[44px] text-xs font-medium text-text-secondary border border-border rounded-md hover:text-text-primary hover:border-text-tertiary transition-colors cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive"
-        >
+        <Button onClick={() => disconnect()}>
           Disconnect
-        </button>
+        </Button>
       </div>
     );
   }
 
   return (
-    <button
+    <Button
+      variant="outline"
       onClick={() => {
         const injected = connectors.find((c) => c.id === "injected");
         if (injected) connect({ connector: injected });
       }}
       disabled={isPending}
-      className="px-4 py-2 min-h-[44px] text-xs font-medium bg-accent-positive/10 text-accent-positive border border-accent-positive/20 rounded-md hover:bg-accent-positive/20 transition-colors disabled:opacity-50 cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive"
+      className="bg-accent-positive/10 border-accent-positive/20"
     >
-      {isPending ? "Connecting…" : "Connect Wallet"}
-    </button>
+      {isPending ? "Connecting..." : "Connect Wallet"}
+    </Button>
   );
 }

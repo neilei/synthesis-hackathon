@@ -1,6 +1,7 @@
 "use client";
 
 import { Spinner } from "./ui/icons";
+import { Button } from "./ui/button";
 
 interface AuthPromptProps {
   authenticating: boolean;
@@ -22,12 +23,9 @@ export function AuthPrompt({ authenticating, error, onAuthenticate }: AuthPrompt
     return (
       <>
         <p className="text-sm text-accent-danger">{error}</p>
-        <button
-          onClick={onAuthenticate}
-          className="mt-2 cursor-pointer rounded-lg border border-accent-positive px-5 py-2.5 min-h-[44px] text-sm font-medium text-accent-positive transition-colors hover:bg-accent-positive-dim active:bg-accent-positive/20 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive"
-        >
+        <Button variant="outline" size="md" onClick={onAuthenticate} className="mt-2">
           Retry Authentication
-        </button>
+        </Button>
       </>
     );
   }
@@ -35,12 +33,9 @@ export function AuthPrompt({ authenticating, error, onAuthenticate }: AuthPrompt
   return (
     <>
       <p className="text-sm text-text-secondary">Wallet authentication required.</p>
-      <button
-        onClick={onAuthenticate}
-        className="mt-2 cursor-pointer rounded-lg border border-accent-positive px-5 py-2.5 min-h-[44px] text-sm font-medium text-accent-positive transition-colors hover:bg-accent-positive-dim active:bg-accent-positive/20 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive"
-      >
+      <Button variant="outline" size="md" onClick={onAuthenticate} className="mt-2">
         Authenticate
-      </button>
+      </Button>
     </>
   );
 }

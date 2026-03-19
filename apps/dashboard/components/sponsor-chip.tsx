@@ -2,9 +2,11 @@
  * Inline sponsor chip with brand logo + colored text.
  * Uses official brand colors (lightened where needed for WCAG AA on dark bg).
  *
+ * Uses plain <img> instead of next/image — these are tiny static SVGs where
+ * the Next.js Image component adds unnecessary React overhead with no benefit.
+ *
  * @module @veil/dashboard/components/sponsor-chip
  */
-import Image from "next/image";
 
 type Sponsor = "venice" | "metamask" | "uniswap" | "protocol-labs";
 
@@ -66,7 +68,8 @@ export function SponsorChip({
     <span
       className={`inline-flex items-center gap-1 align-middle text-xs ${config.color} ${className}`}
     >
-      <Image
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
         src={config.logo}
         alt={config.alt}
         width={config.iconSize}

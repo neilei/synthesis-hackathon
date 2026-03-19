@@ -21,7 +21,7 @@ export function Footer() {
               href={s.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-text-tertiary underline decoration-border hover:text-text-secondary hover:decoration-text-tertiary transition-colors"
+              className="text-text-tertiary underline decoration-border hover:text-text-secondary hover:decoration-text-tertiary transition-colors focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive rounded-sm"
             >
               {s.name}
               <span className="sr-only"> (opens in new tab)</span>

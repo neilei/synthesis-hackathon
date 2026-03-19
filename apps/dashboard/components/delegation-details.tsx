@@ -5,6 +5,7 @@
  * @module @veil/dashboard/components/delegation-details
  */
 import { Card } from "./ui/card";
+import { CardFooter } from "./ui/card-footer";
 import { SectionHeading } from "./ui/section-heading";
 import { SponsorChip } from "./sponsor-chip";
 import type { ParsedIntent } from "@veil/common";
@@ -29,39 +30,39 @@ export function DelegationDetails({ parsed }: DelegationDetailsProps) {
         constraints
       </p>
 
-      <div className="mt-4 grid grid-cols-1 gap-x-6 gap-y-3 text-sm sm:grid-cols-2 md:grid-cols-3">
+      <dl className="mt-4 grid grid-cols-1 gap-x-6 gap-y-3 text-sm sm:grid-cols-2 md:grid-cols-3">
         <div>
-          <span className="text-text-secondary">Delegate (Agent)</span>
-          <p className="font-mono text-text-primary">
+          <dt className="text-text-secondary">Delegate (Agent)</dt>
+          <dd className="font-mono text-text-primary">
             {truncateAddress(AGENT_ADDRESS)}
-          </p>
+          </dd>
         </div>
         <div>
-          <span className="text-text-secondary">Scope Target</span>
-          <p className="font-mono text-text-primary">Uniswap Router</p>
+          <dt className="text-text-secondary">Scope Target</dt>
+          <dd className="font-mono text-text-primary">Uniswap Router</dd>
         </div>
         <div>
-          <span className="text-text-secondary">Function</span>
-          <p className="font-mono text-text-primary">execute()</p>
+          <dt className="text-text-secondary">Function</dt>
+          <dd className="font-mono text-text-primary">execute()</dd>
         </div>
         <div>
-          <span className="text-text-secondary">Max Value (wei)</span>
-          <p className="font-mono text-text-primary">
+          <dt className="text-text-secondary">Max Value (wei)</dt>
+          <dd className="font-mono text-text-primary">
             {computeMaxValueWei(
               parsed.dailyBudgetUsd,
               parsed.timeWindowDays,
             ).toLocaleString()}
-          </p>
+          </dd>
         </div>
         <div>
-          <span className="text-text-secondary">Max Calls</span>
-          <p className="font-mono text-text-primary">
+          <dt className="text-text-secondary">Max Calls</dt>
+          <dd className="font-mono text-text-primary">
             {computeMaxCalls(parsed.maxTradesPerDay, parsed.timeWindowDays)}
-          </p>
+          </dd>
         </div>
         <div>
-          <span className="text-text-secondary">Expires</span>
-          <p className="font-mono text-text-primary">
+          <dt className="text-text-secondary">Expires</dt>
+          <dd className="font-mono text-text-primary">
             {new Date(
               computeExpiryTimestamp(parsed.timeWindowDays) * 1000,
             ).toLocaleDateString("en-US", {
@@ -69,9 +70,9 @@ export function DelegationDetails({ parsed }: DelegationDetailsProps) {
               day: "numeric",
               year: "numeric",
             })}
-          </p>
+          </dd>
         </div>
-      </div>
+      </dl>
 
       <div className="mt-4 space-y-1.5">
         <SectionHeading size="xs" as="h3" className="text-text-secondary">
@@ -91,9 +92,9 @@ export function DelegationDetails({ parsed }: DelegationDetailsProps) {
         </div>
       </div>
 
-      <div className="mt-4 border-t border-border-subtle pt-3">
+      <CardFooter>
         <SponsorChip sponsor="metamask" text="Enforced by MetaMask Delegation" />
-      </div>
+      </CardFooter>
     </Card>
   );
 }

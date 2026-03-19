@@ -2,3 +2,5 @@ data/*.db
 data/*.db-wal
 data/*.db-shm
 data/logs/*.jsonl
+data/evidence/
+data/images/
