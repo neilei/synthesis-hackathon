@@ -21,11 +21,14 @@ import { WorkerPool } from "./worker-pool.js";
 import { DefaultAgentWorker } from "./agent-worker.js";
 import { resumeActiveIntents } from "./startup.js";
 
+import { streamSSE } from "hono/streaming";
 import { requireAuth } from "./middleware/auth.js";
 import { createAuthRoutes } from "./routes/auth.js";
 import { createParseRoutes } from "./routes/parse.js";
 import { createIntentRoutes } from "./routes/intents.js";
 import { createIdentityRoutes } from "./routes/identity.js";
+import { redactLogRow, redactParsedEntry } from "./logging/redact.js";
+import { onLogEntry } from "./logging/intent-log.js";
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : DEFAULT_AGENT_PORT;
 const DASHBOARD_DIST = join("apps", "dashboard", "out");
@@ -91,6 +94,111 @@ app.get("/api/evidence/:intentId/:hash", (c) => {
   c.header("Content-Type", "application/json");
   c.header("Cache-Control", "public, max-age=31536000, immutable");
   return c.body(content);
+});
+
+// Agent avatar images (public — referenced by ERC-8004 identity image field)
+app.get("/api/intents/:id/avatar.webp", (c) => {
+  const intentId = c.req.param("id");
+  if (!/^[a-zA-Z0-9_-]+$/.test(intentId)) {
+    return c.json({ error: "Invalid intent ID" }, 400);
+  }
+  const filePath = join("data", "images", `${intentId}.webp`);
+  if (!existsSync(filePath)) {
+    return c.json({ error: "Avatar not found" }, 404);
+  }
+  const content = readFileSync(filePath);
+  c.header("Content-Type", "image/webp");
+  c.header("Cache-Control", "public, max-age=31536000, immutable");
+  return c.body(content);
+});
+
+// Public intent listing (no auth — lets anyone browse active agents)
+app.get(`${API_PATHS.intents}/public`, (c) => {
+  const showAll = c.req.query("includeInactive") === "true";
+  const all = repo.getAllIntents();
+  const filtered = showAll ? all : all.filter((i) => i.status === "active");
+  // Strip sensitive fields for public consumption
+  const safe = filtered.map((i) => ({
+    id: i.id,
+    intentText: i.intentText,
+    parsedIntent: i.parsedIntent,
+    status: i.status,
+    createdAt: i.createdAt,
+    expiresAt: i.expiresAt,
+    cycle: i.cycle,
+    tradesExecuted: i.tradesExecuted,
+    totalSpentUsd: i.totalSpentUsd,
+    lastCycleAt: i.lastCycleAt,
+    agentId: i.agentId,
+    workerStatus: workerPool.getStatus(i.id),
+    queuePosition: workerPool.getQueuePosition(i.id),
+  }));
+  return c.json(safe);
+});
+
+// Public intent detail (no auth — read-only view without logs)
+app.get(`${API_PATHS.intents}/public/:id`, (c) => {
+  const intentId = c.req.param("id");
+  const intent = repo.getIntent(intentId);
+  if (!intent) {
+    return c.json({ error: "Intent not found" }, 404);
+  }
+  const rawLiveState = workerPool.getState(intentId);
+  const liveState = rawLiveState
+    ? JSON.parse(JSON.stringify(rawLiveState, (_k, v) => typeof v === "bigint" ? v.toString() : v))
+    : null;
+  // Fetch logs from DB and redact private Venice reasoning
+  const rawLogs = repo.getIntentLogs(intentId, { afterSequence: -1, limit: 10_000 });
+  const logs = rawLogs.map(redactLogRow).filter((l): l is NonNullable<typeof l> => l !== null);
+
+  return c.json({
+    id: intent.id,
+    intentText: intent.intentText,
+    parsedIntent: intent.parsedIntent,
+    status: intent.status,
+    createdAt: intent.createdAt,
+    expiresAt: intent.expiresAt,
+    cycle: intent.cycle,
+    tradesExecuted: intent.tradesExecuted,
+    totalSpentUsd: intent.totalSpentUsd,
+    lastCycleAt: intent.lastCycleAt,
+    agentId: intent.agentId,
+    workerStatus: workerPool.getStatus(intent.id),
+    queuePosition: workerPool.getQueuePosition(intent.id),
+    liveState,
+    logs,
+  });
+});
+
+// Public SSE stream (no auth — redacted entries only)
+app.get(`${API_PATHS.intents}/public/:id/events`, (c) => {
+  const intentId = c.req.param("id");
+  const intent = repo.getIntent(intentId);
+  if (!intent) {
+    return c.json({ error: "Intent not found" }, 404);
+  }
+
+  return streamSSE(c, async (stream) => {
+    const unsub = onLogEntry((id, entry) => {
+      if (id !== intentId) return;
+      const redacted = redactParsedEntry(entry);
+      if (!redacted) return;
+      stream.writeSSE({
+        data: JSON.stringify(redacted),
+        event: "log",
+        id: String(entry.sequence),
+      });
+    });
+
+    stream.onAbort(() => {
+      unsub();
+    });
+
+    while (true) {
+      await stream.sleep(30_000);
+      await stream.writeSSE({ data: "", event: "heartbeat", id: "" });
+    }
+  });
 });
 
 // Identity JSON (public — referenced by on-chain agentURI, must be before auth middleware)

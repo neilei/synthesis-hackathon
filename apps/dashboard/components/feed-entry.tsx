@@ -6,6 +6,8 @@ import type { AgentLogEntry } from "@veil/common";
 import { Badge } from "./ui/badge";
 import { SponsorChip } from "./sponsor-chip";
 import { truncateHash, formatCurrency, formatPercentage, formatAllocationSummary } from "@veil/common";
+import { getScoreColor } from "@/lib/score-color";
+import { PrivacyNotice } from "./privacy-notice";
 
 interface FeedEntryProps {
   entry: AgentLogEntry;
@@ -73,7 +75,7 @@ function RuntimeTag({ ms }: { ms: number | undefined }) {
 function TokenUsageTag({ usage, showSymbol = true }: { usage: { inputTokens?: number; outputTokens?: number; totalTokens?: number } | undefined; showSymbol?: boolean }) {
   if (!usage?.totalTokens) return null;
   return (
-    <span className="inline-flex items-center gap-1 font-mono text-[10px] tabular-nums text-[#4A90D9]">
+    <span className="inline-flex items-center gap-1 font-mono text-[10px] tabular-nums text-accent-secondary">
       <Image src="/sponsors/diem.png" alt="DIEM" width={12} height={12} className="shrink-0 rounded-full" />
       {usage.totalTokens.toLocaleString()}{showSymbol ? " DIEM" : ""}
     </span>
@@ -166,7 +168,8 @@ function ExpandableReasoning({ text, className = "" }: { text: string; className
       {!expanded && hasOverflow && (
         <button
           onClick={() => setExpanded(true)}
-          className="text-accent-secondary text-[10px] hover:underline cursor-pointer mt-0.5"
+          aria-expanded={false}
+          className="text-accent-secondary text-[10px] hover:underline cursor-pointer mt-0.5 min-h-[44px] min-w-[44px] focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive rounded-sm"
         >
           show more
         </button>
@@ -174,7 +177,8 @@ function ExpandableReasoning({ text, className = "" }: { text: string; className
       {expanded && (
         <button
           onClick={() => setExpanded(false)}
-          className="text-text-tertiary/50 text-[10px] hover:underline cursor-pointer mt-0.5"
+          aria-expanded={true}
+          className="text-text-tertiary/50 text-[10px] hover:underline cursor-pointer mt-0.5 min-h-[44px] min-w-[44px] focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive rounded-sm"
         >
           hide
         </button>
@@ -382,15 +386,21 @@ export const FeedEntry = memo(function FeedEntry({ entry }: FeedEntryProps) {
           <TokenUsageTag usage={usage} />
           <RuntimeTag ms={entry.duration_ms} />
         </EntryLine>
-        {reasoning && (
-          <DetailRow label="Reasoning">
-            <ExpandableReasoning text={reasoning} />
-          </DetailRow>
-        )}
-        {marketContext && (
-          <DetailRow label="Market">
-            <ExpandableReasoning text={marketContext} />
-          </DetailRow>
+        {(res as Record<string, unknown>)?._redacted ? (
+          <PrivacyNotice className="mt-1.5" />
+        ) : (
+          <>
+            {reasoning && (
+              <DetailRow label="Reasoning">
+                <ExpandableReasoning text={reasoning} />
+              </DetailRow>
+            )}
+            {marketContext && (
+              <DetailRow label="Market">
+                <ExpandableReasoning text={marketContext} />
+              </DetailRow>
+            )}
+          </>
         )}
       </EntryRow>
     );
@@ -489,7 +499,7 @@ export const FeedEntry = memo(function FeedEntry({ entry }: FeedEntryProps) {
 
     const compositeScore = composite != null ? composite * 10 : null;
     const scoreColor = compositeScore != null
-      ? compositeScore >= 70 ? "text-accent-positive" : compositeScore >= 50 ? "text-amber-400" : "text-accent-danger"
+      ? getScoreColor(compositeScore)
       : "text-text-secondary";
 
     const DIMENSION_LABELS: Record<string, { label: string; weight: string }> = {
@@ -545,14 +555,14 @@ export const FeedEntry = memo(function FeedEntry({ entry }: FeedEntryProps) {
                       </span>
                       <TxLink hash={dimTxHash} chain="base-sepolia" />
                     </div>
-                    {reasoning && (
+                    {reasoning && typeof reasoning === "string" && !reasoning.startsWith("[private") && (
                       <ExpandableReasoning text={reasoning} className="pl-[8.5rem] mt-0.5" />
                     )}
                   </div>
                 );
               }
 
-              const dimColor = score >= 70 ? "text-accent-positive" : score >= 50 ? "text-amber-400" : "text-accent-danger";
+              const dimColor = getScoreColor(score);
               return (
                 <div key={tag}>
                   <div className="flex items-center gap-2">
@@ -563,7 +573,7 @@ export const FeedEntry = memo(function FeedEntry({ entry }: FeedEntryProps) {
                     <div className="flex items-center gap-1.5 flex-1 min-w-0">
                       <div className="h-1 flex-1 max-w-24 rounded-full bg-border overflow-hidden">
                         <div
-                          className={`h-full rounded-full ${score >= 70 ? "bg-accent-positive" : score >= 50 ? "bg-amber-400" : "bg-accent-danger"}`}
+                          className={`h-full rounded-full ${getScoreColor(score, "bg")}`}
                           style={{ width: `${score}%` }}
                         />
                       </div>
@@ -573,13 +583,16 @@ export const FeedEntry = memo(function FeedEntry({ entry }: FeedEntryProps) {
                       <TxLink hash={dimTxHash} chain="base-sepolia" />
                     </div>
                   </div>
-                  {reasoning && (
+                  {reasoning && typeof reasoning === "string" && !reasoning.startsWith("[private") && (
                     <ExpandableReasoning text={reasoning} className="pl-[8.5rem] mt-0.5" />
                   )}
                 </div>
               );
             })}
           </div>
+        )}
+        {(res as Record<string, unknown>)?._redacted && (
+          <PrivacyNotice className="mt-2" />
         )}
       </EntryRow>
     );

@@ -92,6 +92,23 @@ export async function fetchIntents(
   return res.json();
 }
 
+export async function fetchPublicIntents(
+  includeInactive = false,
+): Promise<IntentRecord[]> {
+  const qs = includeInactive ? "?includeInactive=true" : "";
+  const res = await fetch(`/api/intents/public${qs}`);
+  if (!res.ok) throw new Error("Failed to fetch public intents");
+  return res.json();
+}
+
+export async function fetchPublicIntentDetail(
+  intentId: string,
+): Promise<IntentRecord & { liveState: unknown; logs: AgentLogEntry[] }> {
+  const res = await fetch(`/api/intents/public/${intentId}`);
+  if (!res.ok) throw new Error("Failed to fetch intent");
+  return res.json();
+}
+
 export async function fetchIntentDetail(
   intentId: string,
   token: string,

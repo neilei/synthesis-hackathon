@@ -1,11 +1,14 @@
 "use client";
 
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, memo } from "react";
 import { useAccount } from "wagmi";
 import { useAuth } from "@/hooks/use-auth";
 import { useIntents } from "@/hooks/use-intents";
 import { useIntentDetail } from "@/hooks/use-intent-detail";
 import { useIntentFeed } from "@/hooks/use-intent-feed";
+import { usePublicIntents } from "@/hooks/use-public-intents";
+import { usePublicIntentDetail } from "@/hooks/use-public-intent-detail";
+import { usePublicIntentFeed } from "@/hooks/use-public-intent-feed";
 import { deleteIntent, getIntentLogsUrl, safeParseParsedIntent, type IntentRecord } from "@/lib/api";
 import { ActivityFeed } from "./activity-feed";
 import { Audit } from "./audit";
@@ -15,6 +18,8 @@ import { SkeletonCard, SkeletonTable } from "./skeleton";
 import { CycleCountdown } from "./cycle-countdown";
 import { Card } from "./ui/card";
 import { Badge } from "./ui/badge";
+import { Button } from "./ui/button";
+
 import { SectionHeading } from "./ui/section-heading";
 import { PulsingDot } from "./ui/pulsing-dot";
 import { AllocationBar } from "./allocation-bar";
@@ -25,6 +30,7 @@ import {
   generateAuditReport,
   formatCurrency,
 } from "@veil/common";
+import { getScoreColor } from "@/lib/score-color";
 import type { ParsedIntent } from "@veil/common";
 
 /** Wraps Audit with memoized audit report generation to avoid recomputing on every render. */
@@ -46,7 +52,7 @@ const STATUS_BADGE: Record<string, "positive" | "danger" | "warning"> = {
   failed: "danger",
 };
 
-function IntentListItem({
+const IntentListItem = memo(function IntentListItem({
   intent,
   onSelect,
 }: {
@@ -89,21 +95,29 @@ function IntentListItem({
       </div>
     </button>
   );
-}
+});
 
 function IntentDetailView({
   intentId,
   token,
+  isOwner,
   onBack,
   onDeleted,
 }: {
   intentId: string;
-  token: string;
+  token: string | null;
+  isOwner: boolean;
   onBack: () => void;
   onDeleted: () => void;
 }) {
-  const { data, error, loading } = useIntentDetail(intentId, token);
-  const { entries: feedEntries, sseError } = useIntentFeed(intentId, token);
+  // Use auth'd hooks when owner, public hooks otherwise
+  const authDetail = useIntentDetail(isOwner ? intentId : null, token);
+  const publicDetail = usePublicIntentDetail(!isOwner ? intentId : null);
+  const { data, error, loading } = isOwner ? authDetail : publicDetail;
+
+  const authFeed = useIntentFeed(isOwner ? intentId : null, token);
+  const publicFeed = usePublicIntentFeed(!isOwner ? intentId : null);
+  const { entries: feedEntries, sseError } = isOwner ? authFeed : publicFeed;
   const [deleting, setDeleting] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -182,9 +196,9 @@ function IntentDetailView({
   if (error && !data) {
     return (
       <div className="p-6">
-        <button onClick={onBack} className="mb-4 text-sm text-text-secondary hover:text-text-primary transition-colors cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive rounded-sm min-h-[44px] flex items-center">
-          &larr; Back to intents
-        </button>
+        <Button variant="text" size="sm" onClick={onBack} className="mb-4">
+          &larr; Back to agents
+        </Button>
         <ErrorBanner message={error} />
       </div>
     );
@@ -210,39 +224,32 @@ function IntentDetailView({
     <div className="space-y-6 p-6">
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <button onClick={onBack} className="self-start text-sm text-text-secondary hover:text-text-primary transition-colors cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive rounded-sm min-h-[44px] flex items-center">
-          &larr; Back to intents
-        </button>
+        <Button variant="text" size="sm" onClick={onBack} className="self-start">
+          &larr; Back to agents
+        </Button>
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={() => setShowAudit(!showAudit)}
-            className="rounded-md border border-border px-3 py-2 text-xs font-medium text-text-secondary transition-colors hover:text-text-primary hover:border-text-tertiary cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive min-h-[44px]"
-          >
+          <Button onClick={() => setShowAudit(!showAudit)}>
             {showAudit ? "Hide Audit" : "View Audit"}
-          </button>
-          <button
-            onClick={handleDownloadLogs}
-            disabled={downloadingLogs}
-            className="rounded-md border border-border px-3 py-2 text-xs font-medium text-text-secondary transition-colors hover:text-text-primary hover:border-text-tertiary cursor-pointer disabled:opacity-50 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive min-h-[44px]"
-          >
-            {downloadingLogs ? "Downloading..." : "Download agent_log.jsonl"}
-          </button>
-          {dbStatusActive && (
+          </Button>
+          {isOwner && (
+            <Button onClick={handleDownloadLogs} disabled={downloadingLogs}>
+              {downloadingLogs ? "Downloading..." : "Download agent_log.jsonl"}
+            </Button>
+          )}
+          {isOwner && dbStatusActive && (
             <>
-              <button
+              <Button
+                variant="danger"
                 onClick={handleDelete}
                 disabled={deleting || !workerRunning}
-                className={`rounded-md border px-3 py-2 text-xs font-medium transition-colors cursor-pointer disabled:opacity-50 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-danger min-h-[44px] ${confirmingDelete ? "border-accent-danger bg-accent-danger/10 text-accent-danger" : "border-accent-danger/30 text-accent-danger hover:bg-accent-danger/10"}`}
+                className={confirmingDelete ? "border-accent-danger bg-accent-danger/10" : ""}
               >
                 {deleting ? "Stopping..." : confirmingDelete ? "Confirm Stop" : "Stop Agent"}
-              </button>
+              </Button>
               {confirmingDelete && (
-                <button
-                  onClick={() => setConfirmingDelete(false)}
-                  className="rounded-md border border-border px-3 py-2 text-xs font-medium text-text-secondary transition-colors hover:text-text-primary hover:border-text-tertiary cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive min-h-[44px]"
-                >
+                <Button onClick={() => setConfirmingDelete(false)}>
                   Cancel
-                </button>
+                </Button>
               )}
             </>
           )}
@@ -293,7 +300,7 @@ function IntentDetailView({
           </p>
           {reputation ? (
             <div className="mt-1">
-              <span className={`font-mono text-2xl tabular-nums font-medium ${reputation.average * 10 >= 70 ? "text-accent-positive" : reputation.average * 10 >= 50 ? "text-amber-400" : "text-accent-danger"}`}>
+              <span className={`font-mono text-2xl tabular-nums font-medium ${getScoreColor(reputation.average * 10)}`}>
                 {(reputation.average * 10).toFixed(0)}/100
               </span>
               <p className="mt-0.5 text-xs text-text-tertiary">
@@ -389,7 +396,9 @@ function getInitialIntentId(): string | null {
 export function Monitor({ onNavigateConfigure }: MonitorProps) {
   const { isConnected, address } = useAccount();
   const { token, isAuthenticated, authenticating, authenticate, error: authError } = useAuth();
-  const { intents, error, loading, refresh } = useIntents(address, token);
+  const { intents: ownedIntents, error: ownedError, refresh: refreshOwned } = useIntents(address, token);
+  const [showInactive, setShowInactive] = useState(false);
+  const { intents: publicIntents, error: publicError, loading: publicLoading } = usePublicIntents(showInactive);
   const [selectedIntentId, setSelectedIntentId] = useState<string | null>(getInitialIntentId);
 
   const selectIntent = useCallback((id: string | null) => {
@@ -410,49 +419,31 @@ export function Monitor({ onNavigateConfigure }: MonitorProps) {
     return () => window.removeEventListener("popstate", handlePopState);
   }, []);
 
-  // Not connected
-  if (!isConnected) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-4 p-8 sm:p-16 text-center">
-        <div aria-hidden="true" className="rounded-full bg-bg-surface p-4">
-          <div className="h-3 w-3 rounded-full bg-text-tertiary" />
-        </div>
-        <h2 className="text-lg font-medium text-text-primary">
-          Connect your wallet
-        </h2>
-        <p className="max-w-md text-sm text-text-secondary">
-          Connect your wallet to view your active agents and monitor their performance.
-        </p>
-      </div>
-    );
-  }
+  // Determine if the selected intent is owned by the connected wallet
+  const ownedIntentIds = useMemo(
+    () => new Set(ownedIntents.map((i) => i.id)),
+    [ownedIntents],
+  );
+  const isOwner = selectedIntentId ? ownedIntentIds.has(selectedIntentId) : false;
 
-  // Authenticating
-  if (!isAuthenticated) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-4 p-8 sm:p-16 text-center">
-        <AuthPrompt authenticating={authenticating} error={authError} onAuthenticate={authenticate} />
-      </div>
-    );
-  }
-
-  // Intent detail view
-  if (selectedIntentId && token) {
+  // Detail view — owner gets full controls, others get read-only redacted view
+  if (selectedIntentId) {
     return (
       <IntentDetailView
         intentId={selectedIntentId}
         token={token}
+        isOwner={isOwner}
         onBack={() => selectIntent(null)}
         onDeleted={() => {
           selectIntent(null);
-          refresh();
+          refreshOwned();
         }}
       />
     );
   }
 
-  // Loading
-  if (loading) {
+  // List view — loading state
+  if (publicLoading) {
     return (
       <div className="space-y-4 p-6">
         {Array.from({ length: 3 }).map((_, i) => (
@@ -462,57 +453,76 @@ export function Monitor({ onNavigateConfigure }: MonitorProps) {
     );
   }
 
-  // Error
-  if (error) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-4 p-12">
-        <ErrorBanner message={error} onRetry={refresh} />
-      </div>
-    );
-  }
-
-  // No intents
-  if (intents.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-4 p-8 sm:p-16 text-center">
-        <div aria-hidden="true" className="rounded-full bg-bg-surface p-4">
-          <div className="h-3 w-3 rounded-full bg-accent-danger" />
-        </div>
-        <h2 className="text-lg font-medium text-text-primary">
-          No agents running
-        </h2>
-        <p className="max-w-md text-sm text-text-secondary">
-          Deploy an agent from the Configure tab to start autonomous portfolio monitoring.
-        </p>
-        <button
-          onClick={onNavigateConfigure}
-          className="mt-2 cursor-pointer rounded-lg bg-accent-positive px-5 py-2.5 min-h-[44px] text-sm font-medium text-bg-primary transition-colors hover:bg-accent-positive/90 active:bg-accent-positive/80 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive focus-visible:ring-offset-2 focus-visible:ring-offset-bg-primary"
-        >
-          Go to Configure
-        </button>
-      </div>
-    );
-  }
-
-  // Intent list
-  const activeCount = intents.filter((i) => i.status === "active").length;
+  const activePublicCount = publicIntents.filter((i) => i.status === "active").length;
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4 p-6">
-      <div className="flex items-center justify-between">
-        <SectionHeading>Your Agents</SectionHeading>
-        <span className="text-xs text-text-tertiary">
-          {activeCount} active / {intents.length} total
-        </span>
-      </div>
+    <div className="mx-auto max-w-3xl space-y-6 p-6">
+      <h1 className="sr-only">Monitor</h1>
+
+      {/* Auth prompt — only if wallet connected but not authenticated */}
+      {isConnected && !isAuthenticated && (
+        <Card className="p-4">
+          <AuthPrompt authenticating={authenticating} error={authError} onAuthenticate={authenticate} />
+        </Card>
+      )}
+
+      {/* Owned intents — only when authenticated and has intents */}
+      {isAuthenticated && ownedIntents.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <SectionHeading>Your Agents</SectionHeading>
+            <span className="text-xs text-text-tertiary">
+              {ownedIntents.filter((i) => i.status === "active").length} active / {ownedIntents.length} total
+            </span>
+          </div>
+          {ownedError && <ErrorBanner message={ownedError} />}
+          {ownedIntents.map((intent) => (
+            <IntentListItem key={intent.id} intent={intent} onSelect={selectIntent} />
+          ))}
+        </div>
+      )}
+
+      {/* Public intents — always visible */}
       <div className="space-y-3">
-        {intents.map((intent) => (
-          <IntentListItem
-            key={intent.id}
-            intent={intent}
-            onSelect={selectIntent}
-          />
-        ))}
+        <div className="flex items-center justify-between">
+          <SectionHeading>
+            {isAuthenticated && ownedIntents.length > 0 ? "All Agents" : "Active Agents"}
+          </SectionHeading>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-text-tertiary">
+              {activePublicCount} active / {publicIntents.length} total
+            </span>
+            <label className="flex items-center gap-1.5 text-xs text-text-tertiary cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showInactive}
+                onChange={(e) => setShowInactive(e.target.checked)}
+                className="rounded border-border bg-bg-surface text-accent-positive focus:ring-accent-positive h-3.5 w-3.5 cursor-pointer"
+              />
+              Show stopped
+            </label>
+          </div>
+        </div>
+        {publicError && <ErrorBanner message={publicError} />}
+        {publicIntents.length === 0 ? (
+          <div className="flex flex-col items-center justify-center gap-4 py-12 text-center">
+            <div aria-hidden="true" className="rounded-full bg-bg-surface p-4">
+              <div className="h-3 w-3 rounded-full bg-text-tertiary" />
+            </div>
+            <p className="max-w-md text-sm text-text-secondary">
+              No agents are currently running.{!isConnected ? " Connect your wallet and deploy one from the Configure tab." : ""}
+            </p>
+            {isConnected && isAuthenticated && (
+              <Button variant="solid" size="md" onClick={onNavigateConfigure} className="mt-2">
+                Go to Configure
+              </Button>
+            )}
+          </div>
+        ) : (
+          publicIntents.map((intent) => (
+            <IntentListItem key={intent.id} intent={intent} onSelect={selectIntent} />
+          ))
+        )}
       </div>
     </div>
   );
