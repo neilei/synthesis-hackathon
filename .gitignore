@@ -27,4 +27,11 @@ UNISWAP_DEEP_INTEGRATION.md
 GITHUB_README_RAW.md
 vps-*.png
 # Temporarily added here, need to purge secrets before committing
-agent_log.jsonl 
+agent_log.jsonl
+
+# Runtime data (SQLite DB, generated images)
+data/
+apps/dashboard/data/
+
+# Sponsor brand assets (large binaries, not code)
+brands/
