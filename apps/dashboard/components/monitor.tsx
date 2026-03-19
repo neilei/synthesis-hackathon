@@ -10,7 +10,6 @@ import { deleteIntent, getIntentLogsUrl, safeParseParsedIntent, type IntentRecor
 import { ActivityFeed } from "./activity-feed";
 import { Audit } from "./audit";
 import { StatsCard } from "./stats-card";
-import { SponsorBadge } from "./sponsor-badge";
 import { ErrorBanner } from "./error-banner";
 import { SkeletonCard, SkeletonTable } from "./skeleton";
 import { CycleCountdown } from "./cycle-countdown";
@@ -20,10 +19,10 @@ import { SectionHeading } from "./ui/section-heading";
 import { PulsingDot } from "./ui/pulsing-dot";
 import { AllocationBar } from "./allocation-bar";
 import { StrategyDetails } from "./strategy-details";
-import { Spinner } from "./ui/icons";
+import { AuthPrompt } from "./auth-prompt";
+import { SponsorChip } from "./sponsor-chip";
 import {
   generateAuditReport,
-  truncateAddress,
   formatCurrency,
 } from "@veil/common";
 import type { ParsedIntent } from "@veil/common";
@@ -154,6 +153,19 @@ function IntentDetailView({
     }
   }, [intentId, token]);
 
+  const reputation = useMemo(() => {
+    const judgeEntries = feedEntries.filter(
+      (e) => e.action === "judge_completed" && e.result
+    );
+    if (judgeEntries.length === 0) return null;
+    const scores = judgeEntries
+      .map((e) => (e.result as Record<string, unknown>)?.composite as number | undefined)
+      .filter((s): s is number => s != null);
+    if (scores.length === 0) return null;
+    const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
+    return { average: avg, count: scores.length };
+  }, [feedEntries]);
+
   if (loading && !data) {
     return (
       <div className="space-y-6 p-6">
@@ -181,6 +193,12 @@ function IntentDetailView({
   if (!data) return null;
 
   const parsed = safeParseParsedIntent(data.parsedIntent);
+  const ls = data.liveState as Record<string, unknown> | null;
+  const agentId = ls?.agentId as string | undefined;
+  const currentAllocation = ls?.allocation as Record<string, number> | undefined;
+  const currentTotalValue = ls?.totalValue as number | undefined;
+  const currentDrift = ls?.drift as number | undefined;
+  const hasLiveAllocation = currentAllocation && Object.keys(currentAllocation).length > 0;
 
   // Derive active state from both DB status and live worker status.
   // If the worker has stopped but DB hasn't caught up yet, treat as inactive.
@@ -207,7 +225,7 @@ function IntentDetailView({
             disabled={downloadingLogs}
             className="rounded-md border border-border px-3 py-2 text-xs font-medium text-text-secondary transition-colors hover:text-text-primary hover:border-text-tertiary cursor-pointer disabled:opacity-50 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive min-h-[44px]"
           >
-            {downloadingLogs ? "Downloading..." : "Download Logs"}
+            {downloadingLogs ? "Downloading..." : "Download agent_log.jsonl"}
           </button>
           {dbStatusActive && (
             <>
@@ -248,16 +266,46 @@ function IntentDetailView({
           <Badge variant={STATUS_BADGE[data.status] ?? "warning"}>
             {data.status}
           </Badge>
+          <span className="font-mono">Ethereum Sepolia</span>
           <span>Cycle {data.cycle}</span>
           <span className="hidden sm:inline">Created {new Date(data.createdAt * 1000).toLocaleDateString()}</span>
           <span>Expires {new Date(data.expiresAt * 1000).toLocaleDateString()}</span>
+          {agentId && (
+            <a
+              href={`https://8004agents.ai/base-sepolia/agent/${agentId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 hover:underline transition-colors"
+            >
+              <SponsorChip sponsor="protocol-labs" text={`Agent #${agentId}`} />
+            </a>
+          )}
         </div>
       </Card>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
         <StatsCard label="Trades Executed" value={String(data.tradesExecuted)} />
         <StatsCard label="Total Spent" value={formatCurrency(data.totalSpentUsd)} />
+        <Card className="p-4">
+          <p className="text-xs font-medium uppercase tracking-wider text-text-secondary">
+            Reputation
+          </p>
+          {reputation ? (
+            <div className="mt-1">
+              <span className={`font-mono text-2xl tabular-nums font-medium ${reputation.average * 10 >= 70 ? "text-accent-positive" : reputation.average * 10 >= 50 ? "text-amber-400" : "text-accent-danger"}`}>
+                {(reputation.average * 10).toFixed(0)}/100
+              </span>
+              <p className="mt-0.5 text-xs text-text-tertiary">
+                {reputation.count} evaluation{reputation.count !== 1 ? "s" : ""}
+              </p>
+            </div>
+          ) : (
+            <p className="mt-1 font-mono text-2xl tabular-nums text-text-secondary">
+              —
+            </p>
+          )}
+        </Card>
         <Card className="p-4">
           <p className="text-xs font-medium uppercase tracking-wider text-text-secondary">
             Next Cycle
@@ -285,38 +333,46 @@ function IntentDetailView({
         </Card>
       </div>
 
-      {/* Allocation */}
+      {/* Portfolio Progress */}
       {parsed && (
         <Card className="p-5">
-          <SectionHeading className="mb-4">Target Allocation</SectionHeading>
-          <AllocationBar allocation={parsed.targetAllocation} size="lg" />
+          <div className="flex items-center justify-between mb-4">
+            <SectionHeading>Portfolio Progress</SectionHeading>
+            {currentTotalValue != null && currentTotalValue > 0 && (
+              <span className="font-mono text-lg tabular-nums text-text-primary">
+                {formatCurrency(currentTotalValue)}
+              </span>
+            )}
+          </div>
+          {hasLiveAllocation ? (
+            <div className="space-y-4">
+              <div>
+                <p className="mb-1.5 text-xs font-medium uppercase tracking-wider text-text-secondary">Current</p>
+                <AllocationBar allocation={currentAllocation} size="lg" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 mb-1.5">
+                  <p className="text-xs font-medium uppercase tracking-wider text-text-secondary">Target</p>
+                  {currentDrift != null && (
+                    <span className={`font-mono text-xs tabular-nums ${currentDrift > 0.05 ? "text-accent-danger" : "text-accent-positive"}`}>
+                      {(currentDrift * 100).toFixed(1)}% drift
+                    </span>
+                  )}
+                </div>
+                <AllocationBar allocation={parsed.targetAllocation} size="lg" ghost />
+              </div>
+            </div>
+          ) : (
+            <div>
+              <p className="mb-1.5 text-xs font-medium uppercase tracking-wider text-text-secondary">Target</p>
+              <AllocationBar allocation={parsed.targetAllocation} size="lg" />
+            </div>
+          )}
           <div className="mt-4">
             <StrategyDetails parsed={parsed} compact />
           </div>
         </Card>
       )}
-
-      {/* Status bar */}
-      <Card className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 text-xs">
-        {isActive ? (
-          <span className="flex items-center gap-2 text-text-primary">
-            <PulsingDot size="sm" />
-            Active
-          </span>
-        ) : (
-          <span className="flex items-center gap-2 text-text-secondary">
-            <span aria-hidden="true" className="inline-flex h-2 w-2 rounded-full bg-accent-danger" />
-            {data.status}
-          </span>
-        )}
-        <span className="font-mono text-text-tertiary tabular-nums">
-          {truncateAddress(data.walletAddress)}
-        </span>
-        <span className="text-text-tertiary">Ethereum Sepolia</span>
-        <span className="ml-auto hidden sm:inline-flex">
-          <SponsorBadge text="Identity via ERC-8004" />
-        </span>
-      </Card>
 
       {/* Activity Feed (live via SSE) */}
       {sseError && <ErrorBanner message={sseError} />}
@@ -375,32 +431,7 @@ export function Monitor({ onNavigateConfigure }: MonitorProps) {
   if (!isAuthenticated) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 p-8 sm:p-16 text-center">
-        {authenticating ? (
-          <>
-            <Spinner className="h-6 w-6 animate-spin text-text-tertiary" />
-            <p className="text-sm text-text-secondary">Authenticating wallet...</p>
-          </>
-        ) : authError ? (
-          <>
-            <p className="text-sm text-accent-danger">{authError}</p>
-            <button
-              onClick={authenticate}
-              className="mt-2 cursor-pointer rounded-lg border border-accent-positive px-5 py-2.5 min-h-[44px] text-sm font-medium text-accent-positive transition-colors hover:bg-accent-positive-dim active:bg-accent-positive/20 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive"
-            >
-              Retry Authentication
-            </button>
-          </>
-        ) : (
-          <>
-            <p className="text-sm text-text-secondary">Wallet authentication required.</p>
-            <button
-              onClick={authenticate}
-              className="mt-2 cursor-pointer rounded-lg border border-accent-positive px-5 py-2.5 min-h-[44px] text-sm font-medium text-accent-positive transition-colors hover:bg-accent-positive-dim active:bg-accent-positive/20 focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive"
-            >
-              Authenticate
-            </button>
-          </>
-        )}
+        <AuthPrompt authenticating={authenticating} error={authError} onAuthenticate={authenticate} />
       </div>
     );
   }

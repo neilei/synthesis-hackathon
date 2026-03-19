@@ -93,11 +93,14 @@ export async function registerAgent(
 
   const receipt = await publicClient.waitForTransactionReceipt({ hash });
 
-  // Try to extract agentId from logs (Registered event)
-  // Event: Registered(uint256 indexed agentId, string agentURI, address indexed owner)
+  // Extract agentId from the Registered event (not Transfer or other events).
+  // Registered(uint256 indexed agentId, string agentURI, address indexed owner)
+  // Event sig: keccak256("Registered(uint256,string,address)")
+  const REGISTERED_EVENT_SIG =
+    "0xca52e62c367d81bb2e328eb795f7c7ba24afb478408a26c0e201d155c449bc4a";
   let agentId: bigint | undefined;
   for (const log of receipt.logs) {
-    if (log.topics[1]) {
+    if (log.topics[0] === REGISTERED_EVENT_SIG && log.topics[1]) {
       agentId = BigInt(log.topics[1]);
       break;
     }
@@ -120,7 +123,9 @@ export async function giveFeedback(
   feedbackHash: Hex = "0x0000000000000000000000000000000000000000000000000000000000000000",
 ): Promise<Hex> {
   const config = getChainConfig(target);
-  const { publicClient, walletClient, account } = getClients(target);
+  // Use judge wallet — agent wallet owns the agentId and the reputation
+  // registry rejects self-feedback ("Self-feedback not allowed").
+  const { publicClient, walletClient, account } = getJudgeClients(target);
 
   // Convert value to int128 with 2 decimals (e.g. 4.5 → 450)
   const valueDecimals = 2;

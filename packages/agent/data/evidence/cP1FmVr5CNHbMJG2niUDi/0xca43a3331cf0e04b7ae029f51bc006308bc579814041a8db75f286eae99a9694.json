@@ -1,0 +1,18 @@
+{
+  "agentId": 2186,
+  "intentId": "cP1FmVr5CNHbMJG2niUDi",
+  "cycle": 1,
+  "composite": 5.67,
+  "weights": {
+    "decision-quality": 0.4,
+    "execution-quality": 0.3,
+    "goal-progress": 0.3
+  },
+  "dimensions": {
+    "decision-quality": 72,
+    "execution-quality": 88,
+    "goal-progress": 5
+  },
+  "swapTxHash": "0x279d8b66b51e06a58a814008d13651fcd08dd6813d421b4ce2640425f69e3c8e",
+  "timestamp": "2026-03-18T19:46:54.591Z"
+}

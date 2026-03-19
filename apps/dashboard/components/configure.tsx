@@ -21,7 +21,8 @@ import { AllocationBar } from "./allocation-bar";
 import { StrategyDetails } from "./strategy-details";
 import { DelegationDetails } from "./delegation-details";
 import { Spinner, WarningIcon } from "./ui/icons";
-import { SponsorBadge } from "./sponsor-badge";
+import { SponsorChip } from "./sponsor-chip";
+import { AuthPrompt } from "./auth-prompt";
 import type { ParsedIntent, AuditReport } from "@veil/common";
 
 type Step = "input" | "parsing" | "preview" | "signing" | "submitting";
@@ -223,7 +224,7 @@ export function Configure({ onSuccess }: ConfigureProps) {
               </div>
 
               <div className="mt-4 border-t border-border-subtle pt-3">
-                <SponsorBadge text="Powered by Venice" />
+                <SponsorChip sponsor="venice" text="Powered by Venice.ai" />
               </div>
             </Card>
 
@@ -291,7 +292,7 @@ export function Configure({ onSuccess }: ConfigureProps) {
                 </div>
 
                 <div className="mt-4 border-t border-border-subtle pt-3">
-                  <SponsorBadge text="Enforced by MetaMask Delegation" />
+                  <SponsorChip sponsor="metamask" text="Enforced by MetaMask Delegation" />
                 </div>
               </Card>
             )}
@@ -308,32 +309,7 @@ export function Configure({ onSuccess }: ConfigureProps) {
                   </p>
                 ) : !isAuthenticated ? (
                   <div className="flex flex-col items-center justify-center gap-2 text-sm">
-                    {authenticating ? (
-                      <span className="flex items-center gap-2 text-text-secondary">
-                        <Spinner className="h-4 w-4 animate-spin" />
-                        Authenticating wallet...
-                      </span>
-                    ) : authError ? (
-                      <>
-                        <p className="text-accent-danger">{authError}</p>
-                        <button
-                          onClick={authenticate}
-                          className="cursor-pointer rounded-lg border border-accent-positive px-4 py-2.5 min-h-[44px] text-sm font-medium text-accent-positive transition-colors hover:bg-accent-positive-dim focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive"
-                        >
-                          Retry Authentication
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <p className="text-text-secondary">Wallet authentication required.</p>
-                        <button
-                          onClick={authenticate}
-                          className="cursor-pointer rounded-lg border border-accent-positive px-4 py-2.5 min-h-[44px] text-sm font-medium text-accent-positive transition-colors hover:bg-accent-positive-dim focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive"
-                        >
-                          Authenticate
-                        </button>
-                      </>
-                    )}
+                    <AuthPrompt authenticating={authenticating} error={authError} onAuthenticate={authenticate} />
                   </div>
                 ) : (
                   <button

@@ -26,6 +26,7 @@ export interface SwapEvidenceInput {
     maxSlippage: number;
     timeWindowDays: number;
     maxTradesPerDay: number;
+    maxPerTradeUsd: number;
   };
   beforeSwap: { allocation: Record<string, number>; drift: number; portfolioValueUsd: number };
   afterSwap: { allocation: Record<string, number>; drift: number; portfolioValueUsd: number };

@@ -1,0 +1,8 @@
+{
+  "requestHash": "0x3ab03bb4007c9c824df3fa13a4824eb51839932551d8224fe4cf25bb453da93e",
+  "dimension": "goal-progress",
+  "score": 0,
+  "reasoning": "The trade resulted in zero progress toward the target allocation. The drift remained exactly 14.8454% before and after the transaction, meaning the portfolio is no closer to its 60% ETH / 40% USDC goal than it was before the gas was spent.",
+  "model": "gemini-3-flash-preview",
+  "evaluatedAt": "2026-03-18T19:48:02.548Z"
+}

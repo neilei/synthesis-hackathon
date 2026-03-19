@@ -7,14 +7,13 @@
  */
 import type { IntentParse } from "../venice/schemas.js";
 import type { Delegation } from "@metamask/smart-accounts-kit";
-import { SECONDS_PER_DAY } from "@veil/common";
-import { detectAdversarialIntent } from "./compiler.js";
+import { SECONDS_PER_DAY, detectAdversarialIntent } from "@veil/common";
 
 // ---------------------------------------------------------------------------
-// Audit report generation
+// Detailed audit report generation (includes delegation inspection)
 // ---------------------------------------------------------------------------
 
-export interface AuditReport {
+export interface DetailedAuditReport {
   allows: string[];
   prevents: string[];
   worstCase: string;
@@ -24,14 +23,14 @@ export interface AuditReport {
 }
 
 /**
- * Generate a human-readable audit report comparing an intent to its
- * compiled delegation. Shows what the delegation ALLOWS, what it
- * PREVENTS, the WORST CASE damage, and whether it matches the intent.
+ * Generate a detailed audit report comparing an intent to its compiled
+ * delegation. Includes delegation inspection (caveats, signature, etc.)
+ * beyond what the lightweight common generateAuditReport provides.
  */
-export function generateAuditReport(
+export function generateDetailedAudit(
   intent: IntentParse,
   delegation: Delegation | Record<string, unknown>,
-): AuditReport {
+): DetailedAuditReport {
   const tokens = Object.keys(intent.targetAllocation);
   const allocDesc = tokens
     .map(
@@ -50,6 +49,9 @@ export function generateAuditReport(
   const allows: string[] = [
     `Trade up to $${intent.dailyBudgetUsd}/day for ${intent.timeWindowDays} days`,
     `Maximum ${intent.maxTradesPerDay} trades per day (${totalTrades} total)`,
+    ...(intent.maxPerTradeUsd > 0
+      ? [`Maximum $${intent.maxPerTradeUsd} per individual trade`]
+      : []),
     `Slippage up to ${(intent.maxSlippage * 100).toFixed(1)}%`,
     `Rebalance when drift exceeds ${(intent.driftThreshold * 100).toFixed(1)}%`,
     `Target allocation: ${allocDesc}`,
@@ -59,6 +61,9 @@ export function generateAuditReport(
   const prevents: string[] = [
     `Spending more than $${totalBudget.toLocaleString()} total`,
     `More than ${totalTrades} trades over the full period`,
+    ...(intent.maxPerTradeUsd > 0
+      ? [`Any single trade exceeding $${intent.maxPerTradeUsd}`]
+      : []),
     `Any activity after ${expiryDate.toISOString().split("T")[0]}`,
     `Transfers to non-approved contract targets`,
     `Trading tokens outside the delegation scope`,

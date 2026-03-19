@@ -62,6 +62,7 @@ describe("Uniswap Trading API (e2e)", () => {
         type: "EXACT_INPUT",
         chainId: 11155111,
         swapper: agentAddress,
+        protocols: ["V3"], // V4 pools on Sepolia are broken
       });
 
       expect(quote).toBeDefined();
@@ -87,6 +88,7 @@ describe("Uniswap Trading API (e2e)", () => {
         type: "EXACT_INPUT",
         chainId: 11155111,
         swapper: agentAddress,
+        protocols: ["V3"], // V4 pools on Sepolia are broken
       });
 
       expect(quote).toBeDefined();

@@ -27,13 +27,17 @@ const mockInvoke = (
 ).__mockInvoke as ReturnType<typeof vi.fn>;
 
 describe("getTokenPrice", () => {
+  /** Wrap a parsed response in the { parsed, raw } shape returned by includeRaw: true */
+  function withRaw(parsed: { price: number; citation: string | null }) {
+    return { parsed, raw: { usage_metadata: undefined } };
+  }
+
   beforeEach(() => {
     clearPriceCache();
     vi.clearAllMocks();
-    mockInvoke.mockResolvedValue({
-      price: 2000,
-      citation: "https://example.com/eth-price",
-    });
+    mockInvoke.mockResolvedValue(
+      withRaw({ price: 2000, citation: "https://example.com/eth-price" }),
+    );
   });
 
   afterEach(() => {
@@ -73,10 +77,9 @@ describe("getTokenPrice", () => {
     const entry = cache.get("ETH")!;
     entry.timestamp = Date.now() - 61_000; // 61 seconds ago
 
-    mockInvoke.mockResolvedValue({
-      price: 2100,
-      citation: "https://example.com/eth-price-2",
-    });
+    mockInvoke.mockResolvedValue(
+      withRaw({ price: 2100, citation: "https://example.com/eth-price-2" }),
+    );
 
     const result = await getTokenPrice("ETH");
 
@@ -86,8 +89,8 @@ describe("getTokenPrice", () => {
 
   it("should cache different tokens separately", async () => {
     mockInvoke
-      .mockResolvedValueOnce({ price: 2000, citation: null })
-      .mockResolvedValueOnce({ price: 1, citation: null });
+      .mockResolvedValueOnce(withRaw({ price: 2000, citation: null }))
+      .mockResolvedValueOnce(withRaw({ price: 1, citation: null }));
 
     const ethResult = await getTokenPrice("ETH");
     const usdcResult = await getTokenPrice("USDC");
@@ -98,7 +101,7 @@ describe("getTokenPrice", () => {
   });
 
   it("should handle null citation", async () => {
-    mockInvoke.mockResolvedValue({ price: 1, citation: null });
+    mockInvoke.mockResolvedValue(withRaw({ price: 1, citation: null }));
 
     const result = await getTokenPrice("USDC");
 

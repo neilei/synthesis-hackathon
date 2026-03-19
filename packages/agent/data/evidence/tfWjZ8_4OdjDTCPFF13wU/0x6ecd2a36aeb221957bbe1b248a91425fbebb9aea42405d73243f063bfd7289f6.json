@@ -1,0 +1,8 @@
+{
+  "requestHash": "0x54561071db8ca7a48b4a47e6b1e7e827f047fe7bb00c91a7bbaef5e279a9b360",
+  "dimension": "decision-quality",
+  "score": 75,
+  "reasoning": "The agent correctly identified a significant drift of 16.79%, which is more than triple the 5% threshold. The decision to sell USDC (overweight at 56.8%) for ETH (underweight at 43.2%) was the correct directional move. The trade size of 100 USDC is conservative, representing 50% of the daily budget, which is appropriate for a first cycle trade.",
+  "model": "gemini-3-flash-preview",
+  "evaluatedAt": "2026-03-18T19:46:13.200Z"
+}

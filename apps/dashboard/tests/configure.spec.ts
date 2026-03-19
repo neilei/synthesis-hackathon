@@ -18,6 +18,7 @@ const MOCK_PARSE_RESPONSE = {
     maxSlippage: 0.005,
     driftThreshold: 0.05,
     maxTradesPerDay: 10,
+    maxPerTradeUsd: 200,
   },
   audit: {
     allows: ["Swap ETH ↔ USDC on Uniswap V3"],
@@ -116,8 +117,8 @@ test.describe("Configure Screen", () => {
     await expect(page.getByText("Your Strategy")).toBeVisible({ timeout: 5000 });
     await expect(page.getByText("ETH 60%")).toBeVisible();
     await expect(page.getByText("USDC 40%")).toBeVisible();
-    await expect(page.getByText("$200", { exact: true })).toBeVisible();
-    await expect(page.getByText("7 days", { exact: true })).toBeVisible();
+    await expect(page.getByText("$200", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("7 days", { exact: true }).first()).toBeVisible();
   });
 
   test("shows audit report after parsing", async ({ page }) => {
@@ -262,7 +263,7 @@ test.describe("Configure Screen", () => {
     await expect(page.getByText(/0xf130...c927/i)).toBeVisible();
 
     // MetaMask sponsor badge
-    await expect(page.getByText("Secured by MetaMask ERC-7715 / ERC-7710")).toBeVisible();
+    await expect(page.getByText("Enforced by MetaMask Delegation").first()).toBeVisible();
   });
 
   test("sponsor badges shown after preview", async ({ page }) => {
@@ -278,7 +279,7 @@ test.describe("Configure Screen", () => {
     await textarea.fill("60/40 ETH/USDC");
     await page.getByRole("button", { name: /preview strategy/i }).click();
 
-    await expect(page.getByText("Powered by Venice")).toBeVisible({ timeout: 5000 });
-    await expect(page.getByText("Enforced by MetaMask Delegation")).toBeVisible();
+    await expect(page.getByText("Powered by Venice.ai")).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText("Enforced by MetaMask Delegation").first()).toBeVisible();
   });
 });

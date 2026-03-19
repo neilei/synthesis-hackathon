@@ -50,6 +50,7 @@ const MOCK_PARSED_INTENT = {
   maxSlippage: 0.005,
   driftThreshold: 0.05,
   maxTradesPerDay: 10,
+  maxPerTradeUsd: 200,
 };
 
 async function waitForServer(timeoutMs = 30000): Promise<void> {

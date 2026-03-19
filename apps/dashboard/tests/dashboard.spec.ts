@@ -28,7 +28,7 @@ test.describe("Dashboard Navigation", () => {
   });
 
   test("footer shows sponsor links", async ({ page }) => {
-    await expect(page.getByRole("link", { name: "Venice" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Venice.ai" })).toBeVisible();
     await expect(page.getByRole("link", { name: "MetaMask" })).toBeVisible();
     await expect(page.getByRole("link", { name: "Uniswap" })).toBeVisible();
     await expect(
@@ -37,7 +37,7 @@ test.describe("Dashboard Navigation", () => {
   });
 
   test("footer links open in new tab", async ({ page }) => {
-    const veniceLink = page.getByRole("link", { name: "Venice" });
+    const veniceLink = page.getByRole("link", { name: "Venice.ai" });
     await expect(veniceLink).toHaveAttribute("target", "_blank");
     await expect(veniceLink).toHaveAttribute("rel", /noopener/);
   });

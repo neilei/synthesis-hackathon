@@ -18,7 +18,7 @@ export function onLogEntry(listener: LogEntryListener): () => void {
 }
 
 export class IntentLogger {
-  private sequence = 0;
+  private sequence: number;
   private filePath: string;
 
   constructor(
@@ -31,6 +31,8 @@ export class IntentLogger {
     if (!existsSync(dir)) {
       mkdirSync(dir, { recursive: true });
     }
+    // Resume from the highest existing sequence so restarts don't collide.
+    this.sequence = repo ? repo.getMaxLogSequence(intentId) + 1 : 0;
   }
 
   log(

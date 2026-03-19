@@ -22,8 +22,8 @@ export const TOKEN_META: Record<string, TokenMeta> = {
   USDC: { bg: "bg-indigo-500", labelColor: "text-indigo-400", label: "USDC" },
 };
 
-/** Fallback background class for unknown tokens. */
-const FALLBACK_BG = "bg-zinc-500";
+/** Fallback background class for unknown tokens (zinc-400 for AA contrast with dark inline text). */
+const FALLBACK_BG = "bg-zinc-400";
 
 /** Fallback label color class for unknown tokens. */
 const FALLBACK_LABEL_COLOR = "text-zinc-400";

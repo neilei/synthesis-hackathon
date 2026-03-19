@@ -3,6 +3,7 @@
  *
  * @module @veil/dashboard/lib/api
  */
+import { ParsedIntentSchema } from "@veil/common";
 import type { ParsedIntent, AuditReport, IntentRecord, AgentLogEntry } from "@veil/common";
 
 // ---------------------------------------------------------------------------
@@ -95,7 +96,7 @@ export async function fetchIntentDetail(
   intentId: string,
   token: string,
 ): Promise<IntentRecord & { logs: AgentLogEntry[]; liveState: unknown }> {
-  const res = await fetch(`/api/intents/${intentId}`, {
+  const res = await fetch(`/api/intents/${intentId}?limit=10000`, {
     headers: { Authorization: `Bearer ${token}` },
     credentials: "include",
   });
@@ -121,7 +122,9 @@ export function getIntentLogsUrl(intentId: string): string {
 
 export function safeParseParsedIntent(raw: string): ParsedIntent | null {
   try {
-    return JSON.parse(raw) as ParsedIntent;
+    const parsed = JSON.parse(raw);
+    const result = ParsedIntentSchema.safeParse(parsed);
+    return result.success ? result.data : null;
   } catch {
     return null;
   }

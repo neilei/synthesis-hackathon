@@ -72,6 +72,7 @@ const SAMPLE_INTENT = {
     dailyBudgetUsd: 200,
     timeWindowDays: 7,
     maxTradesPerDay: 10,
+    maxPerTradeUsd: 200,
     maxSlippage: 0.005,
     driftThreshold: 0.05,
   }),
@@ -422,6 +423,49 @@ describe("IntentRepository", () => {
           action: "test",
         }),
       ).toThrow();
+    });
+  });
+
+  describe("getMaxLogSequence", () => {
+    it("returns -1 when no logs exist for intent", () => {
+      repo.createIntent(SAMPLE_INTENT);
+      expect(repo.getMaxLogSequence("test-intent-1")).toBe(-1);
+    });
+
+    it("returns -1 for non-existent intent", () => {
+      expect(repo.getMaxLogSequence("nonexistent")).toBe(-1);
+    });
+
+    it("returns the highest sequence number", () => {
+      repo.createIntent(SAMPLE_INTENT);
+      for (let i = 0; i < 5; i++) {
+        repo.insertLog({
+          intentId: "test-intent-1",
+          timestamp: `2026-03-18T12:0${i}:00Z`,
+          sequence: i,
+          action: `action_${i}`,
+        });
+      }
+      expect(repo.getMaxLogSequence("test-intent-1")).toBe(4);
+    });
+
+    it("is scoped to the requested intent", () => {
+      repo.createIntent(SAMPLE_INTENT);
+      repo.createIntent({ ...SAMPLE_INTENT, id: "other" });
+      repo.insertLog({
+        intentId: "test-intent-1",
+        timestamp: "2026-03-18T12:00:00Z",
+        sequence: 10,
+        action: "a",
+      });
+      repo.insertLog({
+        intentId: "other",
+        timestamp: "2026-03-18T12:00:00Z",
+        sequence: 99,
+        action: "b",
+      });
+      expect(repo.getMaxLogSequence("test-intent-1")).toBe(10);
+      expect(repo.getMaxLogSequence("other")).toBe(99);
     });
   });
 });

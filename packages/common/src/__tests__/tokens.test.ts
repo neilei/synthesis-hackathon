@@ -14,7 +14,7 @@ import {
 // ---------------------------------------------------------------------------
 
 describe.each([
-  ["getTokenBg", getTokenBg, { ETH: "bg-emerald-500", USDC: "bg-indigo-500" }, "bg-zinc-500"],
+  ["getTokenBg", getTokenBg, { ETH: "bg-emerald-500", USDC: "bg-indigo-500" }, "bg-zinc-400"],
   ["getTokenLabelColor", getTokenLabelColor, { ETH: "text-emerald-400", USDC: "text-indigo-400" }, "text-zinc-400"],
 ] as const)("%s", (_name, fn, expected, fallback) => {
   it("returns correct value for ETH", () => {

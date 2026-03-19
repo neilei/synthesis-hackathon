@@ -36,6 +36,7 @@ describe("parse-intent routes", () => {
       dailyBudgetUsd: 200,
       timeWindowDays: 7,
       maxTradesPerDay: 5,
+      maxPerTradeUsd: 200,
       maxSlippage: 0.5,
       driftThreshold: 5,
     });

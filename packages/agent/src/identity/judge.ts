@@ -6,6 +6,7 @@
  *
  * @module @veil/agent/identity/judge
  */
+import { AIMessage } from "@langchain/core/messages";
 import { type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import type { EvaluationDimension } from "./dimensions.js";
@@ -32,22 +33,24 @@ import { reasoningLlm, fastLlm } from "../venice/llm.js";
 import { env } from "../config.js";
 import { logger } from "../logging/logger.js";
 
-const JUDGE_SYSTEM_PROMPT = `You are an independent validator auditing an autonomous DeFi agent. You receive structured evidence about a swap the agent executed. Your job: determine whether the agent made good decisions and executed them well. You are not the agent's advocate — you are a skeptical auditor looking for both strengths and weaknesses.
+const JUDGE_SYSTEM_PROMPT = `You are an independent validator auditing an autonomous DeFi agent that operates under a user-defined delegation. The user chose the strategy (target allocation, budget, trade limits). The agent's job is to execute faithfully within the user's delegated constraints — not to second-guess the strategy itself.
+
+You receive structured evidence about a swap the agent executed. Your job: determine whether the agent faithfully executed within the user's delegated constraints and whether the execution was technically sound.
 
 For each dimension, provide:
 1. A score from 0-100
 2. Your reasoning, citing specific numbers from the evidence
 
 Calibration — what scores mean:
-  90-100: Exceptional. The agent handled a complex situation optimally.
-  70-89:  Good. Sound decision-making with minor room for improvement.
-  50-69:  Adequate. The action was reasonable but not impressive.
-  30-49:  Questionable. The agent could have made a better choice.
-  0-29:   Poor. The action was harmful or clearly irrational.
+  90-100: Exceptional. The agent operated well within all constraints and handled complexity optimally.
+  70-89:  Good. Constraints respected, execution sound, minor room for improvement.
+  50-69:  Adequate. Constraints respected but execution was suboptimal.
+  30-49:  Questionable. A constraint was nearly violated, or execution was poor.
+  0-29:   Poor. A constraint was violated, or the action was clearly irrational given the delegation.
 
-Most routine, well-executed swaps should score 65-80. Reserve extreme scores for genuinely exceptional or genuinely poor performance.`;
+Most routine swaps that respect all constraints should score 70-85. Reserve extreme scores for genuine constraint violations or genuinely exceptional handling of edge cases.`;
 
-const JUDGE_FAILURE_SYSTEM_PROMPT = `You are an independent validator auditing an autonomous DeFi agent. The agent attempted a swap that FAILED. You receive structured evidence about the failed attempt. Your job: determine whether the agent's decision to attempt this swap was justified, and how the failure affects its track record.
+const JUDGE_FAILURE_SYSTEM_PROMPT = `You are an independent validator auditing an autonomous DeFi agent. The agent attempted a swap that FAILED. You receive structured evidence about the failed attempt. Your job: determine whether the agent's decision to attempt this swap was justified given the user's delegated constraints, and how the failure affects its track record.
 
 For each dimension, provide:
 1. A score from 0-100
@@ -56,12 +59,12 @@ For each dimension, provide:
 Calibration for failed swaps:
   Execution Quality: Always 0 — the swap failed, no execution occurred.
   Goal Progress: Always 0 — portfolio unchanged, no progress made.
-  Decision Quality: Judge independently — was the attempt reasonable given the data?
-    70-89: Failure was due to external factors (network, liquidity); decision was sound.
-    40-69: Decision was borderline; agent should have anticipated the failure risk.
-    0-39:  Decision was poor; obvious signs the swap would fail were ignored.
+  Decision Quality: Judge independently — was the attempt reasonable given the constraints?
+    70-89: Decision respected all constraints; failure was due to external factors (network, liquidity).
+    40-69: Decision was borderline; agent should have anticipated the failure risk from available data.
+    0-39:  Decision violated or nearly violated a constraint, or obvious signs the swap would fail were ignored.
 
-The error message and market context are critical inputs for judging decision quality.`;
+The error message, agent reasoning, and constraint parameters in the evidence are critical inputs.`;
 
 export function buildJudgePrompt(
   dimensions: EvaluationDimension[],
@@ -87,6 +90,10 @@ export interface JudgeResult {
   validationRequestTxHash: Hex;
   validationResponseTxHashes: Record<string, Hex>;
   feedbackTxHash: Hex;
+  /** On-chain steps that failed — empty array means all on-chain ops succeeded */
+  warnings: string[];
+  /** LLM token usage from the judge evaluation call */
+  usage?: { inputTokens: number; outputTokens: number; totalTokens: number };
 }
 
 function toCamelCase(tag: string): string {
@@ -117,18 +124,30 @@ export async function evaluateSwap(
     "Judge: evidence stored, submitting validation request",
   );
 
-  // 2. Submit validation request on-chain (agent wallet)
-  const validationRequestTxHash = await submitValidationRequest(
-    input.agentId,
-    judgeAddress,
-    requestURI,
-    requestHash,
-  );
+  // Track on-chain failures so they appear in the intent log, not just pino
+  const warnings: string[] = [];
 
-  logger.info(
-    { txHash: validationRequestTxHash },
-    "Judge: validation request submitted",
-  );
+  // 2. Submit validation request on-chain (agent wallet)
+  let validationRequestTxHash: Hex = "0x0" as Hex;
+  try {
+    validationRequestTxHash = await submitValidationRequest(
+      input.agentId,
+      judgeAddress,
+      requestURI,
+      requestHash,
+    );
+    logger.info(
+      { txHash: validationRequestTxHash },
+      "Judge: validation request submitted",
+    );
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    logger.warn(
+      { err, agentId: input.agentId.toString() },
+      "Judge: validation request failed on-chain (continuing with LLM evaluation)",
+    );
+    warnings.push(`Validation request failed: ${msg}`);
+  }
 
   // 3. Venice LLM evaluation
   const dimensions = getDimensionsForIntent(intentType);
@@ -136,18 +155,23 @@ export async function evaluateSwap(
   const { systemPrompt, userPrompt } = buildJudgePrompt(dimensions, evidence);
 
   const llm = budgetCritical ? fastLlm : reasoningLlm;
-  const structuredLlm = llm.withStructuredOutput(schema);
-  const llmResult = await structuredLlm.invoke([
+  const structuredLlm = llm.withStructuredOutput(schema, { includeRaw: true });
+  const llmResponse = await structuredLlm.invoke([
     { role: "system", content: systemPrompt },
     { role: "user", content: userPrompt },
   ]);
 
-  const validated = schema.safeParse(llmResult);
+  const validated = schema.safeParse(llmResponse.parsed);
   if (!validated.success) {
     throw new Error(
       `LLM evaluation failed validation: ${validated.error.message}`,
     );
   }
+
+  const llmMeta = llmResponse.raw instanceof AIMessage ? llmResponse.raw.usage_metadata : undefined;
+  const llmUsage = llmMeta
+    ? { inputTokens: llmMeta.input_tokens, outputTokens: llmMeta.output_tokens, totalTokens: llmMeta.total_tokens }
+    : undefined;
 
   // 4. Extract scores and reasonings (fields are guaranteed by Zod schema validation above)
   const scores: Record<string, number> = {};
@@ -178,19 +202,27 @@ export async function evaluateSwap(
       responseDoc,
     );
 
-    const txHash = await submitValidationResponse(
-      requestHash,
-      scores[dim.tag]!,
-      responseURI,
-      responseHash,
-      dim.tag,
-    );
-    validationResponseTxHashes[dim.tag] = txHash;
-
-    logger.info(
-      { dimension: dim.tag, score: scores[dim.tag], txHash },
-      "Judge: validation response submitted",
-    );
+    try {
+      const txHash = await submitValidationResponse(
+        requestHash,
+        scores[dim.tag]!,
+        responseURI,
+        responseHash,
+        dim.tag,
+      );
+      validationResponseTxHashes[dim.tag] = txHash;
+      logger.info(
+        { dimension: dim.tag, score: scores[dim.tag], txHash },
+        "Judge: validation response submitted",
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      logger.warn(
+        { err, dimension: dim.tag },
+        "Judge: validation response failed on-chain (continuing)",
+      );
+      warnings.push(`Validation response (${dim.tag}) failed: ${msg}`);
+    }
   }
 
   // 6. Compute composite score and submit reputation feedback (judge wallet)
@@ -212,20 +244,36 @@ export async function evaluateSwap(
     feedbackDoc,
   );
 
-  const feedbackTxHash = await giveFeedback(
-    input.agentId,
-    compositeScaled,
-    "swap-quality",
-    intentType,
-    "base-sepolia",
-    feedbackURI,
-    feedbackHash,
-  );
+  let feedbackTxHash: Hex = "0x0" as Hex;
+  try {
+    feedbackTxHash = await giveFeedback(
+      input.agentId,
+      compositeScaled,
+      "swap-quality",
+      intentType,
+      "base-sepolia",
+      feedbackURI,
+      feedbackHash,
+    );
+    logger.info(
+      { composite: compositeScaled, feedbackTxHash },
+      "Judge: reputation feedback submitted",
+    );
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    logger.error(
+      { err, agentId: input.agentId.toString() },
+      "Judge: reputation feedback FAILED on-chain — reputation not recorded",
+    );
+    warnings.push(`Reputation feedback failed: ${msg}`);
+  }
 
-  logger.info(
-    { composite: compositeScaled, feedbackTxHash },
-    "Judge: reputation feedback submitted",
-  );
+  if (warnings.length > 0) {
+    logger.warn(
+      { warnings, agentId: input.agentId.toString() },
+      `Judge: ${warnings.length} on-chain operation(s) failed`,
+    );
+  }
 
   return {
     scores,
@@ -235,6 +283,8 @@ export async function evaluateSwap(
     validationRequestTxHash,
     validationResponseTxHashes,
     feedbackTxHash,
+    warnings,
+    usage: llmUsage,
   };
 }
 
@@ -268,18 +318,30 @@ export async function evaluateSwapFailure(
     "Judge: failure evidence stored, submitting validation request",
   );
 
-  // 2. Submit validation request on-chain (agent wallet)
-  const validationRequestTxHash = await submitValidationRequest(
-    input.agentId,
-    judgeAddress,
-    requestURI,
-    requestHash,
-  );
+  // Track on-chain failures so they appear in the intent log, not just pino
+  const warnings: string[] = [];
 
-  logger.info(
-    { txHash: validationRequestTxHash },
-    "Judge: failure validation request submitted",
-  );
+  // 2. Submit validation request on-chain (agent wallet)
+  let validationRequestTxHash: Hex = "0x0" as Hex;
+  try {
+    validationRequestTxHash = await submitValidationRequest(
+      input.agentId,
+      judgeAddress,
+      requestURI,
+      requestHash,
+    );
+    logger.info(
+      { txHash: validationRequestTxHash },
+      "Judge: failure validation request submitted",
+    );
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    logger.warn(
+      { err, agentId: input.agentId.toString() },
+      "Judge: failure validation request failed on-chain (continuing with LLM evaluation)",
+    );
+    warnings.push(`Validation request failed: ${msg}`);
+  }
 
   // 3. Venice LLM evaluation
   const dimensions = getDimensionsForIntent(intentType);
@@ -287,18 +349,23 @@ export async function evaluateSwapFailure(
   const { systemPrompt, userPrompt } = buildJudgePrompt(dimensions, evidence);
 
   const llm = budgetCritical ? fastLlm : reasoningLlm;
-  const structuredLlm = llm.withStructuredOutput(schema);
-  const llmResult = await structuredLlm.invoke([
+  const structuredLlm = llm.withStructuredOutput(schema, { includeRaw: true });
+  const llmResponse = await structuredLlm.invoke([
     { role: "system", content: systemPrompt },
     { role: "user", content: userPrompt },
   ]);
 
-  const validated = schema.safeParse(llmResult);
+  const validated = schema.safeParse(llmResponse.parsed);
   if (!validated.success) {
     throw new Error(
       `LLM failure evaluation failed validation: ${validated.error.message}`,
     );
   }
+
+  const llmMeta = llmResponse.raw instanceof AIMessage ? llmResponse.raw.usage_metadata : undefined;
+  const llmUsage = llmMeta
+    ? { inputTokens: llmMeta.input_tokens, outputTokens: llmMeta.output_tokens, totalTokens: llmMeta.total_tokens }
+    : undefined;
 
   // 4. Extract scores and reasonings
   const scores: Record<string, number> = {};
@@ -330,19 +397,27 @@ export async function evaluateSwapFailure(
       responseDoc,
     );
 
-    const txHash = await submitValidationResponse(
-      requestHash,
-      scores[dim.tag]!,
-      responseURI,
-      responseHash,
-      dim.tag,
-    );
-    validationResponseTxHashes[dim.tag] = txHash;
-
-    logger.info(
-      { dimension: dim.tag, score: scores[dim.tag], txHash },
-      "Judge: failure validation response submitted",
-    );
+    try {
+      const txHash = await submitValidationResponse(
+        requestHash,
+        scores[dim.tag]!,
+        responseURI,
+        responseHash,
+        dim.tag,
+      );
+      validationResponseTxHashes[dim.tag] = txHash;
+      logger.info(
+        { dimension: dim.tag, score: scores[dim.tag], txHash },
+        "Judge: failure validation response submitted",
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      logger.warn(
+        { err, dimension: dim.tag },
+        "Judge: failure validation response failed on-chain (continuing)",
+      );
+      warnings.push(`Validation response (${dim.tag}) failed: ${msg}`);
+    }
   }
 
   // 6. Compute composite score and submit reputation feedback (judge wallet)
@@ -365,20 +440,36 @@ export async function evaluateSwapFailure(
     feedbackDoc,
   );
 
-  const feedbackTxHash = await giveFeedback(
-    input.agentId,
-    compositeScaled,
-    "swap-quality",
-    intentType,
-    "base-sepolia",
-    feedbackURI,
-    feedbackHash,
-  );
+  let feedbackTxHash: Hex = "0x0" as Hex;
+  try {
+    feedbackTxHash = await giveFeedback(
+      input.agentId,
+      compositeScaled,
+      "swap-quality",
+      intentType,
+      "base-sepolia",
+      feedbackURI,
+      feedbackHash,
+    );
+    logger.info(
+      { composite: compositeScaled, feedbackTxHash },
+      "Judge: failure reputation feedback submitted",
+    );
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    logger.error(
+      { err, agentId: input.agentId.toString() },
+      "Judge: failure reputation feedback FAILED on-chain — reputation not recorded",
+    );
+    warnings.push(`Reputation feedback failed: ${msg}`);
+  }
 
-  logger.info(
-    { composite: compositeScaled, feedbackTxHash },
-    "Judge: failure reputation feedback submitted",
-  );
+  if (warnings.length > 0) {
+    logger.warn(
+      { warnings, agentId: input.agentId.toString() },
+      `Judge: ${warnings.length} on-chain operation(s) failed`,
+    );
+  }
 
   return {
     scores,
@@ -388,5 +479,7 @@ export async function evaluateSwapFailure(
     validationRequestTxHash,
     validationResponseTxHashes,
     feedbackTxHash,
+    warnings,
+    usage: llmUsage,
   };
 }

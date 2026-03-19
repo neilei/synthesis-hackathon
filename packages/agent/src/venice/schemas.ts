@@ -49,6 +49,9 @@ export const IntentParseLlmSchema = z
     maxTradesPerDay: z
       .number()
       .describe("Maximum number of trades per day"),
+    maxPerTradeUsd: z
+      .number()
+      .describe("Maximum USD value of a single trade. Defaults to the dailyBudgetUsd if not specified."),
     maxSlippage: z
       .number()
       .describe("Maximum slippage as decimal, e.g. 0.005 for 0.5%"),

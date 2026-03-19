@@ -1,4 +1,4 @@
-import { eq, and, gt, lte } from "drizzle-orm";
+import { eq, and, gt, lte, max } from "drizzle-orm";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import * as schema from "./schema.js";
 import { intents, swaps, nonces, agentLogs } from "./schema.js";
@@ -120,6 +120,17 @@ export class IntentRepository {
   }
 
   // Agent logs
+
+  /** Return the highest sequence number for an intent's logs, or -1 if none exist. */
+  getMaxLogSequence(intentId: string): number {
+    const row = this.db
+      .select({ maxSeq: max(agentLogs.sequence) })
+      .from(agentLogs)
+      .where(eq(agentLogs.intentId, intentId))
+      .get();
+    return row?.maxSeq ?? -1;
+  }
+
   insertLog(data: AgentLogInsert): AgentLogSelect {
     const result = this.db
       .insert(agentLogs)

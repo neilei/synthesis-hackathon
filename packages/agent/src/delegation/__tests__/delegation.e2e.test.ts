@@ -7,7 +7,7 @@ import { describe, it, expect } from "vitest";
 import { encodePacked } from "viem";
 import type { Address, Hex } from "viem";
 import { createDelegationFromIntent } from "../compiler.js";
-import { generateAuditReport } from "../audit.js";
+import { generateDetailedAudit } from "../audit.js";
 import { privateKeyToAccount, generatePrivateKey } from "viem/accounts";
 import { getSmartAccountsEnvironment } from "@metamask/smart-accounts-kit";
 import type { IntentParse } from "../../venice/schemas.js";
@@ -23,6 +23,7 @@ describe("Delegation creation + signing (e2e)", () => {
     dailyBudgetUsd: 200,
     timeWindowDays: 7,
     maxTradesPerDay: 10,
+    maxPerTradeUsd: 200,
     maxSlippage: 0.005,
     driftThreshold: 0.05,
   };
@@ -106,7 +107,7 @@ describe("Delegation creation + signing (e2e)", () => {
         11155111,
       );
 
-      const report = generateAuditReport(testIntent, result.delegation);
+      const report = generateDetailedAudit(testIntent, result.delegation);
 
       expect(report.allows.length).toBeGreaterThan(0);
       expect(report.prevents.length).toBeGreaterThan(0);

@@ -30,7 +30,7 @@ Root `package.json` uses pnpm workspaces. Run everything from root:
 - `pnpm run codegen` — GraphQL codegen for The Graph
 - `pnpm run dev:dashboard` — Next.js dashboard dev server
 - `pnpm run build:dashboard` — build dashboard for production
-- `pnpm --filter @veil/dashboard test:e2e` — Playwright e2e tests (uses port 3100)
+- `pnpm --filter @veil/dashboard test:e2e` — Playwright e2e tests (uses port 3200)
 
 ## Chains
 
@@ -74,9 +74,6 @@ Root `package.json` uses pnpm workspaces. Run everything from root:
 - **Per-intent logging**: Each intent gets `data/logs/{intentId}.jsonl`. Downloadable via `GET /api/intents/:id/logs`.
 
 ## Design Context
-
-NOTE: THE BELOW IS BEING WORKED ON AND MAY BE OBSOLETE
-TRUST THE IMPECCABLE SKILL
 
 ### Users
 

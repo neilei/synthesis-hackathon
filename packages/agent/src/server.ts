@@ -25,6 +25,7 @@ import { requireAuth } from "./middleware/auth.js";
 import { createAuthRoutes } from "./routes/auth.js";
 import { createParseRoutes } from "./routes/parse.js";
 import { createIntentRoutes } from "./routes/intents.js";
+import { createIdentityRoutes } from "./routes/identity.js";
 
 const PORT = process.env.PORT ? Number(process.env.PORT) : DEFAULT_AGENT_PORT;
 const DASHBOARD_DIST = join("apps", "dashboard", "out");
@@ -92,33 +93,15 @@ app.get("/api/evidence/:intentId/:hash", (c) => {
   return c.body(content);
 });
 
-// Per-intent ERC-8004 identity document (no auth — public, resolved by on-chain agentURI)
-app.get("/api/intents/:id/identity.json", (c) => {
-  const id = c.req.param("id");
-  const intent = repo.getIntent(id);
-  if (!intent) {
-    return c.json({ error: "Intent not found" }, 404);
-  }
-
-  const parsed = JSON.parse(intent.parsedIntent);
-  const allocDesc = Object.entries(
-    (parsed.targetAllocation ?? {}) as Record<string, number>,
-  )
-    .map(([token, pct]) => `${Math.round(Number(pct) * 100)}% ${token}`)
-    .join("/");
-
-  c.header("Cache-Control", "public, max-age=300");
-  return c.json({
-    type: "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
-    name: `Veil Rebalancer — ${id.slice(0, 8)}`,
-    description: `${allocDesc}, $${parsed.dailyBudgetUsd}/day, ${parsed.timeWindowDays} days`,
-    services: [
-      { name: "veil-api", endpoint: "https://api.veil.moe", version: "0.1.0" },
-    ],
-    active: intent.status === "active",
-    supportedTrust: ["reputation"],
-  });
-});
+// Identity JSON (public — referenced by on-chain agentURI, must be before auth middleware)
+app.route(
+  API_PATHS.intents,
+  createIdentityRoutes({
+    get repo() {
+      return repo;
+    },
+  }),
+);
 
 // Intent CRUD routes (auth required)
 // Both patterns needed: /* matches sub-paths, bare path matches exact /api/intents
@@ -144,6 +127,10 @@ app.use(
 );
 app.use(
   "/favicon.ico",
+  serveStatic({ root: DASHBOARD_DIST }),
+);
+app.use(
+  "/veil-agent.svg",
   serveStatic({ root: DASHBOARD_DIST }),
 );
 
@@ -175,7 +162,7 @@ app.get("*", (c) => {
 <li>DELETE /api/intents/:id — cancel intent</li>
 <li>GET /api/intents/:id/events — SSE stream of live log entries</li>
 <li>GET /api/intents/:id/logs — download intent logs</li>
-<li>GET /api/intents/:id/identity.json — ERC-8004 agent identity (public)</li>
+<li>GET /api/intents/:id/identity.json — agent identity (public, no auth)</li>
 <li>GET /api/evidence/:intentId/:hash — retrieve evidence document</li>
 </ul>
 <p style="color:#6e7681">Build the dashboard: <code>pnpm --filter @veil/dashboard build</code></p>

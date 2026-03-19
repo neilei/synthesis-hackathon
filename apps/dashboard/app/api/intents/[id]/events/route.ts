@@ -6,8 +6,9 @@ export const dynamic = "force-dynamic";
 
 /**
  * SSE proxy: streams live log entries from the agent server to the browser.
- * EventSource cannot set custom headers, so auth comes from the cookie
- * forwarded by the browser (withCredentials: true) or the Authorization header.
+ * EventSource cannot set custom headers, so auth is extracted from the
+ * HttpOnly `veil_token` cookie (set during /api/auth/verify) and forwarded
+ * as a Bearer token to the agent server.
  */
 export async function GET(
   request: NextRequest,
@@ -18,9 +19,18 @@ export async function GET(
     const agentUrl = `${AGENT_API_URL}${API_PATHS.intents}/${id}/events`;
 
     const headers: Record<string, string> = {};
+    // Prefer explicit Authorization header (e.g. from fetch calls)
     const auth = request.headers.get("Authorization");
-    if (auth) headers["Authorization"] = auth;
-    // Forward the cookie so the agent server can authenticate
+    if (auth) {
+      headers["Authorization"] = auth;
+    } else {
+      // Fall back to HttpOnly cookie set during auth verify
+      const token = request.cookies.get("veil_token")?.value;
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+    }
+    // Forward cookies so agent server can also read them directly
     const cookie = request.headers.get("Cookie");
     if (cookie) headers["Cookie"] = cookie;
 

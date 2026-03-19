@@ -19,6 +19,7 @@ import { logAction } from "../logging/agent-log.js";
 import { evaluateSwap, evaluateSwapFailure } from "../identity/judge.js";
 import type { SwapEvidenceInput, SwapFailureEvidenceInput } from "../identity/evidence.js";
 import { logger } from "../logging/logger.js";
+import { FAST_MODEL, REASONING_MODEL } from "../venice/llm.js";
 
 // ---------------------------------------------------------------------------
 // Token address resolution
@@ -33,6 +34,14 @@ export function resolveTokenAddress(symbol: string, chainId: number): Address {
   return map[symbol.toUpperCase()] ?? CONTRACTS.USDC_SEPOLIA;
 }
 
+/** Thrown when judge infrastructure is misconfigured. Must crash the cycle. */
+class JudgeConfigError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "JudgeConfigError";
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Swap execution
 // ---------------------------------------------------------------------------
@@ -44,6 +53,7 @@ export async function executeSwap(
   agentAddress: Address,
   chain: typeof sepolia | typeof base,
   ethPriceUsd: number,
+  agentReasoning: string = "",
 ): Promise<void> {
   // Safety checks
   const isStablecoin = ["USDC", "USDT", "DAI"].includes(
@@ -65,6 +75,19 @@ export async function executeSwap(
     config.intentLogger?.log("safety_block", {
       cycle: state.cycle,
       result: { reason: "budget_exceeded", swapAmountUsd },
+    });
+    return;
+  }
+
+  if (config.intent.maxPerTradeUsd > 0 && swapAmountUsd > config.intent.maxPerTradeUsd) {
+    logger.info(`SAFETY: Swap $${swapAmountUsd.toFixed(2)} exceeds per-trade limit of $${config.intent.maxPerTradeUsd}. Skipping.`);
+    logAction("safety_block", {
+      cycle: state.cycle,
+      result: { reason: "per_trade_limit_exceeded", swapAmountUsd, maxPerTradeUsd: config.intent.maxPerTradeUsd },
+    });
+    config.intentLogger?.log("safety_block", {
+      cycle: state.cycle,
+      result: { reason: "per_trade_limit_exceeded", swapAmountUsd, maxPerTradeUsd: config.intent.maxPerTradeUsd },
     });
     return;
   }
@@ -154,6 +177,9 @@ export async function executeSwap(
       chainId: config.chainId,
       swapper: swapperAddress,
       slippageTolerance: config.intent.maxSlippage * 100,
+      // V4 pools on Sepolia are broken (V4_SWAP command reverts).
+      // Force V3 routing on testnets; mainnet can use default routing.
+      protocols: config.chainId === 11155111 ? ["V3"] : undefined,
     });
 
     logAction("quote_received", {
@@ -260,16 +286,21 @@ export async function executeSwap(
           chainId: config.chainId,
           swapper: agentAddress,
           slippageTolerance: config.intent.maxSlippage * 100,
+          protocols: config.chainId === 11155111 ? ["V3"] : undefined,
         });
         const fallbackSwap = await createSwap(fallbackQuote);
 
-        // Pre-flight simulation for fallback direct tx
-        await publicClient.estimateGas({
-          account: agentAddress,
-          to: fallbackSwap.swap.to,
-          data: fallbackSwap.swap.data,
-          value: BigInt(fallbackSwap.swap.value || "0"),
-        });
+        // Pre-flight simulation for fallback direct tx (skip when permitData present —
+        // the Permit2 nonce hasn't been consumed yet so estimateGas reverts)
+        let fallbackGas: bigint | undefined;
+        if (!fallbackQuote.permitData) {
+          fallbackGas = await publicClient.estimateGas({
+            account: agentAddress,
+            to: fallbackSwap.swap.to,
+            data: fallbackSwap.swap.data,
+            value: BigInt(fallbackSwap.swap.value || "0"),
+          });
+        }
 
         txHash = await walletClient.sendTransaction({
           to: fallbackSwap.swap.to,
@@ -277,16 +308,26 @@ export async function executeSwap(
           value: BigInt(fallbackSwap.swap.value || "0"),
           chain,
           account: walletClient.account,
+          // When Permit2 is involved, pass explicit gas to prevent viem's internal
+          // prepareTransactionRequest from calling estimateGas (which reverts on
+          // unconsumed Permit2 nonces). 500k is generous for a Uniswap swap.
+          ...(fallbackQuote.permitData ? { gas: 500_000n } : fallbackGas ? { gas: fallbackGas } : {}),
         });
       }
     } else {
-      // Pre-flight simulation for direct tx
-      await publicClient.estimateGas({
-        account: agentAddress,
-        to: swapResponse.swap.to,
-        data: swapResponse.swap.data,
-        value: BigInt(swapResponse.swap.value || "0"),
-      });
+      // Pre-flight simulation for direct tx (skip when Permit2 signature is
+      // embedded — the permit nonce hasn't been consumed yet so estimateGas
+      // will revert. This is the same reason Uniswap API disables simulation
+      // when permitData is present.)
+      let directGas: bigint | undefined;
+      if (!quote.permitData) {
+        directGas = await publicClient.estimateGas({
+          account: agentAddress,
+          to: swapResponse.swap.to,
+          data: swapResponse.swap.data,
+          value: BigInt(swapResponse.swap.value || "0"),
+        });
+      }
 
       txHash = await walletClient.sendTransaction({
         to: swapResponse.swap.to,
@@ -294,6 +335,10 @@ export async function executeSwap(
         value: BigInt(swapResponse.swap.value || "0"),
         chain,
         account: walletClient.account,
+        // When Permit2 is involved, pass explicit gas to prevent viem's internal
+        // prepareTransactionRequest from calling estimateGas (which reverts on
+        // unconsumed Permit2 nonces). 500k is generous for a Uniswap swap.
+        ...(quote.permitData ? { gas: 500_000n } : directGas ? { gas: directGas } : {}),
       });
     }
 
@@ -343,7 +388,7 @@ export async function executeSwap(
     );
 
     // ERC-8004: trigger judge evaluation (non-blocking)
-    if (state.agentId && env.JUDGE_PRIVATE_KEY) {
+    if (state.agentId != null && env.JUDGE_PRIVATE_KEY) {
       const currentCycle = state.cycle;
       const judgeInput: SwapEvidenceInput = {
         agentId: state.agentId,
@@ -357,6 +402,7 @@ export async function executeSwap(
           maxSlippage: config.intent.maxSlippage,
           timeWindowDays: config.intent.timeWindowDays,
           maxTradesPerDay: config.intent.maxTradesPerDay,
+          maxPerTradeUsd: config.intent.maxPerTradeUsd,
         },
         beforeSwap: {
           allocation: { ...beforeSwapAllocation },
@@ -376,7 +422,7 @@ export async function executeSwap(
           slippage: 0,
           viaDelegation: usedDelegation,
         },
-        agentReasoning: "",
+        agentReasoning,
         marketContext: {
           ethPriceUsd: ethPriceUsd,
           poolTvlUsd: 0,
@@ -387,56 +433,75 @@ export async function executeSwap(
       logAction("judge_started", { cycle: currentCycle, tool: "venice-judge" });
       config.intentLogger?.log("judge_started", { cycle: currentCycle, tool: "venice-judge" });
 
-      evaluateSwap(judgeInput, "rebalance", state.budgetTier === "critical")
-        .then((result) => {
-          logger.info(
-            {
-              composite: result.composite,
-              scores: result.scores,
-              feedbackTxHash: result.feedbackTxHash,
-            },
-            "Judge evaluation complete",
-          );
-          logAction("judge_completed", {
-            cycle: currentCycle,
-            tool: "venice-judge",
-            result: {
-              composite: result.composite,
-              scores: result.scores,
-              requestHash: result.requestHash,
-              validationRequestTxHash: result.validationRequestTxHash,
-              validationResponseTxHashes: result.validationResponseTxHashes,
-              feedbackTxHash: result.feedbackTxHash,
-            },
-          });
-          config.intentLogger?.log("judge_completed", {
-            cycle: currentCycle,
-            tool: "venice-judge",
-            result: {
-              composite: result.composite,
-              scores: result.scores,
-            },
-          });
-        })
-        .catch((judgeErr) => {
-          logger.warn({ err: judgeErr }, "Judge evaluation failed");
-          logAction("judge_failed", {
-            cycle: currentCycle,
-            tool: "venice-judge",
-            error: judgeErr instanceof Error ? judgeErr.message : String(judgeErr),
-          });
-          config.intentLogger?.log("judge_failed", {
-            cycle: currentCycle,
-            tool: "venice-judge",
-            error: judgeErr instanceof Error ? judgeErr.message : String(judgeErr),
-          });
+      try {
+        const result = await evaluateSwap(judgeInput, "rebalance", state.budgetTier === "critical");
+        logger.info(
+          {
+            composite: result.composite,
+            scores: result.scores,
+            feedbackTxHash: result.feedbackTxHash,
+          },
+          "Judge evaluation complete",
+        );
+        const judgeModel = state.budgetTier === "critical" ? FAST_MODEL : REASONING_MODEL;
+        const judgeResult: Record<string, unknown> = {
+          composite: result.composite,
+          scores: result.scores,
+          reasonings: result.reasonings,
+          requestHash: result.requestHash,
+          validationRequestTxHash: result.validationRequestTxHash,
+          validationResponseTxHashes: result.validationResponseTxHashes,
+          feedbackTxHash: result.feedbackTxHash,
+          model: judgeModel,
+          warnings: result.warnings,
+        };
+        if (result.usage) judgeResult.usage = result.usage;
+        logAction("judge_completed", {
+          cycle: currentCycle,
+          tool: "venice-judge",
+          result: judgeResult,
         });
-    } else if (!state.agentId) {
-      logger.warn("Skipping judge evaluation — no agent ID registered");
+        config.intentLogger?.log("judge_completed", {
+          cycle: currentCycle,
+          tool: "venice-judge",
+          result: judgeResult,
+        });
+        // Surface on-chain failures as a separate visible log entry
+        if (result.warnings.length > 0) {
+          const warningMsg = `${result.warnings.length} on-chain op(s) failed: ${result.warnings.join("; ")}`;
+          logAction("judge_warning", {
+            cycle: currentCycle,
+            tool: "venice-judge",
+            error: warningMsg,
+          });
+          config.intentLogger?.log("judge_warning", {
+            cycle: currentCycle,
+            tool: "venice-judge",
+            error: warningMsg,
+          });
+        }
+      } catch (judgeErr) {
+        logger.warn({ err: judgeErr }, "Judge evaluation failed");
+        const judgeError = judgeErr instanceof Error ? judgeErr.message : String(judgeErr);
+        logAction("judge_failed", {
+          cycle: currentCycle,
+          tool: "venice-judge",
+          error: judgeError,
+        });
+        config.intentLogger?.log("judge_failed", {
+          cycle: currentCycle,
+          tool: "venice-judge",
+          error: judgeError,
+        });
+      }
+    } else if (state.agentId == null) {
+      throw new JudgeConfigError("Judge evaluation impossible — no agent ID registered. ERC-8004 registration must have failed.");
     } else {
-      logger.warn("Skipping judge evaluation — no JUDGE_PRIVATE_KEY configured");
+      throw new JudgeConfigError("Judge evaluation impossible — JUDGE_PRIVATE_KEY not configured.");
     }
   } catch (err) {
+    // JudgeConfigError means the swap succeeded but judge is misconfigured — re-throw to crash the cycle
+    if (err instanceof JudgeConfigError) throw err;
     const msg = err instanceof Error ? err.message : String(err);
     logger.error({ err }, "Swap failed");
     logAction("swap_failed", {
@@ -453,7 +518,8 @@ export async function executeSwap(
     });
 
     // ERC-8004: judge failed swap attempts (non-blocking)
-    if (state.agentId && env.JUDGE_PRIVATE_KEY) {
+    if (state.agentId != null && env.JUDGE_PRIVATE_KEY) {
+      logger.info("Triggering judge evaluation for failed swap");
       const currentCycle = state.cycle;
       const failureInput: SwapFailureEvidenceInput = {
         agentId: state.agentId,
@@ -466,6 +532,7 @@ export async function executeSwap(
           maxSlippage: config.intent.maxSlippage,
           timeWindowDays: config.intent.timeWindowDays,
           maxTradesPerDay: config.intent.maxTradesPerDay,
+          maxPerTradeUsd: config.intent.maxPerTradeUsd,
         },
         beforeSwap: {
           allocation: { ...beforeSwapAllocation },
@@ -478,55 +545,74 @@ export async function executeSwap(
           sellAmount: swap.sellAmount,
         },
         errorMessage: msg,
-        agentReasoning: "",
+        agentReasoning,
         marketContext: { ethPriceUsd },
       };
 
       logAction("judge_started", { cycle: currentCycle, tool: "venice-judge", result: { outcome: "failed" } });
       config.intentLogger?.log("judge_started", { cycle: currentCycle, tool: "venice-judge", result: { outcome: "failed" } });
 
-      evaluateSwapFailure(failureInput, "rebalance", state.budgetTier === "critical")
-        .then((judgeResult) => {
-          logger.info(
-            { composite: judgeResult.composite, scores: judgeResult.scores },
-            "Judge failure evaluation complete",
-          );
-          logAction("judge_completed", {
-            cycle: currentCycle,
-            tool: "venice-judge",
-            result: {
-              outcome: "failed",
-              composite: judgeResult.composite,
-              scores: judgeResult.scores,
-              requestHash: judgeResult.requestHash,
-              validationRequestTxHash: judgeResult.validationRequestTxHash,
-              validationResponseTxHashes: judgeResult.validationResponseTxHashes,
-              feedbackTxHash: judgeResult.feedbackTxHash,
-            },
-          });
-          config.intentLogger?.log("judge_completed", {
-            cycle: currentCycle,
-            tool: "venice-judge",
-            result: {
-              outcome: "failed",
-              composite: judgeResult.composite,
-              scores: judgeResult.scores,
-            },
-          });
-        })
-        .catch((judgeErr) => {
-          logger.warn({ err: judgeErr }, "Judge failure evaluation failed");
-          logAction("judge_failed", {
-            cycle: currentCycle,
-            tool: "venice-judge",
-            error: judgeErr instanceof Error ? judgeErr.message : String(judgeErr),
-          });
-          config.intentLogger?.log("judge_failed", {
-            cycle: currentCycle,
-            tool: "venice-judge",
-            error: judgeErr instanceof Error ? judgeErr.message : String(judgeErr),
-          });
+      try {
+        const failureResult = await evaluateSwapFailure(failureInput, "rebalance", state.budgetTier === "critical");
+        logger.info(
+          { composite: failureResult.composite, scores: failureResult.scores },
+          "Judge failure evaluation complete",
+        );
+        const failureJudgeModel = state.budgetTier === "critical" ? FAST_MODEL : REASONING_MODEL;
+        const failureJudgeResult: Record<string, unknown> = {
+          outcome: "failed" as const,
+          composite: failureResult.composite,
+          scores: failureResult.scores,
+          reasonings: failureResult.reasonings,
+          requestHash: failureResult.requestHash,
+          validationRequestTxHash: failureResult.validationRequestTxHash,
+          validationResponseTxHashes: failureResult.validationResponseTxHashes,
+          feedbackTxHash: failureResult.feedbackTxHash,
+          model: failureJudgeModel,
+          warnings: failureResult.warnings,
+        };
+        if (failureResult.usage) failureJudgeResult.usage = failureResult.usage;
+        logAction("judge_completed", {
+          cycle: currentCycle,
+          tool: "venice-judge",
+          result: failureJudgeResult,
         });
+        config.intentLogger?.log("judge_completed", {
+          cycle: currentCycle,
+          tool: "venice-judge",
+          result: failureJudgeResult,
+        });
+        if (failureResult.warnings.length > 0) {
+          const warningMsg = `${failureResult.warnings.length} on-chain op(s) failed: ${failureResult.warnings.join("; ")}`;
+          logAction("judge_warning", {
+            cycle: currentCycle,
+            tool: "venice-judge",
+            error: warningMsg,
+          });
+          config.intentLogger?.log("judge_warning", {
+            cycle: currentCycle,
+            tool: "venice-judge",
+            error: warningMsg,
+          });
+        }
+      } catch (judgeErr) {
+        logger.warn({ err: judgeErr }, "Judge failure evaluation failed");
+        const judgeError = judgeErr instanceof Error ? judgeErr.message : String(judgeErr);
+        logAction("judge_failed", {
+          cycle: currentCycle,
+          tool: "venice-judge",
+          error: judgeError,
+        });
+        config.intentLogger?.log("judge_failed", {
+          cycle: currentCycle,
+          tool: "venice-judge",
+          error: judgeError,
+        });
+      }
+    } else if (state.agentId == null) {
+      throw new JudgeConfigError("Failure judge evaluation impossible — no agent ID registered. ERC-8004 registration must have failed.");
+    } else {
+      throw new JudgeConfigError("Failure judge evaluation impossible — JUDGE_PRIVATE_KEY not configured.");
     }
 
     if (state.cycle <= 3) {

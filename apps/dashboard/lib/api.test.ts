@@ -91,6 +91,7 @@ describe("parseIntent", () => {
         maxSlippage: 0.005,
         driftThreshold: 0.05,
         maxTradesPerDay: 10,
+        maxPerTradeUsd: 200,
       },
       audit: {
         allows: ["Swap ETH/USDC"],
@@ -155,6 +156,7 @@ describe("createIntent", () => {
         maxSlippage: 0.005,
         driftThreshold: 0.05,
         maxTradesPerDay: 10,
+        maxPerTradeUsd: 200,
       },
       signedDelegation: "0xdel",
       delegatorSmartAccount: "0xsa",
@@ -227,7 +229,7 @@ describe("fetchIntentDetail", () => {
 
     const result = await fetchIntentDetail("abc", "token");
 
-    expect(mockFetch).toHaveBeenCalledWith("/api/intents/abc", {
+    expect(mockFetch).toHaveBeenCalledWith("/api/intents/abc?limit=10000", {
       headers: { Authorization: "Bearer token" },
       credentials: "include",
     });

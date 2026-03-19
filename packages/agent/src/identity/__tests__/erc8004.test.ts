@@ -228,9 +228,17 @@ describe("registerAgent", () => {
   it("calls writeContract on the identity registry", async () => {
     const txHash = "0xregisterhash" as Hex;
     mockWriteContract.mockResolvedValue(txHash);
+    // Registered(uint256 indexed agentId, string agentURI, address indexed owner)
+    const REGISTERED_EVENT_SIG =
+      "0xca52e62c367d81bb2e328eb795f7c7ba24afb478408a26c0e201d155c449bc4a";
     mockWaitForTransactionReceipt.mockResolvedValue({
       status: "success",
-      logs: [{ topics: [null, "0x7"] }],
+      logs: [
+        // ERC-721 Transfer event (should be skipped)
+        { topics: ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", "0x0", "0xowner", "0x7"] },
+        // Registered event (should be matched)
+        { topics: [REGISTERED_EVENT_SIG, "0x7", "0xowner"] },
+      ],
     });
 
     const result = await registerAgent("ipfs://QmAgentURI");

@@ -1,0 +1,18 @@
+{
+  "agentId": 2185,
+  "intentId": "tfWjZ8_4OdjDTCPFF13wU",
+  "cycle": 1,
+  "composite": 5.85,
+  "weights": {
+    "decision-quality": 0.4,
+    "execution-quality": 0.3,
+    "goal-progress": 0.3
+  },
+  "dimensions": {
+    "decision-quality": 75,
+    "execution-quality": 85,
+    "goal-progress": 10
+  },
+  "swapTxHash": "0x4a930fe2d9cd01002c398ff8c5865953b43338edf80125f033032559f764b625",
+  "timestamp": "2026-03-18T19:46:18.664Z"
+}

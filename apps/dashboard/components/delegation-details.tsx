@@ -6,7 +6,7 @@
  */
 import { Card } from "./ui/card";
 import { SectionHeading } from "./ui/section-heading";
-import { SponsorBadge } from "./sponsor-badge";
+import { SponsorChip } from "./sponsor-chip";
 import type { ParsedIntent } from "@veil/common";
 import {
   AGENT_ADDRESS,
@@ -92,7 +92,7 @@ export function DelegationDetails({ parsed }: DelegationDetailsProps) {
       </div>
 
       <div className="mt-4 border-t border-border-subtle pt-3">
-        <SponsorBadge text="Secured by MetaMask ERC-7715 / ERC-7710" />
+        <SponsorChip sponsor="metamask" text="Enforced by MetaMask Delegation" />
       </div>
     </Card>
   );

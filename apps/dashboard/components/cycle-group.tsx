@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { CycleGroup as CycleGroupData } from "@/lib/group-feed";
 import { FeedEntry } from "./feed-entry";
 import { formatCurrency, formatPercentage, formatAllocationSummary } from "@veil/common";
+import { Spinner } from "./ui/icons";
 
 interface CycleGroupProps {
   group: CycleGroupData;
@@ -13,19 +14,25 @@ interface CycleGroupProps {
 export function CycleGroup({ group, defaultExpanded = false }: CycleGroupProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
 
-  const total = group.entries.length;
-  const successCount = group.entries.filter((e) => !e.error).length;
-  const stepCountColor =
-    total === 0
-      ? "text-text-tertiary"
-      : successCount === total
-        ? "text-accent-positive"
-        : "text-accent-danger";
+  const { completed, total, pendingLabel } = group.progress;
+  const hasError = group.hasError;
+  const stepCountColor = hasError
+    ? "text-accent-danger"
+    : group.isComplete
+      ? "text-accent-positive"
+      : "text-text-tertiary";
 
   const panelId = `cycle-panel-${group.cycle ?? "init"}`;
 
   // Init group (no cycle number)
   if (group.cycle === null) {
+    const initTotal = group.entries.length;
+    const initSuccess = group.entries.filter((e) => !e.error).length;
+    const initColor = initTotal === 0
+      ? "text-text-tertiary"
+      : initSuccess === initTotal
+        ? "text-accent-positive"
+        : "text-accent-danger";
     return (
       <div className="border-b border-border-subtle pb-2">
         <button
@@ -41,8 +48,8 @@ export function CycleGroup({ group, defaultExpanded = false }: CycleGroupProps) 
             ▶
           </span>
           Initialization
-          <span className={`ml-auto font-mono tabular-nums ${stepCountColor}`}>
-            {successCount}/{total} steps
+          <span className={`ml-auto font-mono tabular-nums ${initColor}`}>
+            {initSuccess}/{initTotal} steps
           </span>
         </button>
         {expanded && (
@@ -68,7 +75,7 @@ export function CycleGroup({ group, defaultExpanded = false }: CycleGroupProps) 
         onClick={() => setExpanded(!expanded)}
         aria-expanded={expanded}
         aria-controls={panelId}
-        className={`flex w-full cursor-pointer items-center gap-3 rounded px-2 py-2.5 min-h-[44px] text-left text-xs hover:bg-bg-primary focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive ${group.hasError ? "text-accent-danger" : "text-text-secondary"}`}
+        className={`flex w-full cursor-pointer items-center gap-3 rounded px-2 py-2.5 min-h-[44px] text-left text-sm hover:bg-bg-primary focus:outline-none focus-visible:ring-1 focus-visible:ring-accent-positive ${hasError ? "text-accent-danger" : "text-text-secondary"}`}
       >
         <span
           aria-hidden="true"
@@ -79,6 +86,14 @@ export function CycleGroup({ group, defaultExpanded = false }: CycleGroupProps) 
         <span className="font-medium text-text-primary">
           Cycle {group.cycle}
         </span>
+        {!group.isComplete && (
+          <span className="flex items-center gap-1.5 text-accent-positive">
+            <Spinner className="h-3 w-3 animate-spin" />
+            {pendingLabel && (
+              <span className="text-text-tertiary">{pendingLabel}</span>
+            )}
+          </span>
+        )}
         {snap && (
           <>
             <span className="font-mono tabular-nums">
@@ -94,17 +109,19 @@ export function CycleGroup({ group, defaultExpanded = false }: CycleGroupProps) 
             </span>
           </>
         )}
-        {group.hasError && (
+        {hasError && (
           <>
             <span aria-hidden="true" className="inline-flex h-1.5 w-1.5 rounded-full bg-accent-danger" />
             <span className="sr-only">Error in cycle</span>
           </>
         )}
-        {!group.didRebalance && group.cycle !== null && (
-          <span className="text-text-tertiary">hold</span>
+        {group.isComplete && !group.didRebalance && group.cycle !== null && (
+          <span className={group.wasSafetyBlocked ? "text-amber-400" : "text-text-tertiary"}>
+            {group.wasSafetyBlocked ? "blocked" : "hold"}
+          </span>
         )}
         <span className={`ml-auto font-mono tabular-nums ${stepCountColor}`}>
-          {successCount}/{total} steps
+          {completed}/{total}
         </span>
       </button>
       {expanded && (

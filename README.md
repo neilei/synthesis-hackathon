@@ -285,7 +285,7 @@ pnpm run dev:dashboard
 
 A structured map of every sponsor integration claim, where to find the implementation, how to verify it, and the on-chain contracts involved. Designed for systematic verification.
 
-**Test coverage:** 400+ unit tests and 13 e2e test suites across 43 test files. Run `pnpm test` (unit) or `pnpm run test:e2e` (integration, requires API keys). All test paths are listed in the sponsor tables below.
+**Test coverage:** 486 passing tests across 67 test files (40 unit + 12 Playwright e2e + 15 integration). Run `pnpm test` (unit) or `pnpm run test:e2e` (integration, requires API keys). All test paths are listed in the sponsor tables below.
 
 ### On-Chain Contracts
 

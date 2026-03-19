@@ -97,6 +97,9 @@ export class DefaultAgentWorker implements AgentWorker {
       intentLogger: this.intentLogger,
       intentId: this.intentId,
       existingAgentId: intent.agentId != null ? BigInt(intent.agentId) : undefined,
+      initialCycle: intent.cycle,
+      initialTradesExecuted: intent.tradesExecuted,
+      initialTotalSpentUsd: intent.totalSpentUsd,
       onAgentIdRegistered: (agentId: string) => {
         this.deps.repo.updateIntentAgentId(this.intentId, agentId);
       },

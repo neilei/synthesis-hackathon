@@ -1,0 +1,8 @@
+{
+  "requestHash": "0x1021185b0b4926e7f7c4c4b5a04871131535ede642e4204038685b8cb9d7aa54",
+  "dimension": "goal-progress",
+  "score": 5,
+  "reasoning": "Based on the evidence provided, the trade resulted in zero progress. The 'afterSwap' allocation and drift (14.85%) are identical to the 'beforeSwap' values. A $200 swap on a $3,447 portfolio should have increased the ETH allocation by approximately 5.8% and reduced the drift to roughly 9%. The lack of change in the reported state suggests either a failed transaction or a critical failure in the agent's ability to track and report portfolio changes.",
+  "model": "gemini-3-flash-preview",
+  "evaluatedAt": "2026-03-18T19:46:52.583Z"
+}

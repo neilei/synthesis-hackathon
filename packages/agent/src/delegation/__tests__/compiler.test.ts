@@ -6,7 +6,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { encodePacked } from "viem";
 import type { Address, Hex } from "viem";
-import { detectAdversarialIntent } from "../compiler.js";
+import { detectAdversarialIntent } from "@veil/common";
 import { makeIntent } from "../../__tests__/fixtures.js";
 
 // ---------------------------------------------------------------------------

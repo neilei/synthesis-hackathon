@@ -10,6 +10,7 @@ export function makeIntent(overrides: Partial<IntentParse> = {}): IntentParse {
     dailyBudgetUsd: 200,
     timeWindowDays: 7,
     maxTradesPerDay: 10,
+    maxPerTradeUsd: 200,
     maxSlippage: 0.005,
     driftThreshold: 0.05,
     ...overrides,

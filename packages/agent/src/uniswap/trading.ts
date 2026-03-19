@@ -38,6 +38,8 @@ export interface QuoteRequest {
   chainId: number;
   swapper: Address;
   slippageTolerance?: number;
+  /** Restrict routing to specific protocols (e.g. ["V3"]). Omit for API default. */
+  protocols?: string[];
 }
 
 export interface SwapRequest {
@@ -106,20 +108,20 @@ export async function checkApproval(
 // ---------------------------------------------------------------------------
 
 export async function getQuote(params: QuoteRequest): Promise<QuoteResponse> {
-  return uniswapFetch<QuoteResponse>(
-    "/quote",
-    {
-      tokenInChainId: params.chainId,
-      tokenOutChainId: params.chainId,
-      tokenIn: params.tokenIn,
-      tokenOut: params.tokenOut,
-      amount: params.amount,
-      type: params.type,
-      swapper: params.swapper,
-      slippageTolerance: params.slippageTolerance ?? DEFAULT_SLIPPAGE_TOLERANCE,
-    },
-    QuoteResponseSchema,
-  );
+  const body: Record<string, unknown> = {
+    tokenInChainId: params.chainId,
+    tokenOutChainId: params.chainId,
+    tokenIn: params.tokenIn,
+    tokenOut: params.tokenOut,
+    amount: params.amount,
+    type: params.type,
+    swapper: params.swapper,
+    slippageTolerance: params.slippageTolerance ?? DEFAULT_SLIPPAGE_TOLERANCE,
+  };
+  if (params.protocols?.length) {
+    body.protocols = params.protocols;
+  }
+  return uniswapFetch<QuoteResponse>("/quote", body, QuoteResponseSchema);
 }
 
 // ---------------------------------------------------------------------------

@@ -15,6 +15,7 @@ export const ParsedIntentSchema = z.object({
   dailyBudgetUsd: z.number(),
   timeWindowDays: z.number(),
   maxTradesPerDay: z.number(),
+  maxPerTradeUsd: z.number().optional().default(0),
   maxSlippage: z.number(),
   driftThreshold: z.number(),
 });

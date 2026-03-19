@@ -14,6 +14,7 @@ import { logAction } from "../logging/agent-log.js";
 import { getBudgetTier } from "../logging/budget.js";
 import type { IntentLogger } from "../logging/intent-log.js";
 import { logger } from "../logging/logger.js";
+import { RESEARCH_MODEL } from "../venice/llm.js";
 
 export interface MarketData {
   ethPrice: { price: number; citation: string | null };
@@ -41,13 +42,15 @@ export async function gatherMarketData(
   // 1. Get ETH price
   const startPrice = Date.now();
   const ethPrice = await getTokenPrice("ETH");
+  const priceResult: Record<string, unknown> = { price: ethPrice.price, citation: ethPrice.citation, model: RESEARCH_MODEL };
+  if (ethPrice.usage) priceResult.usage = ethPrice.usage;
   logAction("price_fetch", {
     cycle,
     tool: "venice-web-search",
     duration_ms: Date.now() - startPrice,
-    result: { price: ethPrice.price, citation: ethPrice.citation },
+    result: priceResult,
   });
-  intentLogger?.log("price_fetch", { cycle, tool: "venice-web-search", duration_ms: Date.now() - startPrice, result: { price: ethPrice.price } });
+  intentLogger?.log("price_fetch", { cycle, tool: "venice-web-search", duration_ms: Date.now() - startPrice, result: priceResult });
   logger.info(`ETH price: $${ethPrice.price.toFixed(2)}`);
 
   // 2. Get portfolio balance

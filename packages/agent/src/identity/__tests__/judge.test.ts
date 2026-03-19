@@ -15,6 +15,7 @@ const MOCK_EVIDENCE: SwapEvidence = {
     maxSlippage: 0.005,
     timeWindowDays: 7,
     maxTradesPerDay: 10,
+    maxPerTradeUsd: 200,
   },
   beforeSwap: { allocation: { ETH: 0.73, USDC: 0.27 }, drift: 0.13, portfolioValueUsd: 1850 },
   afterSwap: { allocation: { ETH: 0.61, USDC: 0.39 }, drift: 0.01, portfolioValueUsd: 1847 },
@@ -37,6 +38,8 @@ describe("judge", () => {
     const { systemPrompt, userPrompt } = buildJudgePrompt(dims, MOCK_EVIDENCE);
 
     expect(systemPrompt).toContain("independent validator");
+    expect(systemPrompt).toContain("faithfully executed within the user's delegated constraints");
+    expect(systemPrompt).not.toContain("made good decisions");
     expect(systemPrompt).toContain("DECISION QUALITY");
     expect(systemPrompt).toContain("EXECUTION QUALITY");
     expect(systemPrompt).toContain("GOAL PROGRESS");
@@ -50,7 +53,7 @@ describe("judge", () => {
 
     expect(systemPrompt).toContain("90-100");
     expect(systemPrompt).toContain("0-29");
-    expect(systemPrompt).toContain("65-80");
+    expect(systemPrompt).toContain("70-85");
   });
 
   it("buildJudgePrompt serializes all evidence fields", () => {

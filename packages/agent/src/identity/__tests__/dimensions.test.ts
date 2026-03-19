@@ -50,6 +50,28 @@ describe("evaluation dimensions", () => {
     expect(invalid.success).toBe(false);
   });
 
+  it("decision-quality criteria references constraint adherence", () => {
+    const dims = getDimensionsForIntent("rebalance");
+    const decision = dims.find((d) => d.tag === "decision-quality")!;
+    expect(decision.criteria).toContain("drift threshold");
+    expect(decision.criteria).toContain("per-trade limit");
+    expect(decision.criteria).not.toContain("gas efficiency");
+  });
+
+  it("execution-quality criteria does not penalize gas on small trades", () => {
+    const dims = getDimensionsForIntent("rebalance");
+    const execution = dims.find((d) => d.tag === "execution-quality")!;
+    expect(execution.criteria).not.toContain("gas\nefficiency");
+    expect(execution.criteria).toContain("slippage");
+  });
+
+  it("goal-progress criteria focuses on drift direction not magnitude", () => {
+    const dims = getDimensionsForIntent("rebalance");
+    const goal = dims.find((d) => d.tag === "goal-progress")!;
+    expect(goal.criteria).toContain("correct direction");
+    expect(goal.criteria).not.toContain("meaningfully");
+  });
+
   it("computeCompositeScore applies weights correctly", () => {
     const dims = getDimensionsForIntent("rebalance");
     const scores = {

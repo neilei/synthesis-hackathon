@@ -133,7 +133,7 @@ cmd_deploy() {
   # Clone or pull
   if ssh_run "test -d ${APP_DIR}/.git"; then
     log "Pulling latest code..."
-    ssh_run "cd ${APP_DIR} && git remote set-url origin ${REPO_URL} && git fetch origin main && git reset --hard origin/main"
+    ssh_run "cd ${APP_DIR} && git remote set-url origin ${REPO_URL} && git fetch origin && git reset --hard origin/${DEPLOY_BRANCH:-main}"
   else
     log "Cloning repository..."
     ssh_run "git clone ${REPO_URL} ${APP_DIR}"
@@ -141,7 +141,7 @@ cmd_deploy() {
 
   # Ensure data directory exists (SQLite DB + per-intent JSONL logs)
   log "Creating data directories..."
-  ssh_run "mkdir -p ${APP_DIR}/data/logs"
+  ssh_run "mkdir -p ${APP_DIR}/data/logs ${APP_DIR}/data/evidence"
 
   # Install dependencies
   log "Installing dependencies..."
@@ -207,6 +207,14 @@ cmd_env() {
   log ".env copied to ${APP_DIR}/.env"
 }
 
+cmd_wipedb() {
+  log "Wiping VPS database and evidence (forces fresh ERC-8004 registration)..."
+  ssh_run "rm -f ${APP_DIR}/data/veil.db ${APP_DIR}/data/veil.db-wal ${APP_DIR}/data/veil.db-shm"
+  ssh_run "rm -rf ${APP_DIR}/data/evidence ${APP_DIR}/data/logs"
+  ssh_run "mkdir -p ${APP_DIR}/data/logs ${APP_DIR}/data/evidence"
+  log "Database wiped. Restart the service to re-register agents."
+}
+
 # --------------------------------------------------------------------------
 # Main
 # --------------------------------------------------------------------------
@@ -217,9 +225,10 @@ case "${1:-deploy}" in
   logs)    cmd_logs ;;
   status)  cmd_status ;;
   env)     cmd_env ;;
+  wipedb)  cmd_wipedb ;;
   *)
     err "Unknown command: $1"
-    err "Usage: $0 {setup|deploy|restart|logs|status|env}"
+    err "Usage: $0 {setup|deploy|restart|logs|status|env|wipedb}"
     exit 1
     ;;
 esac

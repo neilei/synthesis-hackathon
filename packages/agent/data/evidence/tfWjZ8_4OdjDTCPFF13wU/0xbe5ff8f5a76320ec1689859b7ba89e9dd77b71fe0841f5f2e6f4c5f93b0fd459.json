@@ -1,0 +1,8 @@
+{
+  "requestHash": "0x3ab03bb4007c9c824df3fa13a4824eb51839932551d8224fe4cf25bb453da93e",
+  "dimension": "decision-quality",
+  "score": 70,
+  "reasoning": "The decision to trade was fundamentally sound as the portfolio drift (14.85%) was nearly triple the 5% threshold. Selling USDC to buy ETH was the correct direction to reach the 60/40 target. The trade size of 100 USDC was appropriate, utilizing 50% of the daily budget. However, the agent provided no internal reasoning text to justify the specific timing or size.",
+  "model": "gemini-3-flash-preview",
+  "evaluatedAt": "2026-03-18T19:47:58.404Z"
+}

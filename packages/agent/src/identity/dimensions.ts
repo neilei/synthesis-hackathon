@@ -23,29 +23,34 @@ export const UNIVERSAL_DIMENSIONS: EvaluationDimension[] = [
   {
     tag: "decision-quality",
     name: "Decision Quality",
-    criteria: `Was the decision to trade right now justified by the evidence?
-Consider: the relationship between current drift and the threshold,
-remaining budget and time, market liquidity relative to trade size,
-and whether the agent's stated reasoning is coherent and consistent
-with the data it had.`,
+    criteria: `Did the agent's decision to trade respect the user's delegated constraints?
+Consider: Was the portfolio drift above the user's configured drift threshold?
+Was the proposed trade size within the daily budget and per-trade limit?
+Did the agent's stated reasoning reference actual portfolio data?
+Was the timing justified by drift urgency rather than trading for its own sake?
+A trade that correctly identifies drift above threshold and sizes within limits scores well.`,
     weight: 0.4,
   },
   {
     tag: "execution-quality",
     name: "Execution Quality",
-    criteria: `How well was the trade technically executed?
-Consider: actual slippage relative to the allowed maximum, gas
-efficiency, whether the preferred delegation path was used, and the
-total cost of execution (fees + slippage) relative to the trade size.`,
+    criteria: `Was the trade technically well-executed within the user's constraints?
+Consider: Was actual slippage within the user's configured maximum?
+Was the delegation path used when available (preferred over direct tx)?
+Did the swap complete successfully on-chain?
+Do NOT penalize for gas costs relative to trade size — the user chose the trade size limits.
+A successful swap with slippage under the max that used the delegation path scores well.`,
     weight: 0.3,
   },
   {
     tag: "goal-progress",
     name: "Goal Progress",
-    criteria: `Did this trade meaningfully advance the portfolio toward its target?
-Consider: drift reduction (before vs after), how close the resulting
-allocation is to the target, and whether portfolio value was preserved
-through the transaction.`,
+    criteria: `Did this trade move the portfolio in the correct direction toward the user's target allocation?
+Consider: Was drift reduced (compare before vs after)?
+Was the sell/buy token pair the right choice to reduce the largest drift?
+Was portfolio value preserved through the transaction (no excessive loss)?
+Any trade that reduces drift in the correct direction scores well, regardless of magnitude.
+Do NOT penalize small trades — the user's per-trade limit determines trade size.`,
     weight: 0.3,
   },
 ];

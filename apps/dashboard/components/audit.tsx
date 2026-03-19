@@ -1,6 +1,6 @@
 "use client";
 
-import { SponsorBadge } from "./sponsor-badge";
+import { SponsorChip } from "./sponsor-chip";
 import { Card } from "./ui/card";
 import { SectionHeading } from "./ui/section-heading";
 import { AuditListItem } from "./ui/audit-list-item";
@@ -36,7 +36,7 @@ export function Audit({ data, onViewMonitor }: AuditProps) {
           </div>
 
           <div className="mt-5 border-t border-border-subtle pt-3">
-            <SponsorBadge text="Powered by Venice" />
+            <SponsorChip sponsor="venice" text="Powered by Venice.ai" />
           </div>
         </Card>
 
@@ -110,7 +110,7 @@ export function Audit({ data, onViewMonitor }: AuditProps) {
           )}
 
           <div className="mt-5 border-t border-border-subtle pt-3">
-            <SponsorBadge text="Enforced by MetaMask Delegation" />
+            <SponsorChip sponsor="metamask" text="Enforced by MetaMask Delegation" />
           </div>
         </Card>
       </div>

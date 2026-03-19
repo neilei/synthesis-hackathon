@@ -8,7 +8,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 const isCI = !!process.env.CI;
 const runIntegration = !!process.env.INTEGRATION;
-const dashPort = Number(process.env.DASH_PORT) || 3100;
+const dashPort = Number(process.env.DASH_PORT) || 3200;
 const agentPort = Number(process.env.AGENT_PORT) || 3148;
 const TEST_WALLET = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
 

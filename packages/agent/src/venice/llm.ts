@@ -14,12 +14,19 @@ const LLM_TIMEOUT_FAST_MS = 60_000;
 const LLM_TIMEOUT_RESEARCH_MS = 120_000;
 const LLM_TIMEOUT_REASONING_MS = 300_000;
 
+/** Token usage from a single LLM call (from AIMessage.usage_metadata). */
+export interface LlmUsage {
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+}
+
 // Custom fetch that captures Venice billing headers
 const veniceFetch: typeof globalThis.fetch = async (input, init) => {
   const response = await globalThis.fetch(input, init);
-  const balanceHeader = response.headers.get("x-venice-balance-usd");
-  if (balanceHeader) {
-    updateBudget({ "x-venice-balance-usd": balanceHeader });
+  const balanceUsd = response.headers.get("x-venice-balance-usd");
+  if (balanceUsd) {
+    updateBudget({ "x-venice-balance-usd": balanceUsd });
   }
   return response;
 };
@@ -111,6 +118,7 @@ export const reasoningLlm = getVeniceLlm({
   model: REASONING_MODEL,
   temperature: 0,
   maxRetries: 2,
+  maxTokens: 3000,
   modelKwargs: reasoningVeniceParams,
   timeout: LLM_TIMEOUT_REASONING_MS,
 });

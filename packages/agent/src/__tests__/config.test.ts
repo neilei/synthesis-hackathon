@@ -26,9 +26,8 @@ describe("config", () => {
       expect(env.AGENT_PRIVATE_KEY).toMatch(/^0x[0-9a-fA-F]+$/);
     });
 
-    it("DELEGATOR_PRIVATE_KEY is undefined when empty", () => {
-      // It's empty in .env, so should be undefined after transform
-      expect(env.DELEGATOR_PRIVATE_KEY).toBeUndefined();
+    it("DELEGATOR_PRIVATE_KEY is 0x-prefixed hex when set", () => {
+      expect(env.DELEGATOR_PRIVATE_KEY).toMatch(/^0x[0-9a-fA-F]+$/);
     });
   });
 

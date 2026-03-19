@@ -4,7 +4,8 @@
  * @module @veil/agent/delegation/compiler.e2e.test
  */
 import { describe, it, expect } from "vitest";
-import { compileIntent, detectAdversarialIntent } from "../compiler.js";
+import { compileIntent } from "../compiler.js";
+import { detectAdversarialIntent } from "@veil/common";
 import { IntentParseSchema } from "../../venice/schemas.js";
 
 describe("compileIntent (e2e)", () => {
@@ -121,6 +122,7 @@ describe("detectAdversarialIntent", () => {
       dailyBudgetUsd: 200,
       timeWindowDays: 7,
       maxTradesPerDay: 10,
+      maxPerTradeUsd: 200,
       maxSlippage: 0.005,
       driftThreshold: 0.05,
     });
@@ -135,6 +137,7 @@ describe("detectAdversarialIntent", () => {
       dailyBudgetUsd: 2000,
       timeWindowDays: 7,
       maxTradesPerDay: 5,
+      maxPerTradeUsd: 2000,
       maxSlippage: 0.005,
       driftThreshold: 0.05,
     });
@@ -147,6 +150,7 @@ describe("detectAdversarialIntent", () => {
       dailyBudgetUsd: 100,
       timeWindowDays: 60,
       maxTradesPerDay: 5,
+      maxPerTradeUsd: 100,
       maxSlippage: 0.005,
       driftThreshold: 0.05,
     });
@@ -159,6 +163,7 @@ describe("detectAdversarialIntent", () => {
       dailyBudgetUsd: 100,
       timeWindowDays: 7,
       maxTradesPerDay: 5,
+      maxPerTradeUsd: 100,
       maxSlippage: 0.05,
       driftThreshold: 0.05,
     });
@@ -172,6 +177,7 @@ describe("detectAdversarialIntent", () => {
       dailyBudgetUsd: 1000, // exactly at threshold, not above
       timeWindowDays: 30,
       maxTradesPerDay: 10,
+      maxPerTradeUsd: 1000,
       maxSlippage: 0.02,
       driftThreshold: 0.05,
     });

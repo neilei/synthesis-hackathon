@@ -1,0 +1,48 @@
+{
+  "agentId": 2185,
+  "intentId": "tfWjZ8_4OdjDTCPFF13wU",
+  "cycle": 2,
+  "swapTxHash": "0x045564705d834bda8efa1b003e8bf59b7412a2329e422f7c60c8381f556f9899",
+  "intent": {
+    "targetAllocation": {
+      "ETH": 0.6,
+      "USDC": 0.4
+    },
+    "dailyBudgetUsd": 200,
+    "driftThreshold": 0.05,
+    "maxSlippage": 0.005,
+    "timeWindowDays": 7,
+    "maxTradesPerDay": 200
+  },
+  "beforeSwap": {
+    "allocation": {
+      "ETH": 0.4515459903755597,
+      "USDC": 0.5484540096244404
+    },
+    "drift": 0.14845400962444033,
+    "portfolioValueUsd": 3447.0850551253807
+  },
+  "afterSwap": {
+    "allocation": {
+      "ETH": 0.4515459903755597,
+      "USDC": 0.5484540096244404
+    },
+    "drift": 0.14845400962444033,
+    "portfolioValueUsd": 3447.0850551253807
+  },
+  "execution": {
+    "sellToken": "USDC",
+    "buyToken": "ETH",
+    "sellAmount": "100",
+    "gasUsed": 147875,
+    "slippage": 0,
+    "viaDelegation": false
+  },
+  "agentReasoning": "",
+  "marketContext": {
+    "ethPriceUsd": 2331.2,
+    "poolTvlUsd": 0,
+    "pool24hVolume": 0
+  },
+  "timestamp": "2026-03-18T19:47:38.379Z"
+}

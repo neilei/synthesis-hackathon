@@ -21,6 +21,7 @@ describe("evidence", () => {
         maxSlippage: 0.005,
         timeWindowDays: 7,
         maxTradesPerDay: 10,
+        maxPerTradeUsd: 200,
       },
       beforeSwap: { allocation: { ETH: 0.73, USDC: 0.27 }, drift: 0.13, portfolioValueUsd: 1850 },
       afterSwap: { allocation: { ETH: 0.61, USDC: 0.39 }, drift: 0.01, portfolioValueUsd: 1847 },

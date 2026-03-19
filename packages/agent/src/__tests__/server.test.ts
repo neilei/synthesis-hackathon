@@ -126,6 +126,7 @@ vi.mock("@veil/common", async () => {
       dailyBudgetUsd: z.number(),
       timeWindowDays: z.number(),
       maxTradesPerDay: z.number(),
+      maxPerTradeUsd: z.number(),
       maxSlippage: z.number(),
       driftThreshold: z.number(),
     }),

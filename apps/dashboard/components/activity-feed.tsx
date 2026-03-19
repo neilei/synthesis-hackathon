@@ -5,7 +5,6 @@ import { useMemo } from "react";
 import type { AgentLogEntry } from "@veil/common";
 import { Card } from "./ui/card";
 import { SectionHeading } from "./ui/section-heading";
-import { SponsorBadge } from "./sponsor-badge";
 import { CycleGroup } from "./cycle-group";
 import { groupFeedByCycle } from "@/lib/group-feed";
 
@@ -41,9 +40,6 @@ export function ActivityFeed({ feed }: ActivityFeedProps) {
             </p>
           </div>
         )}
-      </div>
-      <div className="mt-5 border-t border-border-subtle pt-3">
-        <SponsorBadge text="Powered by Venice" />
       </div>
     </Card>
   );

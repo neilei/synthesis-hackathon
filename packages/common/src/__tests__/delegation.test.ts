@@ -13,6 +13,7 @@ const SAMPLE_INTENT: ParsedIntent = {
   dailyBudgetUsd: 200,
   timeWindowDays: 7,
   maxTradesPerDay: 10,
+  maxPerTradeUsd: 200,
   maxSlippage: 0.005,
   driftThreshold: 0.05,
 };
@@ -125,6 +126,16 @@ describe("generateAuditReport", () => {
     const report = generateAuditReport(SAMPLE_INTENT);
     expect(report.worstCase).toContain("$1,400");
     expect(report.worstCase).toContain("slippage");
+  });
+
+  it("includes per-trade limit in allows", () => {
+    const report = generateAuditReport({ ...SAMPLE_INTENT, maxPerTradeUsd: 5 });
+    expect(report.allows.some((a) => a.includes("$5") && a.includes("per individual trade"))).toBe(true);
+  });
+
+  it("includes per-trade limit in prevents", () => {
+    const report = generateAuditReport({ ...SAMPLE_INTENT, maxPerTradeUsd: 10 });
+    expect(report.prevents.some((p) => p.includes("$10") && p.includes("single trade"))).toBe(true);
   });
 
   it("returns empty warnings for safe intents", () => {

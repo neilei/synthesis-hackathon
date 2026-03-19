@@ -18,6 +18,7 @@ const MOCK_PARSE_RESPONSE = {
     maxSlippage: 0.005,
     driftThreshold: 0.05,
     maxTradesPerDay: 10,
+    maxPerTradeUsd: 200,
   },
   audit: {
     allows: [
@@ -60,15 +61,15 @@ test.describe("Audit Report (via Configure Preview)", () => {
 
   test("shows key-value grid with correct values", async ({ page }) => {
     await expect(page.getByText("Daily Budget")).toBeVisible();
-    await expect(page.getByText("$200", { exact: true })).toBeVisible();
+    await expect(page.getByText("$200", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("Time Window")).toBeVisible();
-    await expect(page.getByText("7 days", { exact: true })).toBeVisible();
+    await expect(page.getByText("7 days", { exact: true }).first()).toBeVisible();
     await expect(page.getByText("Max Slippage")).toBeVisible();
     await expect(page.getByText("0.5%")).toBeVisible();
     await expect(page.getByText("Drift Threshold", { exact: true })).toBeVisible();
     await expect(page.getByText("5.0%")).toBeVisible();
     await expect(page.getByText("Max Trades/Day")).toBeVisible();
-    await expect(page.getByText("10", { exact: true })).toBeVisible();
+    await expect(page.getByText("10", { exact: true }).first()).toBeVisible();
   });
 
   test("shows delegation report with allows section", async ({ page }) => {
@@ -105,9 +106,9 @@ test.describe("Audit Report (via Configure Preview)", () => {
   });
 
   test("shows sponsor badges", async ({ page }) => {
-    await expect(page.getByText("Powered by Venice")).toBeVisible();
+    await expect(page.getByText("Powered by Venice.ai")).toBeVisible();
     await expect(
-      page.getByText("Enforced by MetaMask Delegation"),
+      page.getByText("Enforced by MetaMask Delegation").first(),
     ).toBeVisible();
   });
 
@@ -159,7 +160,7 @@ test.describe("Audit Report (via Configure Preview)", () => {
 
   test("shows MetaMask ERC-7715 sponsor badge", async ({ page }) => {
     await expect(
-      page.getByText("Secured by MetaMask ERC-7715 / ERC-7710"),
+      page.getByText("Enforced by MetaMask Delegation").first(),
     ).toBeVisible();
   });
 });

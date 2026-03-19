@@ -225,4 +225,32 @@ describe("IntentLogger with DB", () => {
     const content = readFileSync(path, "utf-8").trim();
     expect(JSON.parse(content).action).toBe("file_only");
   });
+
+  it("resumes sequence from max existing DB sequence on construction", () => {
+    // Simulate a previous run that logged 5 entries (sequences 0-4)
+    for (let i = 0; i < 5; i++) {
+      repo.insertLog({
+        intentId: TEST_INTENT_ID,
+        timestamp: `2026-03-18T12:0${i}:00Z`,
+        sequence: i,
+        action: `old_action_${i}`,
+      });
+    }
+
+    // Create a new logger (simulating worker restart)
+    const resumedLogger = new IntentLogger(TEST_INTENT_ID, TEST_DIR, repo);
+    resumedLogger.log("resumed_action");
+
+    const dbLogs = repo.getIntentLogs(TEST_INTENT_ID);
+    const lastLog = dbLogs[dbLogs.length - 1];
+    expect(lastLog.action).toBe("resumed_action");
+    expect(lastLog.sequence).toBe(5); // Should be max(0-4) + 1 = 5
+  });
+
+  it("starts at 0 when no existing logs in DB", () => {
+    // dbLogger was created with an empty DB — should start at 0
+    dbLogger.log("first");
+    const dbLogs = repo.getIntentLogs(TEST_INTENT_ID);
+    expect(dbLogs[0].sequence).toBe(0);
+  });
 });

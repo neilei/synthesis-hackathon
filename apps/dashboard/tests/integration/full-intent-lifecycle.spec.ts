@@ -22,6 +22,7 @@ const VALID_PARSED_INTENT = {
   dailyBudgetUsd: 100,
   timeWindowDays: 7,
   maxTradesPerDay: 5,
+  maxPerTradeUsd: 100,
   maxSlippage: 0.005,
   driftThreshold: 0.05,
 };

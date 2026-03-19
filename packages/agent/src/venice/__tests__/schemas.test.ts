@@ -18,6 +18,7 @@ describe("IntentParseSchema", () => {
       dailyBudgetUsd: 200,
       timeWindowDays: 7,
       maxTradesPerDay: 10,
+      maxPerTradeUsd: 200,
       maxSlippage: 0.005,
       driftThreshold: 0.05,
     });
@@ -29,6 +30,7 @@ describe("IntentParseSchema", () => {
       dailyBudgetUsd: 200,
       timeWindowDays: 7,
       maxTradesPerDay: 10,
+      maxPerTradeUsd: 200,
       maxSlippage: 0.005,
       driftThreshold: 0.05,
     });
@@ -41,6 +43,7 @@ describe("IntentParseSchema", () => {
       dailyBudgetUsd: 200,
       timeWindowDays: 7,
       maxTradesPerDay: 10,
+      maxPerTradeUsd: 200,
       maxSlippage: 0.005,
       driftThreshold: 0.05,
     });
@@ -53,6 +56,7 @@ describe("IntentParseSchema", () => {
       dailyBudgetUsd: 100,
       timeWindowDays: 30,
       maxTradesPerDay: 5,
+      maxPerTradeUsd: 100,
       maxSlippage: 0.01,
       driftThreshold: 0.1,
     });
@@ -65,6 +69,7 @@ describe("IntentParseSchema", () => {
       dailyBudgetUsd: 200,
       timeWindowDays: 7,
       maxTradesPerDay: 10,
+      maxPerTradeUsd: 200,
       maxSlippage: 0.005,
       driftThreshold: 0.05,
     });
@@ -77,6 +82,7 @@ describe("IntentParseSchema", () => {
       dailyBudgetUsd: 200,
       timeWindowDays: 7,
       maxTradesPerDay: 10,
+      maxPerTradeUsd: 200,
       maxSlippage: 0.005,
       driftThreshold: 0.05,
     });
@@ -89,6 +95,7 @@ describe("IntentParseSchema", () => {
       dailyBudgetUsd: 200,
       timeWindowDays: 7,
       maxTradesPerDay: 10,
+      maxPerTradeUsd: 200,
       maxSlippage: 0.005,
       driftThreshold: 0.05,
     });

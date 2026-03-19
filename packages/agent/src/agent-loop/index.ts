@@ -6,6 +6,7 @@
  * @module @veil/agent/agent-loop
  */
 import type { SwapRecord } from "@veil/common";
+import { AIMessage } from "@langchain/core/messages";
 import type { Address } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { sepolia, base } from "viem/chains";
@@ -15,12 +16,12 @@ import { env } from "../config.js";
 import type { IntentParse } from "../venice/schemas.js";
 import { RebalanceDecisionSchema } from "../venice/schemas.js";
 import { reasoningLlm, fastLlm, FAST_MODEL, RESEARCH_MODEL, REASONING_MODEL } from "../venice/llm.js";
+import { detectAdversarialIntent } from "@veil/common";
 import {
   compileIntent,
   createDelegationFromIntent,
-  detectAdversarialIntent,
 } from "../delegation/compiler.js";
-import { generateAuditReport, type AuditReport } from "../delegation/audit.js";
+import { generateDetailedAudit, type DetailedAuditReport } from "../delegation/audit.js";
 import { logAction, logStart, logStop } from "../logging/agent-log.js";
 import { getBudgetTier } from "../logging/budget.js";
 import { registerAgent } from "../identity/erc8004.js";
@@ -57,6 +58,12 @@ export interface AgentConfig {
   existingAgentId?: bigint;
   /** Callback to persist newly registered agentId to database */
   onAgentIdRegistered?: (agentId: string) => void;
+  /** Resume from a previous cycle count (persisted from DB on restart) */
+  initialCycle?: number;
+  /** Resume from a previous trade count */
+  initialTradesExecuted?: number;
+  /** Resume from a previous total spent */
+  initialTotalSpentUsd?: number;
 }
 
 export interface AgentState {
@@ -73,7 +80,7 @@ export interface AgentState {
   totalValue: number;
   budgetTier: string;
   transactions: SwapRecord[];
-  audit: AuditReport | null;
+  audit: DetailedAuditReport | null;
   agentId: bigint | null;
   deployError: string | null;
 }
@@ -112,10 +119,10 @@ export async function runAgentLoop(config: AgentConfig): Promise<AgentState> {
   const state: AgentState = {
     delegation: null,
     delegatorSmartAccount: null,
-    tradesExecuted: 0,
-    totalSpentUsd: 0,
+    tradesExecuted: config.initialTradesExecuted ?? 0,
+    totalSpentUsd: config.initialTotalSpentUsd ?? 0,
     running: true,
-    cycle: 0,
+    cycle: config.initialCycle ?? 0,
     ethPrice: 0,
     drift: 0,
     allocation: {},
@@ -146,7 +153,7 @@ export async function runAgentLoop(config: AgentConfig): Promise<AgentState> {
   });
 
   // Check for existing agentId (persisted from previous run)
-  if (config.existingAgentId) {
+  if (config.existingAgentId != null) {
     state.agentId = config.existingAgentId;
     logger.info({ agentId: config.existingAgentId.toString() }, "Resuming with existing ERC-8004 agent ID");
     logAction("erc8004_register", {
@@ -167,7 +174,7 @@ export async function runAgentLoop(config: AgentConfig): Promise<AgentState> {
         { label: "erc8004:register", maxRetries: 3 },
       );
       logger.info({ txHash, agentId: agentId?.toString() }, "ERC-8004 agent registered");
-      if (agentId) {
+      if (agentId != null) {
         state.agentId = agentId;
         // Persist to DB so it survives restarts
         config.onAgentIdRegistered?.(agentId.toString());
@@ -191,6 +198,19 @@ export async function runAgentLoop(config: AgentConfig): Promise<AgentState> {
         error: err instanceof Error ? err.message : String(err),
       });
     }
+  }
+
+  // HARD GATE: Do not enter the main loop without an on-chain identity.
+  // Without an agentId, no judge evaluation can happen, and the agent
+  // would trade without on-chain accountability.
+  if (state.agentId == null) {
+    const msg = "Cannot start agent: ERC-8004 identity registration failed. No agentId available.";
+    logger.error(msg);
+    state.deployError = msg;
+    state.running = false;
+    logAction("agent_halted", { error: msg });
+    config.intentLogger?.log("agent_halted", { error: msg });
+    return state;
   }
 
   logger.info("=== VEIL AGENT STARTING ===");
@@ -271,7 +291,7 @@ export async function runAgentLoop(config: AgentConfig): Promise<AgentState> {
   }
 
   // --- Step 3: Audit report ---
-  const report = generateAuditReport(config.intent, state.delegation);
+  const report = generateDetailedAudit(config.intent, state.delegation);
   state.audit = report;
   logger.info("\n" + report.formatted);
   logAction("audit_report", {
@@ -412,9 +432,10 @@ async function getRebalanceDecision(
   const structuredReasoning =
     llmForReasoning.withStructuredOutput(RebalanceDecisionSchema, {
       method: "functionCalling",
+      includeRaw: true,
     });
 
-  const decision = await structuredReasoning.invoke([
+  const rawResponse = await structuredReasoning.invoke([
     {
       role: "system",
       content: `You are a DeFi portfolio rebalancing agent. Analyze the current portfolio state and decide if a rebalance is needed.
@@ -429,12 +450,17 @@ Current drift: ${JSON.stringify(market.drift, null, 2)} (max: ${(market.maxDrift
 Drift threshold: ${(config.intent.driftThreshold * 100).toFixed(1)}%
 ETH price: $${market.ethPrice.price.toFixed(2)}
 ${market.poolContext ? `\nLiquidity data:\n${market.poolContext}\n\nUse the TVL and volume data above to assess whether sufficient liquidity exists for the proposed swap size. If the swap amount is >1% of pool TVL, consider reducing the trade size or splitting across cycles.` : ""}
-Daily budget: $${config.intent.dailyBudgetUsd}
 Trades executed: ${state.tradesExecuted}
 Total spent: $${state.totalSpentUsd.toFixed(2)} / $${(config.intent.dailyBudgetUsd * config.intent.timeWindowDays).toFixed(2)}
-Max slippage: ${(config.intent.maxSlippage * 100).toFixed(2)}%
 
-Decide whether to rebalance. If yes, specify the swap details. Keep swap amounts conservative — use small amounts relative to the daily budget.`,
+HARD RULES — violations will be rejected by the safety system:
+1. The sellAmount MUST NOT exceed $${config.intent.maxPerTradeUsd > 0 ? config.intent.maxPerTradeUsd : config.intent.dailyBudgetUsd} in USD value (per-trade limit).
+2. The sellAmount MUST NOT exceed $${(config.intent.dailyBudgetUsd * config.intent.timeWindowDays - state.totalSpentUsd).toFixed(2)} remaining total budget.
+3. maxSlippage MUST NOT exceed ${(config.intent.maxSlippage * 100).toFixed(2)}%.
+4. Only trade tokens in the target allocation: ${Object.keys(config.intent.targetAllocation).join(", ")}.
+5. If shouldRebalance is true, targetSwap MUST be provided with valid sellAmount.
+
+Size the trade to make meaningful progress on drift while staying well within these limits.`,
     },
     {
       role: "user",
@@ -443,12 +469,26 @@ Decide whether to rebalance. If yes, specify the swap details. Keep swap amounts
     },
   ]);
 
-  const decisionResult = {
+  // LLM structured output can return undefined/null when the response doesn't parse
+  const parseResult = RebalanceDecisionSchema.safeParse(rawResponse.parsed);
+  if (!parseResult.success) {
+    logger.warn({ raw: rawResponse.parsed, zodError: parseResult.error.issues }, "Venice returned unparseable rebalance decision — treating as HOLD");
+    return { shouldRebalance: false, reasoning: "LLM response could not be parsed" };
+  }
+  const decision = parseResult.data;
+
+  const meta = rawResponse.raw instanceof AIMessage ? rawResponse.raw.usage_metadata : undefined;
+  const usage = meta
+    ? { inputTokens: meta.input_tokens, outputTokens: meta.output_tokens, totalTokens: meta.total_tokens }
+    : undefined;
+
+  const decisionResult: Record<string, unknown> = {
     shouldRebalance: decision.shouldRebalance,
     reasoning: decision.reasoning,
     marketContext: decision.marketContext,
     model: market.budgetTier === "normal" ? REASONING_MODEL : FAST_MODEL,
   };
+  if (usage) decisionResult.usage = usage;
 
   logAction("rebalance_decision", {
     cycle: state.cycle,
@@ -519,6 +559,7 @@ async function runCycle(
     agentAddress,
     chain,
     market.ethPrice.price,
+    decision.reasoning,
   );
 }
 
@@ -551,9 +592,11 @@ export async function startFromCli(
   intentText: string,
   maxCycles?: number,
 ): Promise<void> {
-  const { generatePrivateKey } = await import("viem/accounts");
+  if (!env.DELEGATOR_PRIVATE_KEY) {
+    throw new Error("DELEGATOR_PRIVATE_KEY is not set — cannot start agent without it. Set it in .env and restart.");
+  }
 
-  const delegatorKey = env.DELEGATOR_PRIVATE_KEY ?? generatePrivateKey();
+  const delegatorKey = env.DELEGATOR_PRIVATE_KEY;
 
   logger.info("Parsing intent via Venice...");
   const intent = await compileIntent(intentText);

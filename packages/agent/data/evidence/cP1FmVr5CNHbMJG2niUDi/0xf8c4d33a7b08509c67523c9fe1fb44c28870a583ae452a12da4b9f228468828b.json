@@ -1,0 +1,8 @@
+{
+  "requestHash": "0x1021185b0b4926e7f7c4c4b5a04871131535ede642e4204038685b8cb9d7aa54",
+  "dimension": "decision-quality",
+  "score": 72,
+  "reasoning": "The agent correctly identified that the portfolio drift (14.85%) was significantly above the 5% threshold. The decision to sell USDC for ETH aligns with the target allocation (60% ETH / 40% USDC). The agent utilized the full daily budget of $200, which is a prudent way to chip away at a large drift without exceeding constraints. However, the agent failed to provide any internal reasoning for the action.",
+  "model": "gemini-3-flash-preview",
+  "evaluatedAt": "2026-03-18T19:46:48.343Z"
+}
