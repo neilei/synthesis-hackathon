@@ -44,7 +44,7 @@ sequenceDiagram
 
     loop Every 60 seconds
         Agent->>Chain: Read portfolio balances (viem RPC)
-        Agent->>Venice: Web search for ETH price
+        Agent->>CMC: Fetch ETH price (CoinMarketCap API)
         Agent->>Agent: Calculate allocation drift
 
         alt Drift exceeds threshold
@@ -130,7 +130,7 @@ packages/agent/              Backend — autonomous agent + HTTP API server
   │   ├── trading.ts         Quote + swap via Uniswap Trading API
   │   └── permit2.ts         Gasless approvals via Permit2 (EIP-712)
   ├── data/                  Market data layer
-  │   ├── prices.ts          Token prices via Venice web search (60s cache)
+  │   ├── prices.ts          Token prices via CoinMarketCap API (60s cache)
   │   ├── portfolio.ts       On-chain balances via viem RPC
   │   └── thegraph.ts        Uniswap V3 pool data via The Graph subgraph
   ├── identity/              PROTOCOL LABS — Agent Identity + Reputation
@@ -348,7 +348,7 @@ Each row links a sponsor prize claim to the implementation file, the test that p
 | On-chain verifiability (block explorer) | [identity/evidence.ts](packages/agent/src/identity/evidence.ts) | [evidence.test.ts](packages/agent/src/identity/__tests__/evidence.test.ts) | Content-addressed JSON at `https://api.veil.moe/api/evidence/{intentId}/{hash}`; keccak256 hash on-chain matches hosted document |
 | Agent capability manifest (`agent.json`) | [agent.json](agent.json) | — | 3 profiles (core/exec/gov), 6 tools, 3 capabilities, security policies — valid JSON Agents PAM spec |
 | Structured execution logs (`agent_log.json`) | [logging/agent-log.ts](packages/agent/src/logging/agent-log.ts) | [agent-log.test.ts](packages/agent/src/logging/__tests__/agent-log.test.ts) | JSONL with decisions, tool calls, cycle results, errors; per-intent logs at `data/logs/{intentId}.jsonl` |
-| Real tool use (Venice, Uniswap, The Graph, viem) | [agent-loop/](packages/agent/src/agent-loop/) | [agent-loop.test.ts](packages/agent/src/__tests__/agent-loop.test.ts) | Each cycle calls: Venice web search (prices), viem RPC (balances), The Graph (pools), Venice reasoning (decisions), Uniswap Trading API (quotes/swaps) |
+| Real tool use (Venice, Uniswap, The Graph, viem) | [agent-loop/](packages/agent/src/agent-loop/) | [agent-loop.test.ts](packages/agent/src/__tests__/agent-loop.test.ts) | Each cycle calls: CoinMarketCap API (prices), viem RPC (balances), The Graph (pools), Venice reasoning (decisions), Uniswap Trading API (quotes/swaps) |
 | Safety guardrails before irreversible actions | [agent-loop/swap.ts](packages/agent/src/agent-loop/swap.ts) | [agent-loop.test.ts](packages/agent/src/__tests__/agent-loop.test.ts) | Budget guard, trade limit guard, adversarial intent detection, on-chain delegation caveat enforcement — all checked before every swap |
 | Compute budget awareness | [logging/budget.ts](packages/agent/src/logging/budget.ts) | [budget.test.ts](packages/agent/src/logging/__tests__/budget.test.ts) | Venice balance tracked via `x-venice-balance-usd` header; auto-downgrades model tier when budget is low |
 | Venice LLM judge + 3-dimension validation | [identity/judge.ts](packages/agent/src/identity/judge.ts) | [judge.test.ts](packages/agent/src/identity/__tests__/judge.test.ts) | `evaluateSwap()` orchestrates: evidence → [Validation Registry](https://sepolia.basescan.org/address/0x8004Cb1BF31DAf7788923b405b754f57acEB4272) request → LLM scoring → 3x validation responses → [Reputation Registry](https://sepolia.basescan.org/address/0x8004B663056A597Dffe9eCcC1965A193B7388713) feedback |

@@ -51,6 +51,7 @@ const envSchema = z.object({
     .transform((v) =>
       v && v.startsWith("0x") ? (v as `0x${string}`) : undefined,
     ),
+  CMC_PRO_API_KEY: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

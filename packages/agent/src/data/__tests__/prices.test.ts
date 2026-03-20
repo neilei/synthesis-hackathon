@@ -1,63 +1,79 @@
 /**
- * Unit tests for token price lookup and caching behavior.
+ * Unit tests for token price lookup via CoinMarketCap and caching behavior.
  *
  * @module @veil/agent/data/prices.test
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-// Mock the Venice LLM module
-vi.mock("../../venice/llm.js", () => {
-  const mockInvoke = vi.fn();
-  return {
-    researchLlm: {
-      withStructuredOutput: vi.fn(() => ({
-        invoke: mockInvoke,
-      })),
-    },
-    __mockInvoke: mockInvoke,
-  };
-});
+// Mock global fetch
+const mockFetch = vi.fn();
+vi.stubGlobal("fetch", mockFetch);
+
+// Mock logger
+vi.mock("../../logging/logger.js", () => ({
+  logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+}));
+
+// Mock config — env.CMC_PRO_API_KEY is read at call time (not import time)
+const mockEnv = vi.hoisted(() => ({ CMC_PRO_API_KEY: "test-key" as string | undefined }));
+vi.mock("../../config.js", () => ({ env: mockEnv }));
 
 import { getTokenPrice, clearPriceCache, _getPriceCache } from "../prices.js";
-import { researchLlm } from "../../venice/llm.js";
 
-// Get the mock invoke function
-const mockInvoke = (
-  await import("../../venice/llm.js") as any
-).__mockInvoke as ReturnType<typeof vi.fn>;
+function cmcResponse(symbol: string, price: number, slug: string) {
+  return {
+    ok: true,
+    json: () =>
+      Promise.resolve({
+        status: { timestamp: new Date().toISOString(), error_code: 0, error_message: null },
+        data: {
+          [symbol]: [
+            {
+              id: 1027,
+              name: symbol === "ETH" ? "Ethereum" : symbol,
+              symbol,
+              slug,
+              cmc_rank: 2,
+              quote: { USD: { price, volume_24h: 1e9, percent_change_24h: 1.5, market_cap: 2e11, last_updated: new Date().toISOString() } },
+            },
+          ],
+        },
+      }),
+  };
+}
 
 describe("getTokenPrice", () => {
-  /** Wrap a parsed response in the { parsed, raw } shape returned by includeRaw: true */
-  function withRaw(parsed: { price: number; citation: string | null }) {
-    return { parsed, raw: { usage_metadata: undefined } };
-  }
-
   beforeEach(() => {
     clearPriceCache();
     vi.clearAllMocks();
-    mockInvoke.mockResolvedValue(
-      withRaw({ price: 2000, citation: "https://example.com/eth-price" }),
-    );
+    mockEnv.CMC_PRO_API_KEY = "test-key";
+    mockFetch.mockResolvedValue(cmcResponse("ETH", 2000, "ethereum"));
   });
 
   afterEach(() => {
     clearPriceCache();
   });
 
-  it("should return price and citation from LLM", async () => {
+  it("should return price and citation from CMC", async () => {
     const result = await getTokenPrice("ETH");
 
     expect(result.price).toBe(2000);
-    expect(result.citation).toBe("https://example.com/eth-price");
-    expect(mockInvoke).toHaveBeenCalledTimes(1);
+    expect(result.citation).toBe("https://coinmarketcap.com/currencies/ethereum/");
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.stringContaining("symbol=ETH"),
+      expect.objectContaining({
+        headers: { "X-CMC_PRO_API_KEY": "test-key" },
+      }),
+    );
   });
 
-  it("should cache results and not call LLM twice within TTL", async () => {
+  it("should cache results and not call API twice within TTL", async () => {
     const result1 = await getTokenPrice("ETH");
     const result2 = await getTokenPrice("ETH");
 
     expect(result1.price).toBe(result2.price);
-    expect(mockInvoke).toHaveBeenCalledTimes(1); // Only called once due to cache
+    expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 
   it("should normalize symbol to uppercase for cache key", async () => {
@@ -65,46 +81,92 @@ describe("getTokenPrice", () => {
     await getTokenPrice("ETH");
     await getTokenPrice("Eth");
 
-    // All should hit the same cache entry, so only 1 LLM call
-    expect(mockInvoke).toHaveBeenCalledTimes(1);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 
-  it("should call LLM again after cache expires", async () => {
+  it("should call API again after cache expires", async () => {
     await getTokenPrice("ETH");
 
     // Manually expire the cache entry
     const cache = _getPriceCache();
     const entry = cache.get("ETH")!;
-    entry.timestamp = Date.now() - 61_000; // 61 seconds ago
+    entry.timestamp = Date.now() - 61_000;
 
-    mockInvoke.mockResolvedValue(
-      withRaw({ price: 2100, citation: "https://example.com/eth-price-2" }),
-    );
+    mockFetch.mockResolvedValue(cmcResponse("ETH", 2100, "ethereum"));
 
     const result = await getTokenPrice("ETH");
 
     expect(result.price).toBe(2100);
-    expect(mockInvoke).toHaveBeenCalledTimes(2);
+    expect(mockFetch).toHaveBeenCalledTimes(2);
   });
 
   it("should cache different tokens separately", async () => {
-    mockInvoke
-      .mockResolvedValueOnce(withRaw({ price: 2000, citation: null }))
-      .mockResolvedValueOnce(withRaw({ price: 1, citation: null }));
+    mockFetch
+      .mockResolvedValueOnce(cmcResponse("ETH", 2000, "ethereum"))
+      .mockResolvedValueOnce(cmcResponse("USDC", 1, "usd-coin"));
 
     const ethResult = await getTokenPrice("ETH");
     const usdcResult = await getTokenPrice("USDC");
 
     expect(ethResult.price).toBe(2000);
     expect(usdcResult.price).toBe(1);
-    expect(mockInvoke).toHaveBeenCalledTimes(2);
+    expect(mockFetch).toHaveBeenCalledTimes(2);
   });
 
-  it("should handle null citation", async () => {
-    mockInvoke.mockResolvedValue(withRaw({ price: 1, citation: null }));
+  it("should throw on API error response", async () => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 401,
+      text: () => Promise.resolve("Unauthorized"),
+    });
 
-    const result = await getTokenPrice("USDC");
+    await expect(getTokenPrice("ETH")).rejects.toThrow("CoinMarketCap API error 401");
+  });
 
-    expect(result.citation).toBeNull();
+  it("should throw when CMC_PRO_API_KEY is missing", async () => {
+    mockEnv.CMC_PRO_API_KEY = "";
+    clearPriceCache();
+
+    await expect(getTokenPrice("ETH")).rejects.toThrow("CMC_PRO_API_KEY is required");
+  });
+
+  it("should pick highest-ranked token when multiple share a symbol", async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          status: { timestamp: new Date().toISOString(), error_code: 0, error_message: null },
+          data: {
+            ETH: [
+              { id: 9999, name: "Fake ETH", symbol: "ETH", slug: "fake-eth", cmc_rank: 500, quote: { USD: { price: 0.01, volume_24h: 100, percent_change_24h: 0, market_cap: 100, last_updated: new Date().toISOString() } } },
+              { id: 1027, name: "Ethereum", symbol: "ETH", slug: "ethereum", cmc_rank: 2, quote: { USD: { price: 2000, volume_24h: 1e9, percent_change_24h: 1.5, market_cap: 2e11, last_updated: new Date().toISOString() } } },
+            ],
+          },
+        }),
+    });
+
+    const result = await getTokenPrice("ETH");
+    expect(result.price).toBe(2000);
+    expect(result.citation).toContain("ethereum");
+  });
+
+  it("should ignore tokens with null cmc_rank", async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          status: { timestamp: new Date().toISOString(), error_code: 0, error_message: null },
+          data: {
+            ETH: [
+              { id: 29991, name: "The Infinite Garden", symbol: "ETH", slug: "the-infinite-garden", cmc_rank: null, quote: { USD: { price: null, volume_24h: 0, percent_change_24h: 0, market_cap: 0, last_updated: new Date().toISOString() } } },
+              { id: 1027, name: "Ethereum", symbol: "ETH", slug: "ethereum", cmc_rank: 2, quote: { USD: { price: 2000, volume_24h: 1e9, percent_change_24h: 1.5, market_cap: 2e11, last_updated: new Date().toISOString() } } },
+            ],
+          },
+        }),
+    });
+
+    const result = await getTokenPrice("ETH");
+    expect(result.price).toBe(2000);
+    expect(result.citation).toContain("ethereum");
   });
 });

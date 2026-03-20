@@ -1,5 +1,5 @@
 /**
- * E2E tests for token price lookup against live Venice API.
+ * E2E tests for token price lookup against live CoinMarketCap API.
  *
  * @module @veil/agent/data/prices.e2e.test
  */
@@ -12,8 +12,8 @@ import {
 
 describe("getTokenPrice (e2e)", () => {
   it(
-    "fetches real ETH price via Venice web search",
-    { timeout: 180000 },
+    "fetches real ETH price via CoinMarketCap",
+    { timeout: 30000 },
     async () => {
       clearPriceCache();
       const result = await getTokenPrice("ETH");
@@ -23,11 +23,8 @@ describe("getTokenPrice (e2e)", () => {
       expect(result.price).toBeGreaterThan(100);
       expect(result.price).toBeLessThan(100000);
 
-      // Citation should be present and look like a URL (or null)
-      if (result.citation !== null) {
-        expect(typeof result.citation).toBe("string");
-        expect(result.citation.length).toBeGreaterThan(0);
-      }
+      // Citation should be a CMC URL
+      expect(result.citation).toContain("coinmarketcap.com");
     },
   );
 
@@ -36,7 +33,6 @@ describe("getTokenPrice (e2e)", () => {
     { timeout: 10000 },
     async () => {
       // Ensure cache is populated from the previous test
-      // If it isn't (tests run in isolation), populate it
       if (_getPriceCache().size === 0) {
         await getTokenPrice("ETH");
       }
@@ -47,14 +43,14 @@ describe("getTokenPrice (e2e)", () => {
 
       expect(typeof result.price).toBe("number");
       expect(result.price).toBeGreaterThan(100);
-      // Cached call should be near-instant, not a network round trip
+      // Cached call should be near-instant
       expect(elapsed).toBeLessThan(100);
     },
   );
 
   it(
     "cache is correctly populated after fetch",
-    { timeout: 180000 },
+    { timeout: 30000 },
     async () => {
       clearPriceCache();
       expect(_getPriceCache().size).toBe(0);
@@ -76,7 +72,6 @@ describe("getTokenPrice (e2e)", () => {
   it(
     "clearPriceCache removes all entries",
     async () => {
-      // Ensure something is cached
       if (_getPriceCache().size === 0) {
         _getPriceCache().set("TEST", {
           price: 1,
@@ -93,11 +88,10 @@ describe("getTokenPrice (e2e)", () => {
 
   it(
     "different token symbols get separate cache entries",
-    { timeout: 180000 },
+    { timeout: 30000 },
     async () => {
       clearPriceCache();
 
-      // Fetch two different tokens
       const [ethResult, btcResult] = await Promise.all([
         getTokenPrice("ETH"),
         getTokenPrice("BTC"),

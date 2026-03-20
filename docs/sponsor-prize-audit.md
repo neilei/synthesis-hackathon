@@ -68,8 +68,9 @@ The project is **substantially functional** with real on-chain proof:
 
 | Feature | File | Status | Notes |
 |---------|------|--------|-------|
-| Web search with citations | `src/venice/llm.ts`, `src/data/prices.ts` | REAL | `enable_web_search: "on"`, `enable_web_citations: true`. Real ETH price lookups from CoinDesk/CoinGecko. Citations captured and logged |
-| Structured output | `src/venice/schemas.ts`, `src/data/prices.ts`, `src/delegation/compiler.ts` | REAL | `.withStructuredOutput(zodSchema)` + `safeParse()` post-validation. Used for intent parsing, price lookups, rebalance decisions |
+| Web search with citations | `src/venice/llm.ts` | REAL | `enable_web_search: "on"`, `enable_web_citations: true`. Available for research queries. Citations captured and logged |
+| CoinMarketCap price API | `src/data/prices.ts` | REAL | Direct REST API to CMC `/v2/cryptocurrency/quotes/latest`. 60s cache. Handles multiple tokens sharing a symbol by selecting highest-ranked (lowest `cmc_rank`) |
+| Structured output | `src/venice/schemas.ts`, `src/delegation/compiler.ts` | REAL | `.withStructuredOutput(zodSchema)` + `safeParse()` post-validation. Used for intent parsing, rebalance decisions |
 | Budget tracking | `src/venice/llm.ts`, `src/logging/budget.ts` | REAL | Custom fetch wrapper captures `x-venice-balance-usd` header. Auto-switches to cheaper model when balance < $0.50 |
 | Multi-model routing | `src/venice/llm.ts`, `src/config.ts` | REAL | 3 tiers: `qwen3-5-9b` (fast + web search), `gemini-3-flash-preview` (reasoning). Model IDs exported as constants and used dynamically in all log entries |
 | `include_venice_system_prompt: false` | `src/venice/llm.ts` | REAL | Set on all Venice calls |
@@ -419,7 +420,7 @@ The intent-to-delegation pipeline is the strongest competitive differentiator. I
 | `packages/agent/src/uniswap/trading.ts` | Uniswap Trading API client | ~234 |
 | `packages/agent/src/uniswap/permit2.ts` | Permit2 approval + signing | ~91 |
 | `packages/agent/src/data/thegraph.ts` | The Graph pool data | ~46 |
-| `packages/agent/src/data/prices.ts` | Venice web search for prices | ~80 |
+| `packages/agent/src/data/prices.ts` | CoinMarketCap API for prices | ~125 |
 | `packages/agent/src/identity/erc8004.ts` | ERC-8004 three-registry functions | ~283 |
 | `packages/agent/src/identity/judge.ts` | Venice LLM judge evaluation service | ~170 |
 | `packages/agent/src/identity/dimensions.ts` | Extensible evaluation dimensions | ~91 |
