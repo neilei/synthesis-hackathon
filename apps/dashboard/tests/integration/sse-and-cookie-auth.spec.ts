@@ -103,7 +103,7 @@ test.describe.serial("SSE and Cookie Auth", () => {
     expect(data).toHaveProperty("logs");
     expect(Array.isArray(data.logs)).toBe(true);
     // Worker should have logged at least worker_start or worker_error
-    // (may fail immediately if DELEGATOR_PRIVATE_KEY missing, that's fine)
+    // (may fail immediately if permissions invalid, that's fine)
     if (data.logs.length > 0) {
       const first = data.logs[0];
       expect(first).toHaveProperty("sequence");

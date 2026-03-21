@@ -26,8 +26,10 @@ describe("config", () => {
       expect(env.AGENT_PRIVATE_KEY).toMatch(/^0x[0-9a-fA-F]+$/);
     });
 
-    it("DELEGATOR_PRIVATE_KEY is 0x-prefixed hex when set", () => {
-      expect(env.DELEGATOR_PRIVATE_KEY).toMatch(/^0x[0-9a-fA-F]+$/);
+    it("DELEGATOR_PRIVATE_KEY is optional 0x-prefixed hex", () => {
+      if (env.DELEGATOR_PRIVATE_KEY) {
+        expect(env.DELEGATOR_PRIVATE_KEY).toMatch(/^0x[0-9a-fA-F]+$/);
+      }
     });
   });
 
