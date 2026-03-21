@@ -1,8 +1,8 @@
 {
   "manifest_version": "1.0",
   "agent": {
-    "id": "ajson://veil/defi-rebalancer",
-    "name": "Veil — Intent-Compiled Private DeFi Agent",
+    "id": "ajson://maw/defi-rebalancer",
+    "name": "Maw — Intent-Compiled Private DeFi Agent",
     "description": "An autonomous agent that compiles natural language portfolio rules into on-chain delegation constraints, privately reasons about when to rebalance via Venice AI, and executes trades on Uniswap — with every decision auditable but no strategy ever leaked.",
     "version": "0.1.0",
     "author": "neilei",

@@ -169,7 +169,7 @@ Replace `signedDelegation` + `delegatorSmartAccount` with:
 - Keep: `delegationManager` (text, address)
 - Remove: `delegatorSmartAccount` (address was the server's smart account, no longer applicable)
 
-### Shared (`@veil/common`)
+### Shared (`@maw/common`)
 
 #### `packages/common/src/delegation.ts` — Update Exports
 
@@ -260,5 +260,5 @@ We believe `native-token-periodic` adds `ExactCalldataEnforcer("0x")` based on S
 - ERC-8004 identity + judge evaluation
 - Per-intent logging + SSE streaming
 - Auth flow (nonce signing)
-- `@veil/common` computation functions
+- `@maw/common` computation functions
 - `deployDelegatorIfNeeded()` (repurposed for user smart account deployment)

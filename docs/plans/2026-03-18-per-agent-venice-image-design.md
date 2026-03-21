@@ -47,8 +47,8 @@ HAProxy cache on VPS for this path pattern. Max object size 1MB.
 ### Step 5: Wire into identity.json
 
 `identity.ts` checks if `data/images/{intentId}.webp` exists:
-- Yes → `image: "https://api.veil.moe/api/intents/{id}/avatar.webp"`
-- No → `image: "https://api.veil.moe/veil-agent.svg"` (fallback)
+- Yes → `image: "https://api.maw.finance/api/intents/{id}/avatar.webp"`
+- No → `image: "https://api.maw.finance/maw-agent.svg"` (fallback)
 
 ## Components
 

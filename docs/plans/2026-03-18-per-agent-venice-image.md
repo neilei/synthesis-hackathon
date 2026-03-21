@@ -60,7 +60,7 @@ describe("generateImagePrompt", () => {
 
 **Step 2: Run test to verify it fails**
 
-Run: `pnpm --filter @veil/agent test -- --run src/venice/__tests__/image.test.ts`
+Run: `pnpm --filter @maw/agent test -- --run src/venice/__tests__/image.test.ts`
 Expected: FAIL — module `../image.js` does not exist
 
 **Step 3: Write the implementation**
@@ -72,7 +72,7 @@ Create `packages/agent/src/venice/image.ts`:
  * Venice AI image generation for per-agent avatars.
  * Two-step: LLM generates a creative prompt, then Venice image API renders it.
  *
- * @module @veil/agent/venice/image
+ * @module @maw/agent/venice/image
  */
 import { writeFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
@@ -221,7 +221,7 @@ export function avatarPath(intentId: string): string {
 
 **Step 4: Run test to verify it passes**
 
-Run: `pnpm --filter @veil/agent test -- --run src/venice/__tests__/image.test.ts`
+Run: `pnpm --filter @maw/agent test -- --run src/venice/__tests__/image.test.ts`
 Expected: PASS
 
 **Step 5: Commit**
@@ -318,7 +318,7 @@ describe("generateAgentAvatar", () => {
 
 **Step 2: Run tests to verify they pass**
 
-Run: `pnpm --filter @veil/agent test -- --run src/venice/__tests__/image.test.ts`
+Run: `pnpm --filter @maw/agent test -- --run src/venice/__tests__/image.test.ts`
 Expected: PASS (all 3 tests)
 
 **Step 3: Commit**
@@ -389,7 +389,7 @@ describe("avatar route", () => {
 
 **Step 2: Run test to verify it passes** (this is a self-contained test)
 
-Run: `pnpm --filter @veil/agent test -- --run src/routes/__tests__/avatar.test.ts`
+Run: `pnpm --filter @maw/agent test -- --run src/routes/__tests__/avatar.test.ts`
 Expected: PASS
 
 **Step 3: Add the avatar route to server.ts**
@@ -416,7 +416,7 @@ app.get("/api/intents/:id/avatar.webp", (c) => {
 
 **Step 4: Run full test suite to verify nothing breaks**
 
-Run: `pnpm --filter @veil/agent test -- --run`
+Run: `pnpm --filter @maw/agent test -- --run`
 Expected: All tests pass
 
 **Step 5: Commit**
@@ -453,7 +453,7 @@ it("uses dynamic avatar URL when avatar exists", async () => {
   const body = await res.json();
 
   // When no avatar exists, falls back to SVG
-  expect(body.image).toMatch(/veil-agent\.svg|avatar\.webp/);
+  expect(body.image).toMatch(/maw-agent\.svg|avatar\.webp/);
 });
 ```
 
@@ -468,18 +468,18 @@ import { join } from "node:path";
 
 Change line 55 from:
 ```typescript
-      image: "https://api.veil.moe/veil-agent.svg",
+      image: "https://api.maw.finance/maw-agent.svg",
 ```
 To:
 ```typescript
       image: existsSync(join("data", "images", `${intentId}.webp`))
-        ? `https://api.veil.moe/api/intents/${intentId}/avatar.webp`
-        : "https://api.veil.moe/veil-agent.svg",
+        ? `https://api.maw.finance/api/intents/${intentId}/avatar.webp`
+        : "https://api.maw.finance/maw-agent.svg",
 ```
 
 **Step 3: Run identity tests**
 
-Run: `pnpm --filter @veil/agent test -- --run src/routes/__tests__/identity.test.ts`
+Run: `pnpm --filter @maw/agent test -- --run src/routes/__tests__/identity.test.ts`
 Expected: All existing tests pass (they won't have the avatar file so they get the SVG fallback)
 
 **Step 4: Commit**
@@ -531,7 +531,7 @@ After line 200 (end of the registration `else` block's closing brace, right befo
 
 **Step 3: Run full agent tests**
 
-Run: `pnpm --filter @veil/agent test -- --run`
+Run: `pnpm --filter @maw/agent test -- --run`
 Expected: All tests pass (avatar generation is wrapped in try/catch so it's non-fatal)
 
 **Step 4: Commit**
@@ -602,7 +602,7 @@ describe("Venice image generation (e2e)", () => {
 
 **Step 2: Run e2e test (requires VENICE_API_KEY in .env)**
 
-Run: `pnpm --filter @veil/agent test:e2e -- --run src/venice/__tests__/image.e2e.test.ts`
+Run: `pnpm --filter @maw/agent test:e2e -- --run src/venice/__tests__/image.e2e.test.ts`
 Expected: PASS — real image generated and saved
 
 **Step 3: Commit**
@@ -626,8 +626,8 @@ In `scripts/deploy.sh`, inside `cmd_setup()`, after the systemd service creation
 ```bash
   # 6. Add caching for avatar images in HAProxy (if haproxy is present)
   log "Configuring HAProxy cache for avatar images..."
-  ssh_run "which haproxy >/dev/null 2>&1" && ssh_run "sudo tee /etc/haproxy/conf.d/veil-cache.cfg > /dev/null" <<'CACHEEOF'
-cache veil_avatar_cache
+  ssh_run "which haproxy >/dev/null 2>&1" && ssh_run "sudo tee /etc/haproxy/conf.d/maw-cache.cfg > /dev/null" <<'CACHEEOF'
+cache maw_avatar_cache
   total-max-size 64  # 64MB
   max-object-size 1048576  # 1MB per object
   max-age 86400  # 1 day default (overridden by Cache-Control from origin)
@@ -653,17 +653,17 @@ git commit -m "feat: add HAProxy cache config for avatar images in deploy script
 
 **Step 1: Build**
 
-Run: `pnpm --filter @veil/common build && pnpm --filter @veil/agent build`
+Run: `pnpm --filter @maw/common build && pnpm --filter @maw/agent build`
 Expected: Clean build, no errors
 
 **Step 2: Lint**
 
-Run: `pnpm --filter @veil/agent run lint`
+Run: `pnpm --filter @maw/agent run lint`
 Expected: No lint errors
 
 **Step 3: Run unit tests**
 
-Run: `pnpm --filter @veil/agent test -- --run`
+Run: `pnpm --filter @maw/agent test -- --run`
 Expected: All tests pass
 
 **Step 4: Commit any fixups if needed, then final commit**

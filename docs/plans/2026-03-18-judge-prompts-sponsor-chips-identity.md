@@ -404,7 +404,7 @@ Create `apps/dashboard/components/sponsor-chip.tsx`:
  * Inline sponsor chip with brand logo. Replaces SponsorBadge with
  * visual brand attribution. Used in section footers and feed entries.
  *
- * @module @veil/dashboard/components/sponsor-chip
+ * @module @maw/dashboard/components/sponsor-chip
  */
 import Image from "next/image";
 

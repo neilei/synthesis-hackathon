@@ -44,7 +44,7 @@ Base Mainnet (Base-specific deployment):
 
 ### Registration Flow
 
-1. Server starts (`server.ts:303`) → calls `registerAgent("https://github.com/neilei/veil", "base-sepolia")` at line 324
+1. Server starts (`server.ts:303`) → calls `registerAgent("https://github.com/neilei/maw", "base-sepolia")` at line 324
 2. User deploys agent via `/api/deploy` → `runAgentLoop()` starts → calls `registerAgent()` **again** at `agent-loop.ts:151`
 3. Each call mints a **new** NFT (new `agentId` = new tokenId)
 4. Agent loop stores `agentId` in `state.agentId`; server startup discards it

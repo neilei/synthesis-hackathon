@@ -2,7 +2,7 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Make all active intents visible to anyone visiting veil.moe without wallet connection, while hiding Venice AI reasoning (private) and restricting owner-only actions (stop, download logs).
+**Goal:** Make all active intents visible to anyone visiting maw.finance without wallet connection, while hiding Venice AI reasoning (private) and restricting owner-only actions (stop, download logs).
 
 **Architecture:** Server-side redaction module strips Venice LLM reasoning from public endpoints. The Monitor component switches between owner view (full controls) and public view (read-only, redacted) using a single `IntentDetailView` with an `isOwner` prop. Feed entries detect `_redacted: true` in their result data to show a privacy indicator.
 
@@ -199,7 +199,7 @@ describe("redactParsedEntry", () => {
 
 **Step 2: Run tests to verify they fail**
 
-Run: `pnpm --filter @veil/agent test -- --run src/logging/__tests__/redact.test.ts`
+Run: `pnpm --filter @maw/agent test -- --run src/logging/__tests__/redact.test.ts`
 Expected: FAIL — module `../redact.js` does not exist
 
 **Step 3: Create the redaction module**
@@ -207,7 +207,7 @@ Expected: FAIL — module `../redact.js` does not exist
 Create `packages/agent/src/logging/redact.ts`:
 
 ```typescript
-import type { AgentLogEntry } from "@veil/common";
+import type { AgentLogEntry } from "@maw/common";
 import type { AgentLogSelect } from "../db/repository.js";
 
 /** Actions entirely stripped from public feeds. */
@@ -296,7 +296,7 @@ export function redactParsedEntry(entry: AgentLogEntry): AgentLogEntry | null {
 
 **Step 4: Run tests to verify they pass**
 
-Run: `pnpm --filter @veil/agent test -- --run src/logging/__tests__/redact.test.ts`
+Run: `pnpm --filter @maw/agent test -- --run src/logging/__tests__/redact.test.ts`
 Expected: all 9 tests pass
 
 **Step 5: Commit**
@@ -342,7 +342,7 @@ And update the return object to use the new `logs` variable.
 
 **Step 3: Run build**
 
-Run: `pnpm run build --filter @veil/agent`
+Run: `pnpm run build --filter @maw/agent`
 Expected: compiles
 
 **Step 4: Commit**
@@ -458,7 +458,7 @@ export async function GET(
 
 **Step 4: Run build**
 
-Run: `pnpm run build --filter @veil/agent`
+Run: `pnpm run build --filter @maw/agent`
 Expected: compiles
 
 **Step 5: Commit**
@@ -493,7 +493,7 @@ export async function fetchPublicIntentDetail(
 }
 ```
 
-`AgentLogEntry` is already imported in this file via `import type { ParsedIntent, AuditReport, IntentRecord, AgentLogEntry } from "@veil/common";`.
+`AgentLogEntry` is already imported in this file via `import type { ParsedIntent, AuditReport, IntentRecord, AgentLogEntry } from "@maw/common";`.
 
 **Step 2: Create `use-public-intent-detail.ts`**
 
@@ -503,7 +503,7 @@ Create `apps/dashboard/hooks/use-public-intent-detail.ts`:
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import type { AgentLogEntry } from "@veil/common";
+import type { AgentLogEntry } from "@maw/common";
 import { fetchPublicIntentDetail, type IntentRecord } from "@/lib/api";
 
 export interface PublicIntentDetail extends IntentRecord {
@@ -562,7 +562,7 @@ Create `apps/dashboard/hooks/use-public-intent-feed.ts`:
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import type { AgentLogEntry } from "@veil/common";
+import type { AgentLogEntry } from "@maw/common";
 import { fetchPublicIntentDetail } from "@/lib/api";
 
 export function usePublicIntentFeed(intentId: string | null) {
@@ -638,7 +638,7 @@ export function usePublicIntentFeed(intentId: string | null) {
 
 **Step 4: Run lint**
 
-Run: `pnpm --filter @veil/dashboard run lint`
+Run: `pnpm --filter @maw/dashboard run lint`
 Expected: passes
 
 **Step 5: Commit**
@@ -739,7 +739,7 @@ Then after the closing `</div>` of the `scores && (...)` block (around line 585)
 
 **Step 4: Run lint**
 
-Run: `pnpm --filter @veil/dashboard run lint`
+Run: `pnpm --filter @maw/dashboard run lint`
 Expected: passes
 
 **Step 5: Commit**
@@ -831,7 +831,7 @@ Change `&larr; Back to intents` to `&larr; Back to agents` (consistent with the 
 
 **Step 4: Run lint**
 
-Run: `pnpm --filter @veil/dashboard run lint`
+Run: `pnpm --filter @maw/dashboard run lint`
 Expected: passes
 
 **Step 5: Commit**
@@ -1010,7 +1010,7 @@ export function Monitor({ onNavigateConfigure }: MonitorProps) {
 
 **Step 3: Run lint and type check**
 
-Run: `pnpm --filter @veil/dashboard run lint`
+Run: `pnpm --filter @maw/dashboard run lint`
 Expected: passes
 
 **Step 4: Commit**
@@ -1130,7 +1130,7 @@ test.describe("Public intent visibility", () => {
 
 **Step 2: Run tests**
 
-Run: `pnpm --filter @veil/dashboard exec playwright test tests/integration/public-intents.spec.ts`
+Run: `pnpm --filter @maw/dashboard exec playwright test tests/integration/public-intents.spec.ts`
 Expected: passes (with active intents on test server)
 
 **Step 3: Commit**
@@ -1149,7 +1149,7 @@ git commit -m "test: add Playwright e2e tests for public intent visibility"
 **Step 1: Run full build**
 
 Run: `pnpm run build`
-Expected: both `@veil/agent` and `@veil/dashboard` compile
+Expected: both `@maw/agent` and `@maw/dashboard` compile
 
 **Step 2: Run all tests**
 
@@ -1168,7 +1168,7 @@ Merge the branch to main and push. Vercel auto-deploys.
 **Step 5: Verify on live site**
 
 Verification checklist (incognito browser, no wallet):
-1. Visit `https://veil.moe` — click Monitor tab
+1. Visit `https://maw.finance` — click Monitor tab
 2. See "Active Agents" list with intent cards — no "Connect wallet" gate
 3. See "Show stopped" checkbox — toggle it, verify stopped agents appear/disappear
 4. Click into an intent — see stats, portfolio progress, activity feed

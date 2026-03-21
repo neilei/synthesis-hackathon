@@ -1,14 +1,14 @@
-# Veil — Intent-Compiled Private DeFi Agent
+# Maw — Intent-Compiled Private DeFi Agent
 
 An autonomous agent that compiles natural language portfolio rules into on-chain delegation constraints, privately reasons about when to rebalance via Venice AI, and executes trades on Uniswap — with every decision auditable but no strategy ever leaked.
 
-**Synthesis Hackathon 2026** | Built by [neilei](https://github.com/neilei) + Claude Opus Agent
+**Synthesis Hackathon 2026** | Built by [neilei](https://github.com/neilei)
 
 ---
 
-## What Is Veil?
+## What Is Maw?
 
-DeFi users who want autonomous portfolio management face a dilemma: either trust an agent with full wallet access, or micromanage every trade. Veil resolves this by compiling a natural language intent — like *"60/40 ETH/USDC, $200/day, 7 days"* — into a scoped on-chain delegation that the agent **cannot violate**, even if compromised.
+DeFi users who want autonomous portfolio management face a dilemma: either trust an agent with full wallet access, or micromanage every trade. Maw resolves this by compiling a natural language intent — like *"60/40 ETH/USDC, $200/day, 7 days"* — into a scoped on-chain delegation that the agent **cannot violate**, even if compromised.
 
 The agent reasons privately about *when* to trade (using Venice AI with no data retention), but its *ability* to trade is constrained by immutable on-chain caveats: budget caps, time windows, trade frequency limits, target contracts, and function selectors. Every swap is logged, every decision is scored by an independent LLM judge, and every score is recorded on-chain in an ERC-8004 reputation registry with content-addressed evidence.
 
@@ -103,7 +103,7 @@ The separation of agent wallet (requests validation) and judge wallet (submits s
 ## Architecture
 
 ```
-packages/common/             Shared types, Zod schemas, constants, utilities (@veil/common)
+packages/common/             Shared types, Zod schemas, constants, utilities (@maw/common)
 packages/agent/              Backend — autonomous agent + HTTP API server
   src/
   ├── index.ts               CLI entrypoint
@@ -152,7 +152,7 @@ agent.json                   PAM spec manifest — capabilities, tools, security
 
 ## Sponsor Integrations
 
-Veil's design is built around the cross-integration of four sponsor technologies. A single intent flows through all four in sequence: Venice parses it, MetaMask constrains it, Uniswap executes it, and Protocol Labs records it.
+Maw's design is built around the cross-integration of four sponsor technologies. A single intent flows through all four in sequence: Venice parses it, MetaMask constrains it, Uniswap executes it, and Protocol Labs records it.
 
 ### Venice AI — "Private Agents, Trusted Actions" ($11.5K)
 
@@ -160,7 +160,7 @@ Venice provides the agent's intelligence layer with a critical guarantee: **no d
 
 This matters because DeFi agent reasoning is uniquely sensitive. Over a 7-day trading window, the agent makes thousands of LLM calls. Each individually is benign; together they paint a complete picture of a trader's risk tolerance, reaction patterns, and portfolio value. Venice ensures these reasoning traces exist only in the agent's local logs.
 
-**How Veil uses Venice:**
+**How Maw uses Venice:**
 
 | Capability | Integration | Details |
 |---|---|---|
@@ -173,7 +173,7 @@ This matters because DeFi agent reasoning is uniquely sensitive. Over a 7-day tr
 
 ### MetaMask — "Best Use of Delegations" ($5K)
 
-MetaMask's delegation framework gives Veil its core safety property: **the agent operates inside an on-chain cage it cannot escape**. The human defines constraints once, and the DelegationManager smart contract enforces them on every transaction.
+MetaMask's delegation framework gives Maw its core safety property: **the agent operates inside an on-chain cage it cannot escape**. The human defines constraints once, and the DelegationManager smart contract enforces them on every transaction.
 
 **How the delegation pipeline works:**
 
@@ -187,7 +187,7 @@ MetaMask's delegation framework gives Veil its core safety property: **the agent
 
 ### Uniswap — "Agentic Finance" ($5K)
 
-Uniswap is Veil's execution layer. The agent uses the Trading API for optimal routing and Permit2 for gasless token approvals.
+Uniswap is Maw's execution layer. The agent uses the Trading API for optimal routing and Permit2 for gasless token approvals.
 
 **Integration points:**
 
@@ -203,7 +203,7 @@ The agent uses The Graph pool data to make liquidity-aware decisions. When the r
 
 ### Protocol Labs — "Let the Agent Cook" + "Agents With Receipts" ($16K)
 
-Protocol Labs' ERC-8004 gives Veil a verifiable on-chain identity and a reputation system where every swap is independently scored.
+Protocol Labs' ERC-8004 gives Maw a verifiable on-chain identity and a reputation system where every swap is independently scored.
 
 **Three-registry architecture on Base Sepolia:**
 
@@ -219,7 +219,7 @@ Protocol Labs' ERC-8004 gives Veil a verifiable on-chain identity and a reputati
 - **Execution quality** — Gas efficiency, slippage, delegation usage (preferred over direct tx)
 - **Goal progress** — Did the swap move the portfolio closer to the target allocation?
 
-Evidence documents are content-addressed JSON hosted at `https://api.veil.moe/api/evidence/{intentId}/{hash}`. The on-chain keccak256 hash must match the hosted content, making post-hoc tampering detectable.
+Evidence documents are content-addressed JSON hosted at `https://api.maw.finance/api/evidence/{intentId}/{hash}`. The on-chain keccak256 hash must match the hosted content, making post-hoc tampering detectable.
 
 **Additional Protocol Labs integrations:**
 
@@ -230,8 +230,8 @@ Evidence documents are content-addressed JSON hosted at `https://api.veil.moe/ap
 
 ## Live Demo
 
-- **Dashboard**: [https://veil.moe](https://veil.moe)
-- **API**: [https://api.veil.moe](https://api.veil.moe)
+- **Dashboard**: [https://maw.finance](https://maw.finance)
+- **API**: [https://api.maw.finance](https://api.maw.finance)
 
 ---
 
@@ -275,7 +275,7 @@ pnpm run dev:dashboard
 - **Data**: The Graph (Uniswap V3 subgraph), Venice web search + scraping
 - **Identity**: ERC-8004 Identity + Reputation + Validation Registries on Base
 - **Persistence**: SQLite (drizzle-orm + better-sqlite3, WAL mode)
-- **Validation**: Zod schemas throughout (`@veil/common`)
+- **Validation**: Zod schemas throughout (`@maw/common`)
 - **Testing**: Vitest (unit + e2e), Playwright (dashboard e2e)
 - **Dashboard**: Next.js 16, wagmi v2, tailwindcss
 
@@ -345,7 +345,7 @@ Each row links a sponsor prize claim to the implementation file, the test that p
 | Autonomous execution with self-correction loop | [agent-loop/index.ts](packages/agent/src/agent-loop/index.ts) | [agent-loop.test.ts](packages/agent/src/__tests__/agent-loop.test.ts) | `runAgentLoop()` runs 60s cycles: gather data → calculate drift → reason → execute → log → repeat. Delegation fallback on failure = self-correction |
 | ERC-8004 identity linked to operator wallet | [identity/erc8004.ts](packages/agent/src/identity/erc8004.ts) | [erc8004.test.ts](packages/agent/src/identity/__tests__/erc8004.test.ts), [erc8004.e2e.test.ts](packages/agent/src/identity/__tests__/erc8004.e2e.test.ts) | `registerAgent()` mints per-intent NFT on [Identity Registry](https://sepolia.basescan.org/address/0x8004A818BFB912233c491871b3d84c89A494BD9e); `agentId` persisted in SQLite |
 | Real on-chain txns: identity/reputation/validation registries | [identity/erc8004.ts](packages/agent/src/identity/erc8004.ts) | [erc8004.test.ts](packages/agent/src/identity/__tests__/erc8004.test.ts) | `registerAgent()` → [Identity](https://sepolia.basescan.org/address/0x8004A818BFB912233c491871b3d84c89A494BD9e), `giveFeedback()` → [Reputation](https://sepolia.basescan.org/address/0x8004B663056A597Dffe9eCcC1965A193B7388713), `submitValidationRequest/Response()` → [Validation](https://sepolia.basescan.org/address/0x8004Cb1BF31DAf7788923b405b754f57acEB4272) |
-| On-chain verifiability (block explorer) | [identity/evidence.ts](packages/agent/src/identity/evidence.ts) | [evidence.test.ts](packages/agent/src/identity/__tests__/evidence.test.ts) | Content-addressed JSON at `https://api.veil.moe/api/evidence/{intentId}/{hash}`; keccak256 hash on-chain matches hosted document |
+| On-chain verifiability (block explorer) | [identity/evidence.ts](packages/agent/src/identity/evidence.ts) | [evidence.test.ts](packages/agent/src/identity/__tests__/evidence.test.ts) | Content-addressed JSON at `https://api.maw.finance/api/evidence/{intentId}/{hash}`; keccak256 hash on-chain matches hosted document |
 | Agent capability manifest (`agent.json`) | [agent.json](agent.json) | — | 3 profiles (core/exec/gov), 6 tools, 3 capabilities, security policies — valid JSON Agents PAM spec |
 | Structured execution logs (`agent_log.json`) | [logging/agent-log.ts](packages/agent/src/logging/agent-log.ts) | [agent-log.test.ts](packages/agent/src/logging/__tests__/agent-log.test.ts) | JSONL with decisions, tool calls, cycle results, errors; per-intent logs at `data/logs/{intentId}.jsonl` |
 | Real tool use (Venice, Uniswap, The Graph, viem) | [agent-loop/](packages/agent/src/agent-loop/) | [agent-loop.test.ts](packages/agent/src/__tests__/agent-loop.test.ts) | Each cycle calls: CoinMarketCap API (prices), viem RPC (balances), The Graph (pools), Venice reasoning (decisions), Uniswap Trading API (quotes/swaps) |
@@ -358,13 +358,13 @@ Each row links a sponsor prize claim to the implementation file, the test that p
 
 | Endpoint | Purpose | Auth |
 |----------|---------|------|
-| `GET https://api.veil.moe/api/auth/nonce?wallet=0x...` | Get signing nonce | None |
-| `POST https://api.veil.moe/api/auth/verify` | Verify wallet signature, get bearer token | None |
-| `POST https://api.veil.moe/api/intents` | Create new intent | Bearer token |
-| `GET https://api.veil.moe/api/intents` | List intents for wallet | Bearer token |
-| `GET https://api.veil.moe/api/intents/:id` | Get intent detail + live agent state | Bearer token |
-| `GET https://api.veil.moe/api/intents/:id/logs` | Download per-intent JSONL log | Bearer token |
-| `GET https://api.veil.moe/api/evidence/:intentId/:hash` | Content-addressed evidence document | None (public, immutable) |
+| `GET https://api.maw.finance/api/auth/nonce?wallet=0x...` | Get signing nonce | None |
+| `POST https://api.maw.finance/api/auth/verify` | Verify wallet signature, get bearer token | None |
+| `POST https://api.maw.finance/api/intents` | Create new intent | Bearer token |
+| `GET https://api.maw.finance/api/intents` | List intents for wallet | Bearer token |
+| `GET https://api.maw.finance/api/intents/:id` | Get intent detail + live agent state | Bearer token |
+| `GET https://api.maw.finance/api/intents/:id/logs` | Download per-intent JSONL log | Bearer token |
+| `GET https://api.maw.finance/api/evidence/:intentId/:hash` | Content-addressed evidence document | None (public, immutable) |
 
 ---
 

@@ -16,7 +16,7 @@ config({ path: resolve(__dirname, "..", ".env") });
 const account = privateKeyToAccount(
   process.env.AGENT_PRIVATE_KEY as `0x${string}`,
 );
-const BASE = "https://api.veil.moe";
+const BASE = "https://api.maw.finance";
 
 async function main() {
   // Step 1: Get nonce
@@ -27,7 +27,7 @@ async function main() {
   console.log("1. Nonce obtained:", nonce.slice(0, 16) + "...");
 
   // Step 2: Sign nonce
-  const message = `Sign this message to authenticate with Veil.\n\nNonce: ${nonce}`;
+  const message = `Sign this message to authenticate with Maw.\n\nNonce: ${nonce}`;
   const signature = await account.signMessage({ message });
   console.log("2. Nonce signed");
 

@@ -1,4 +1,4 @@
-# Sponsor Prize Audit — Veil Project
+# Sponsor Prize Audit — Maw Project
 
 **Date:** 2026-03-18 (updated)
 **Audited by:** Claude Opus 4.6
@@ -89,7 +89,7 @@ Current model configuration: `qwen3-5-9b` (fast + web search), `gemini-3-flash-p
 | ~~Privacy narrative~~ | **DOCUMENTED** | README section "Why Venice: Privacy-Preserving DeFi Reasoning" — 4 numbered points explaining why no-data-retention is load-bearing for DeFi agent reasoning |
 | Web scraping | ENABLED | `enable_web_scraping: true` on research tier for DeFi data |
 | E2EE | **CONFIGURED** | `enable_e2ee: true` on all three tiers via `baseVeniceParams` |
-| Prompt caching | **CONFIGURED** | `prompt_cache_key: "veil-research"` and `"veil-reasoning"` on respective tiers |
+| Prompt caching | **CONFIGURED** | `prompt_cache_key: "maw-research"` and `"maw-reasoning"` on respective tiers |
 | DIEM/VVV balance awareness | NOT CONFIGURED | Could show staking/credit status |
 | Reasoning effort control | NOT USED | Could vary reasoning depth per task |
 | Model suffix syntax | NOT USED | Venice's `model:param=value` dynamic config |
@@ -258,7 +258,7 @@ ERC-8004 agent identity (NFT registration), ERC-8004 reputation feedback (rating
 |---------|------|--------|-------|
 | **ERC-8004 Identity Registry** | `src/identity/erc8004.ts` | REAL | Per-intent NFT registration. Each intent gets its own `agentId`. Persisted to SQLite across restarts — no more orphaned NFTs. |
 | **ERC-8004 Reputation Registry** | `src/identity/erc8004.ts` | REAL | Composite swap-quality feedback via separate judge wallet (`JUDGE_PRIVATE_KEY`). Solves self-feedback revert. |
-| **ERC-8004 Validation Registry** | `src/identity/erc8004.ts` | REAL | Full evidence chain: `validationRequest` (agent wallet) + 3x `validationResponse` (judge wallet, one per dimension). Content-addressed evidence hosted at `https://api.veil.moe/api/evidence/{intentId}/{hash}`. |
+| **ERC-8004 Validation Registry** | `src/identity/erc8004.ts` | REAL | Full evidence chain: `validationRequest` (agent wallet) + 3x `validationResponse` (judge wallet, one per dimension). Content-addressed evidence hosted at `https://api.maw.finance/api/evidence/{intentId}/{hash}`. |
 | **Venice LLM Judge** | `src/identity/judge.ts` | REAL | `evaluateSwap()` uses `reasoningLlm` to score each swap across 3 dimensions (decision-quality, execution-quality, goal-progress) with structured output + calibrated scoring. |
 | **Evidence System** | `src/identity/evidence.ts` | REAL | Content-addressed JSON documents with keccak256 hashing. On-chain `requestHash`/`responseHash`/`feedbackHash` link to hosted evidence for verifiability. |
 | **Extensible Dimensions** | `src/identity/dimensions.ts` | REAL | Configurable evaluation dimensions with weights. Universal + intent-type-specific. Supports future intent types (TWAP, DCA) without code changes. |
@@ -303,7 +303,7 @@ The judge wallet (`JUDGE_PRIVATE_KEY`) is a separate entity from the agent walle
 1. **E2E tests for Validation Registry** — ABI verification + full judge pipeline test
 2. **Dashboard reputation card** — display scores, evidence links
 3. ~~**Fund judge wallet on Base Sepolia**~~ **DONE** — 0.1 ETH funded, `JUDGE_PRIVATE_KEY` set in local `.env`, VPS, and Vercel
-4. ~~**API routes**~~ **DONE** — `/api/evidence/:intentId/:hash` live on VPS (`https://api.veil.moe/api/evidence/...`), returns JSON with immutable caching headers
+4. ~~**API routes**~~ **DONE** — `/api/evidence/:intentId/:hash` live on VPS (`https://api.maw.finance/api/evidence/...`), returns JSON with immutable caching headers
 
 ---
 
@@ -438,7 +438,7 @@ The intent-to-delegation pipeline is the strongest competitive differentiator. I
 | Field | Value |
 |-------|-------|
 | Human name | neilei |
-| Agent name | Claude Opus Agent |
+| Agent name | neilei |
 | Agent ID | 30463 |
 | Participant ID | fb019ea0e16046ed92f74daa11c004ea |
 | Team ID | 0542cd144cfb4a96b98e6ac2b42d90df |

@@ -133,7 +133,7 @@ describe("agent_logs", () => {
 
 **Step 2: Run test to verify it fails**
 
-Run: `pnpm --filter @veil/agent test -- packages/agent/src/db/__tests__/repository.test.ts`
+Run: `pnpm --filter @maw/agent test -- packages/agent/src/db/__tests__/repository.test.ts`
 Expected: FAIL — `repo.insertLog is not a function`
 
 **Step 3: Add the drizzle schema**
@@ -250,7 +250,7 @@ In `packages/agent/src/db/__tests__/repository.test.ts`, add the agent_logs tabl
 
 **Step 6: Run tests to verify they pass**
 
-Run: `pnpm --filter @veil/agent test -- packages/agent/src/db/__tests__/repository.test.ts`
+Run: `pnpm --filter @maw/agent test -- packages/agent/src/db/__tests__/repository.test.ts`
 Expected: ALL PASS
 
 **Step 7: Commit**
@@ -310,7 +310,7 @@ it("unsubscribe stops receiving events", () => {
 
 **Step 2: Run test to verify it fails**
 
-Run: `pnpm --filter @veil/agent test -- packages/agent/src/logging/__tests__/intent-log.test.ts`
+Run: `pnpm --filter @maw/agent test -- packages/agent/src/logging/__tests__/intent-log.test.ts`
 Expected: FAIL — `onLogEntry is not a function` (or not exported)
 
 **Step 3: Add EventEmitter to IntentLogger**
@@ -321,8 +321,8 @@ Rewrite `packages/agent/src/logging/intent-log.ts`:
 import { appendFileSync, readFileSync, existsSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { EventEmitter } from "node:events";
-import type { AgentLogEntry } from "@veil/common";
-import { AgentLogEntrySchema } from "@veil/common";
+import type { AgentLogEntry } from "@maw/common";
+import { AgentLogEntrySchema } from "@maw/common";
 
 const logEmitter = new EventEmitter();
 logEmitter.setMaxListeners(50);
@@ -409,7 +409,7 @@ export class IntentLogger {
 
 **Step 4: Run tests to verify they pass**
 
-Run: `pnpm --filter @veil/agent test -- packages/agent/src/logging/__tests__/intent-log.test.ts`
+Run: `pnpm --filter @maw/agent test -- packages/agent/src/logging/__tests__/intent-log.test.ts`
 Expected: ALL PASS
 
 **Step 5: Commit**
@@ -563,7 +563,7 @@ describe("IntentLogger with DB", () => {
 
 **Step 2: Run test to verify it fails**
 
-Run: `pnpm --filter @veil/agent test -- packages/agent/src/logging/__tests__/intent-log.test.ts`
+Run: `pnpm --filter @maw/agent test -- packages/agent/src/logging/__tests__/intent-log.test.ts`
 Expected: FAIL — IntentLogger constructor doesn't accept a repo parameter
 
 **Step 3: Update IntentLogger to accept optional repo**
@@ -640,7 +640,7 @@ export class IntentLogger {
 
 **Step 4: Run tests to verify they pass**
 
-Run: `pnpm --filter @veil/agent test -- packages/agent/src/logging/__tests__/intent-log.test.ts`
+Run: `pnpm --filter @maw/agent test -- packages/agent/src/logging/__tests__/intent-log.test.ts`
 Expected: ALL PASS
 
 **Step 5: Commit**
@@ -685,7 +685,7 @@ vi.mock("../logging/intent-log.js", () => {
 
 **Step 3: Run all tests**
 
-Run: `pnpm --filter @veil/agent test`
+Run: `pnpm --filter @maw/agent test`
 Expected: ALL PASS
 
 **Step 4: Commit**
@@ -740,7 +740,7 @@ Remove the `IntentLogger` import from the top of the file (line 12) since it's o
 
 **Step 3: Run tests**
 
-Run: `pnpm --filter @veil/agent test`
+Run: `pnpm --filter @maw/agent test`
 Expected: ALL PASS (server.test.ts mocks repo.getIntentLogs, which doesn't exist on MockRepo yet)
 
 If tests fail because MockRepo doesn't have `getIntentLogs`, add it to the mock in `server.test.ts`:
@@ -780,7 +780,7 @@ it("POST /api/auth/verify sets HttpOnly cookie", async () => {
   });
 
   const setCookie = res.headers.get("set-cookie");
-  expect(setCookie).toContain("veil_token=");
+  expect(setCookie).toContain("maw_token=");
   expect(setCookie).toContain("HttpOnly");
   expect(setCookie).toContain("SameSite=Strict");
   expect(setCookie).toContain("Path=/api");
@@ -791,7 +791,7 @@ it("GET /api/intents authenticates via cookie", async () => {
   (verifyAuthToken as ReturnType<typeof vi.fn>).mockReturnValueOnce("0xwallet");
 
   const res = await app.request("/api/intents?wallet=0xwallet", {
-    headers: { Cookie: "veil_token=mock-token" },
+    headers: { Cookie: "maw_token=mock-token" },
   });
 
   expect(res.status).toBe(200);
@@ -800,7 +800,7 @@ it("GET /api/intents authenticates via cookie", async () => {
 
 **Step 2: Run test to verify it fails**
 
-Run: `pnpm --filter @veil/agent test -- packages/agent/src/__tests__/server.test.ts`
+Run: `pnpm --filter @maw/agent test -- packages/agent/src/__tests__/server.test.ts`
 Expected: FAIL — no cookie set, cookie auth not recognized
 
 **Step 3: Set cookie on verify response**
@@ -815,7 +815,7 @@ In `packages/agent/src/routes/auth.ts`, replace lines 76-78:
     // Set HttpOnly cookie for SSE EventSource (can't set custom headers)
     c.header(
       "Set-Cookie",
-      `veil_token=${token}; HttpOnly; SameSite=Strict; Path=/api; Max-Age=86400`,
+      `maw_token=${token}; HttpOnly; SameSite=Strict; Path=/api; Max-Age=86400`,
     );
 
     return c.json({ token });
@@ -844,7 +844,7 @@ export const requireAuth = createMiddleware<AuthEnv>(async (c, next) => {
   if (auth?.startsWith("Bearer ")) {
     token = auth.slice(7);
   } else {
-    token = getCookie(c, "veil_token");
+    token = getCookie(c, "maw_token");
   }
 
   if (!token) {
@@ -863,7 +863,7 @@ export const requireAuth = createMiddleware<AuthEnv>(async (c, next) => {
 
 **Step 5: Run tests to verify they pass**
 
-Run: `pnpm --filter @veil/agent test -- packages/agent/src/__tests__/server.test.ts`
+Run: `pnpm --filter @maw/agent test -- packages/agent/src/__tests__/server.test.ts`
 Expected: ALL PASS
 
 **Step 6: Commit**
@@ -895,7 +895,7 @@ describe("SSE endpoint", () => {
 
 **Step 2: Run test to verify it fails**
 
-Run: `pnpm --filter @veil/agent test -- packages/agent/src/__tests__/server.test.ts`
+Run: `pnpm --filter @maw/agent test -- packages/agent/src/__tests__/server.test.ts`
 Expected: FAIL — route falls through to SPA (returns 200 HTML instead of 401)
 
 **Step 3: Add the SSE route**
@@ -947,7 +947,7 @@ Add this route handler before the `GET /:id/logs` route (before line 157):
 
 **Step 4: Run tests to verify they pass**
 
-Run: `pnpm --filter @veil/agent test -- packages/agent/src/__tests__/server.test.ts`
+Run: `pnpm --filter @maw/agent test -- packages/agent/src/__tests__/server.test.ts`
 Expected: ALL PASS
 
 **Step 5: Update the SPA fallback HTML to list the new endpoint**
@@ -1160,7 +1160,7 @@ const market = await gatherMarketData(config.chainId, agentAddress, state.cycle,
 
 **Step 5: Run tests**
 
-Run: `pnpm --filter @veil/agent test`
+Run: `pnpm --filter @maw/agent test`
 Expected: ALL PASS (the agent-loop tests mock everything, so the new optional calls are no-ops)
 
 **Step 6: Commit**
@@ -1190,7 +1190,7 @@ export async function fetchIntentDetail(
 
 Add `AgentLogEntry` to the import on line 6:
 ```typescript
-import type { ParsedIntent, AuditReport, IntentRecord, AgentLogEntry } from "@veil/common";
+import type { ParsedIntent, AuditReport, IntentRecord, AgentLogEntry } from "@maw/common";
 ```
 
 **Step 2: Create the hook**
@@ -1201,7 +1201,7 @@ Create `apps/dashboard/hooks/use-intent-feed.ts`:
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import type { AgentLogEntry } from "@veil/common";
+import type { AgentLogEntry } from "@maw/common";
 import { fetchIntentDetail } from "@/lib/api";
 
 export function useIntentFeed(
@@ -1275,7 +1275,7 @@ export function useIntentFeed(
 
 **Step 3: Verify it compiles**
 
-Run: `pnpm --filter @veil/dashboard build` (or `pnpm --filter @veil/dashboard lint`)
+Run: `pnpm --filter @maw/dashboard build` (or `pnpm --filter @maw/dashboard lint`)
 Expected: No type errors
 
 **Step 4: Commit**
@@ -1296,7 +1296,7 @@ feat(dashboard): add useIntentFeed hook with REST + SSE
 Change lines 6-9:
 
 ```typescript
-import type { AgentLogEntry } from "@veil/common";
+import type { AgentLogEntry } from "@maw/common";
 
 export interface IntentDetail extends IntentRecord {
   logs: AgentLogEntry[];
@@ -1306,7 +1306,7 @@ export interface IntentDetail extends IntentRecord {
 
 **Step 2: Verify it compiles**
 
-Run: `pnpm --filter @veil/dashboard lint`
+Run: `pnpm --filter @maw/dashboard lint`
 Expected: No type errors
 
 **Step 3: Commit**
@@ -1327,7 +1327,7 @@ fix(dashboard): type IntentDetail.logs as AgentLogEntry[]
 At the top of `monitor.tsx`, add:
 
 ```typescript
-import type { AgentLogEntry } from "@veil/common";
+import type { AgentLogEntry } from "@maw/common";
 import { useIntentFeed } from "@/hooks/use-intent-feed";
 import { ActivityFeed } from "./activity-feed";
 ```
@@ -1354,7 +1354,7 @@ Expected: Activity Feed card appears between stats and allocation.
 
 **Step 4: Run lint**
 
-Run: `pnpm --filter @veil/dashboard lint`
+Run: `pnpm --filter @maw/dashboard lint`
 Expected: No errors
 
 **Step 5: Commit**
@@ -1395,7 +1395,7 @@ Also add `credentials: "include"` to all other authenticated fetch calls (`fetch
 
 **Step 2: Verify it compiles**
 
-Run: `pnpm --filter @veil/dashboard lint`
+Run: `pnpm --filter @maw/dashboard lint`
 Expected: No errors
 
 **Step 3: Commit**
@@ -1431,7 +1431,7 @@ This reflects the request origin back (required for credentials) and sets `Acces
 
 **Step 2: Run tests**
 
-Run: `pnpm --filter @veil/agent test`
+Run: `pnpm --filter @maw/agent test`
 Expected: ALL PASS (update CORS test expectations if needed — the origin header will now mirror the request)
 
 **Step 3: Commit**
@@ -1466,7 +1466,7 @@ delegation_redeem_failed: "Delegation Failed",
 
 **Step 2: Run lint**
 
-Run: `pnpm --filter @veil/dashboard lint`
+Run: `pnpm --filter @maw/dashboard lint`
 Expected: No errors
 
 **Step 3: Commit**

@@ -27,7 +27,7 @@ git checkout -b feat/erc7715-real-permissions
 **Step 2: Add `@metamask/smart-accounts-kit` to dashboard**
 
 ```bash
-pnpm --filter @veil/dashboard add @metamask/smart-accounts-kit@0.4.0-beta.1
+pnpm --filter @maw/dashboard add @metamask/smart-accounts-kit@0.4.0-beta.1
 ```
 
 **Step 3: Verify it installs correctly**
@@ -44,7 +44,7 @@ git commit -m "chore: add @metamask/smart-accounts-kit to dashboard"
 
 ---
 
-### Task 2: Add `computePeriodAmount` to `@veil/common`
+### Task 2: Add `computePeriodAmount` to `@maw/common`
 
 **Files:**
 - Modify: `packages/common/src/delegation.ts:17-32`
@@ -80,7 +80,7 @@ describe("computePeriodAmount", () => {
 
 **Step 2: Run test to verify it fails**
 
-Run: `pnpm --filter @veil/common test -- --run delegation`
+Run: `pnpm --filter @maw/common test -- --run delegation`
 Expected: FAIL — `computePeriodAmount` not exported
 
 **Step 3: Implement `computePeriodAmount`**
@@ -124,7 +124,7 @@ export {
 
 **Step 4: Run test to verify it passes**
 
-Run: `pnpm --filter @veil/common test -- --run delegation`
+Run: `pnpm --filter @maw/common test -- --run delegation`
 Expected: PASS
 
 **Step 5: Commit**
@@ -159,12 +159,12 @@ This removes `signedDelegation` (was `.notNull()`), `delegatorSmartAccount` (was
 **Step 2: Delete existing dev database** (dev data only, we're on a feature branch)
 
 ```bash
-rm -f data/veil.db data/veil.db-wal data/veil.db-shm
+rm -f data/maw.db data/maw.db-wal data/maw.db-shm
 ```
 
 **Step 3: Verify the agent compiles**
 
-Run: `pnpm --filter @veil/agent exec tsc --noEmit 2>&1 | head -20`
+Run: `pnpm --filter @maw/agent exec tsc --noEmit 2>&1 | head -20`
 Expected: Type errors in `routes/intents.ts` and `agent-worker.ts` (they reference old field names). This is expected — we'll fix them in subsequent tasks.
 
 **Step 4: Commit**
@@ -245,7 +245,7 @@ const intentBody = {
 
 **Step 3: Run tests**
 
-Run: `pnpm --filter @veil/agent test -- --run intents`
+Run: `pnpm --filter @maw/agent test -- --run intents`
 Expected: PASS (or fix any remaining references to old field names)
 
 **Step 4: Commit**
@@ -371,7 +371,7 @@ describe("pullErc20Token", () => {
 
 **Step 2: Run tests to verify they fail**
 
-Run: `pnpm --filter @veil/agent test -- --run redeemer`
+Run: `pnpm --filter @maw/agent test -- --run redeemer`
 Expected: FAIL — `pullNativeToken` and `pullErc20Token` not exported
 
 **Step 3: Rewrite `redeemer.ts`**
@@ -384,7 +384,7 @@ Replace `packages/agent/src/delegation/redeemer.ts` entirely:
  * erc7710WalletActions to pull tokens from the user's MetaMask smart
  * account to the agent EOA, within ERC-7715 granted permission limits.
  *
- * @module @veil/agent/delegation/redeemer
+ * @module @maw/agent/delegation/redeemer
  */
 import {
   createWalletClient,
@@ -560,7 +560,7 @@ export async function pullErc20Token(
 
 **Step 4: Run tests to verify they pass**
 
-Run: `pnpm --filter @veil/agent test -- --run redeemer`
+Run: `pnpm --filter @maw/agent test -- --run redeemer`
 Expected: PASS
 
 **Step 5: Commit**
@@ -590,7 +590,7 @@ Remove tests for `createDelegationFromIntent` and `createDelegatorSmartAccount`.
 
 **Step 3: Verify compilation**
 
-Run: `pnpm --filter @veil/agent exec tsc --noEmit 2>&1 | head -20`
+Run: `pnpm --filter @maw/agent exec tsc --noEmit 2>&1 | head -20`
 Expected: May still show errors from agent-loop/index.ts (next task)
 
 **Step 4: Commit**
@@ -820,7 +820,7 @@ Update `packages/agent/src/__tests__/swap-safety.test.ts` to use the new `AgentS
 
 **Step 6: Run tests**
 
-Run: `pnpm --filter @veil/agent test -- --run swap`
+Run: `pnpm --filter @maw/agent test -- --run swap`
 Expected: PASS
 
 **Step 7: Commit**
@@ -895,7 +895,7 @@ Replace lines 90-111. Remove `delegatorKey`, add permissions fields:
 
 **Step 3: Run full agent test suite**
 
-Run: `pnpm --filter @veil/agent test -- --run`
+Run: `pnpm --filter @maw/agent test -- --run`
 Expected: PASS (or identify remaining issues)
 
 **Step 4: Commit**
@@ -923,8 +923,8 @@ import { useWalletClient } from "wagmi";
 import { parseEther } from "viem";
 import type { Hex } from "viem";
 import { erc7715ProviderActions } from "@metamask/smart-accounts-kit/actions";
-import type { ParsedIntent } from "@veil/common";
-import { AGENT_ADDRESS, computePeriodAmount, computeExpiryTimestamp } from "@veil/common";
+import type { ParsedIntent } from "@maw/common";
+import { AGENT_ADDRESS, computePeriodAmount, computeExpiryTimestamp } from "@maw/common";
 import { CONTRACTS } from "@/lib/contracts";
 
 export interface GrantedPermission {
@@ -1074,7 +1074,7 @@ export const CONTRACTS = {
 
 **Step 6: Run dashboard type check**
 
-Run: `pnpm --filter @veil/dashboard exec tsc --noEmit`
+Run: `pnpm --filter @maw/dashboard exec tsc --noEmit`
 Expected: PASS
 
 **Step 7: Commit**
@@ -1097,7 +1097,7 @@ The `IntentRecordSchema` doesn't currently include `signedDelegation` or `delega
 
 **Step 2: Run type check across monorepo**
 
-Run: `pnpm run lint` and `pnpm --filter @veil/agent exec tsc --noEmit` and `pnpm --filter @veil/dashboard exec tsc --noEmit`
+Run: `pnpm run lint` and `pnpm --filter @maw/agent exec tsc --noEmit` and `pnpm --filter @maw/dashboard exec tsc --noEmit`
 Expected: PASS
 
 **Step 3: Commit if any changes**
@@ -1182,7 +1182,7 @@ Fix any remaining references.
 
 **Step 3: Run full build + test**
 
-Run: `pnpm run lint && pnpm --filter @veil/agent exec tsc --noEmit && pnpm test`
+Run: `pnpm run lint && pnpm --filter @maw/agent exec tsc --noEmit && pnpm test`
 Expected: PASS
 
 **Step 4: Commit**

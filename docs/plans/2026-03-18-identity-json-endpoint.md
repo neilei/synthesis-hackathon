@@ -56,14 +56,14 @@ describe("Identity JSON route", () => {
 
     const body = await res.json();
     expect(body.type).toBe("https://eips.ethereum.org/EIPS/eip-8004#registration-v1");
-    expect(body.name).toBe("Veil Rebalancer — test-int");
+    expect(body.name).toBe("Maw Rebalancer — test-int");
     expect(body.description).toContain("60% ETH");
     expect(body.description).toContain("40% USDC");
     expect(body.description).toContain("$100/day");
     expect(body.description).toContain("7 days");
     expect(body.active).toBe(true);
     expect(body.services).toHaveLength(1);
-    expect(body.services[0].name).toBe("veil-api");
+    expect(body.services[0].name).toBe("maw-api");
     expect(body.supportedTrust).toEqual(["reputation"]);
     expect(res.headers.get("cache-control")).toContain("public");
   });
@@ -149,10 +149,10 @@ app.get("/api/intents/:id/identity.json", (c) => {
   c.header("Cache-Control", "public, max-age=300");
   return c.json({
     type: "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
-    name: `Veil Rebalancer — ${id.slice(0, 8)}`,
+    name: `Maw Rebalancer — ${id.slice(0, 8)}`,
     description: `${allocDesc}, $${parsed.dailyBudgetUsd}/day, ${parsed.timeWindowDays} days`,
     services: [
-      { name: "veil-api", endpoint: "https://api.veil.moe", version: "0.1.0" },
+      { name: "maw-api", endpoint: "https://api.maw.finance", version: "0.1.0" },
     ],
     active: intent.status === "active",
     supportedTrust: ["reputation"],
@@ -196,8 +196,8 @@ Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>"
 **Step 1: Clear stale intents on VPS**
 
 ```bash
-ssh bawler@195.201.8.147 "sudo systemctl stop veil-agent"
-ssh bawler@195.201.8.147 "cd /home/bawler/veil && rm -f data/veil.db data/veil.db-wal data/veil.db-shm"
+ssh bawler@195.201.8.147 "sudo systemctl stop maw-agent"
+ssh bawler@195.201.8.147 "cd /home/bawler/maw && rm -f data/maw.db data/maw.db-wal data/maw.db-shm"
 ```
 
 The DB will be recreated on next startup via the `getDb()` auto-migration.
@@ -211,7 +211,7 @@ The DB will be recreated on next startup via the `getDb()` auto-migration.
 **Step 3: Verify endpoint works**
 
 ```bash
-curl -s https://api.veil.moe/api/intents/nonexistent/identity.json | python3 -m json.tool
+curl -s https://api.maw.finance/api/intents/nonexistent/identity.json | python3 -m json.tool
 ```
 
 Expected: `{"error": "Intent not found"}` with 404 status (not 401).

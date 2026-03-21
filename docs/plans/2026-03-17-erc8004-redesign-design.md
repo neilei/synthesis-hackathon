@@ -42,7 +42,7 @@ Agent collects evidence: drift before/after, slippage, gas,
 reasoning trace, market context, delegation compliance
     ↓
 Agent submits validationRequest (Base Sepolia, agent wallet)
-  → requestURI = https://api.veil.moe/api/evidence/{intentId}/{hash}
+  → requestURI = https://api.maw.finance/api/evidence/{intentId}/{hash}
   → requestHash = keccak256(evidence JSON)
     ↓
 Venice LLM evaluates evidence (off-chain, gemini-3-flash-preview, temp=0)
@@ -66,7 +66,7 @@ The judge evaluation runs as an async task after swap completion. The agent loop
 ## Identity Registry — Per-Intent Registration
 
 - Each intent gets its own ERC-8004 NFT (agentId)
-- `agentURI` points to `https://api.veil.moe/api/intents/{id}/identity.json`
+- `agentURI` points to `https://api.maw.finance/api/intents/{id}/identity.json`
 - agentId persisted in DB (`intents.agentId` column already exists)
 - On restart, worker loads existing agentId from DB — no re-registration
 - Server-level registration removed entirely
@@ -77,10 +77,10 @@ The judge evaluation runs as an async task after swap completion. The agent loop
 ```json
 {
   "type": "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
-  "name": "Veil Rebalancer — Intent {shortId}",
+  "name": "Maw Rebalancer — Intent {shortId}",
   "description": "60/40 ETH/USDC, $200/day, 7 days",
   "services": [
-    { "name": "veil-api", "endpoint": "https://api.veil.moe", "version": "0.1.0" }
+    { "name": "maw-api", "endpoint": "https://api.maw.finance", "version": "0.1.0" }
   ],
   "active": true,
   "supportedTrust": ["reputation"]
@@ -100,7 +100,7 @@ After each swap, judge wallet submits one `giveFeedback` call:
 | `valueDecimals` | `2` |
 | `tag1` | `"swap-quality"` |
 | `tag2` | `"rebalance"` (intent type — extensible) |
-| `feedbackURI` | `https://api.veil.moe/api/evidence/{intentId}/{hash}` |
+| `feedbackURI` | `https://api.maw.finance/api/evidence/{intentId}/{hash}` |
 | `feedbackHash` | `keccak256(feedback JSON)` |
 
 Composite weighting: `decision-quality × 0.4 + execution-quality × 0.3 + goal-progress × 0.3`
@@ -188,7 +188,7 @@ data/
 
 New public API route (no auth): `GET /api/evidence/:intentId/:hash`
 
-On-chain URIs: `https://api.veil.moe/api/evidence/{intentId}/{hash}`
+On-chain URIs: `https://api.maw.finance/api/evidence/{intentId}/{hash}`
 
 Documents written to disk before on-chain tx submission (URI live before tx confirms).
 

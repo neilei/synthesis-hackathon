@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Deploy Veil agent + dashboard to VPS
+# Deploy Maw agent + dashboard to VPS
 #
 # Usage:
 #   ./scripts/deploy.sh              # full deploy (clone/pull, install, build, restart)
@@ -15,10 +15,10 @@ set -euo pipefail
 VPS_HOST="195.201.8.147"
 VPS_USER="bawler"
 REMOTE="${VPS_USER}@${VPS_HOST}"
-DEPLOY_KEY_LOCAL="$HOME/.ssh/id_veil_deploy"
-APP_DIR="/home/${VPS_USER}/veil"
-SERVICE_NAME="veil-agent"
-REPO_URL="github-veil:neilei/synthesis-hackathon.git"
+DEPLOY_KEY_LOCAL="$HOME/.ssh/id_maw_deploy"
+APP_DIR="/home/${VPS_USER}/maw"
+SERVICE_NAME="maw-agent"
+REPO_URL="github-maw:neilei/synthesis-hackathon.git"
 NODE_VERSION="22"
 PORT=3147
 
@@ -45,22 +45,22 @@ cmd_setup() {
   # 1. Copy deploy key to VPS
   if [ ! -f "${DEPLOY_KEY_LOCAL}" ]; then
     err "Deploy key not found at ${DEPLOY_KEY_LOCAL}"
-    err "Generate one: ssh-keygen -t ed25519 -f ${DEPLOY_KEY_LOCAL} -N '' -C 'veil-deploy-key'"
+    err "Generate one: ssh-keygen -t ed25519 -f ${DEPLOY_KEY_LOCAL} -N '' -C 'maw-deploy-key'"
     exit 1
   fi
 
   log "Copying deploy key to VPS..."
-  scp "${DEPLOY_KEY_LOCAL}" "${REMOTE}:~/.ssh/id_veil_deploy"
-  ssh_run "chmod 600 ~/.ssh/id_veil_deploy"
+  scp "${DEPLOY_KEY_LOCAL}" "${REMOTE}:~/.ssh/id_maw_deploy"
+  ssh_run "chmod 600 ~/.ssh/id_maw_deploy"
 
   # Configure SSH on VPS to use deploy key for github
-  ssh_run "grep -q 'Host github-veil' ~/.ssh/config 2>/dev/null" || \
+  ssh_run "grep -q 'Host github-maw' ~/.ssh/config 2>/dev/null" || \
     ssh_run "cat >> ~/.ssh/config" <<'SSHEOF'
 
-Host github-veil
+Host github-maw
   HostName github.com
   User git
-  IdentityFile ~/.ssh/id_veil_deploy
+  IdentityFile ~/.ssh/id_maw_deploy
   IdentitiesOnly yes
   StrictHostKeyChecking accept-new
 SSHEOF
@@ -74,7 +74,7 @@ SSHEOF
   log "Creating systemd service..."
   ssh_run "sudo tee /etc/systemd/system/${SERVICE_NAME}.service > /dev/null" <<UNITEOF
 [Unit]
-Description=Veil Agent (DeFi autonomous agent + dashboard)
+Description=Maw Agent (DeFi autonomous agent + dashboard)
 After=network.target
 
 [Service]
@@ -154,14 +154,14 @@ cmd_deploy() {
 
   # Build common + agent (skip dashboard — we do a separate static export)
   log "Building common + agent..."
-  ssh_run "cd ${APP_DIR} && pnpm --filter @veil/common build"
-  ssh_run "cd ${APP_DIR} && pnpm --filter @veil/agent build"
+  ssh_run "cd ${APP_DIR} && pnpm --filter @maw/common build"
+  ssh_run "cd ${APP_DIR} && pnpm --filter @maw/agent build"
 
   # Build dashboard as static export (agent server serves the files).
   # Temporarily remove API proxy routes — they're dev-only and incompatible with static export.
   # The agent server handles /api/* directly on the same origin.
   log "Building dashboard (static export)..."
-  ssh_run "cd ${APP_DIR}/apps/dashboard && mv app/api /tmp/veil-api-routes-bak 2>/dev/null; STATIC_EXPORT=1 npx next build; mv /tmp/veil-api-routes-bak app/api 2>/dev/null; true"
+  ssh_run "cd ${APP_DIR}/apps/dashboard && mv app/api /tmp/maw-api-routes-bak 2>/dev/null; STATIC_EXPORT=1 npx next build; mv /tmp/maw-api-routes-bak app/api 2>/dev/null; true"
 
   # Check .env exists
   if ! ssh_run "test -f ${APP_DIR}/.env"; then
@@ -209,7 +209,7 @@ cmd_env() {
 
 cmd_wipedb() {
   log "Wiping VPS database and evidence (forces fresh ERC-8004 registration)..."
-  ssh_run "rm -f ${APP_DIR}/data/veil.db ${APP_DIR}/data/veil.db-wal ${APP_DIR}/data/veil.db-shm"
+  ssh_run "rm -f ${APP_DIR}/data/maw.db ${APP_DIR}/data/maw.db-wal ${APP_DIR}/data/maw.db-shm"
   ssh_run "rm -rf ${APP_DIR}/data/evidence ${APP_DIR}/data/logs"
   ssh_run "mkdir -p ${APP_DIR}/data/logs ${APP_DIR}/data/evidence ${APP_DIR}/data/images"
   log "Database wiped. Restart the service to re-register agents."
@@ -222,7 +222,7 @@ cmd_haproxy_cache() {
   log "Configuring HAProxy cache for avatar images..."
 
   # Check if cache is already configured
-  if ssh_run "grep -q 'cache veil_avatars' /etc/haproxy/haproxy.cfg 2>/dev/null"; then
+  if ssh_run "grep -q 'cache maw_avatars' /etc/haproxy/haproxy.cfg 2>/dev/null"; then
     log "HAProxy cache already configured, skipping."
     return
   fi
@@ -230,7 +230,7 @@ cmd_haproxy_cache() {
   # Back up current config
   ssh_run "sudo cp /etc/haproxy/haproxy.cfg /etc/haproxy/haproxy.cfg.bak"
 
-  # Add cache section after defaults block, and caching rules to veil-agent backend
+  # Add cache section after defaults block, and caching rules to maw-agent backend
   ssh_run "sudo python3 -c \"
 import re
 
@@ -239,7 +239,7 @@ with open('/etc/haproxy/haproxy.cfg') as f:
 
 # Add cache section after defaults block (before first frontend)
 cache_section = '''
-cache veil_avatars
+cache maw_avatars
   total-max-size 50
   max-object-size 2097152
   max-age 86400
@@ -247,13 +247,13 @@ cache veil_avatars
 '''
 cfg = cfg.replace('frontend http-in', cache_section + 'frontend http-in', 1)
 
-# Add caching rules to veil-agent backend
-old_backend = 'backend veil-agent\n\tserver veil 127.0.0.1:3147 check'
-new_backend = '''backend veil-agent
+# Add caching rules to maw-agent backend
+old_backend = 'backend maw-agent\n\tserver maw 127.0.0.1:3147 check'
+new_backend = '''backend maw-agent
 \tacl is_avatar path_end .webp
-\thttp-request cache-use veil_avatars if is_avatar
-\thttp-response cache-store veil_avatars if is_avatar
-\tserver veil 127.0.0.1:3147 check'''
+\thttp-request cache-use maw_avatars if is_avatar
+\thttp-response cache-store maw_avatars if is_avatar
+\tserver maw 127.0.0.1:3147 check'''
 cfg = cfg.replace(old_backend, new_backend)
 
 with open('/etc/haproxy/haproxy.cfg', 'w') as f:
