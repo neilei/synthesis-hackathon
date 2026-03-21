@@ -125,8 +125,11 @@ describe("intent routes", () => {
         maxSlippage: 0.5,
         driftThreshold: 5,
       },
-      signedDelegation: "0xdelegation",
-      delegatorSmartAccount: "0xsmartaccount",
+      permissions: JSON.stringify([
+        { type: "native-token-periodic", context: "0xdeadbeef", token: "ETH" },
+      ]),
+      delegationManager: "0x0000000000000000000000000000000000000001",
+      dependencies: JSON.stringify([]),
     };
 
     it("creates an intent and returns 201", async () => {

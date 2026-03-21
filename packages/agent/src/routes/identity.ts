@@ -83,7 +83,7 @@ export function createIdentityRoutes(deps: IdentityRouteDeps) {
           createdAt: intent.createdAt,
           expiresAt: intent.expiresAt,
           walletAddress: intent.walletAddress,
-          delegatorSmartAccount: intent.delegatorSmartAccount,
+          delegationManager: intent.delegationManager,
           targetAllocation: parsedIntent?.targetAllocation ?? null,
           dailyBudgetUsd: parsedIntent?.dailyBudgetUsd ?? null,
           timeWindowDays: parsedIntent?.timeWindowDays ?? null,

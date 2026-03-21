@@ -18,10 +18,9 @@ const CREATE_TABLES_SQL = `
     status TEXT NOT NULL,
     created_at INTEGER NOT NULL,
     expires_at INTEGER NOT NULL,
-    permissions_context TEXT,
+    permissions TEXT,
     delegation_manager TEXT,
-    signed_delegation TEXT NOT NULL,
-    delegator_smart_account TEXT NOT NULL,
+    dependencies TEXT,
     cycle INTEGER NOT NULL DEFAULT 0,
     trades_executed INTEGER NOT NULL DEFAULT 0,
     total_spent_usd REAL NOT NULL DEFAULT 0,
@@ -79,8 +78,9 @@ const SAMPLE_INTENT = {
   status: "active" as const,
   createdAt: NOW,
   expiresAt: FUTURE,
-  signedDelegation: JSON.stringify({ mock: "delegation" }),
-  delegatorSmartAccount: "0xabcdef1234567890abcdef1234567890abcdef12",
+  permissions: JSON.stringify([{ type: "native-token-periodic", context: "0xdeadbeef", token: "ETH" }]),
+  delegationManager: "0x0000000000000000000000000000000000000001",
+  dependencies: JSON.stringify([]),
 };
 
 describe("IntentRepository", () => {

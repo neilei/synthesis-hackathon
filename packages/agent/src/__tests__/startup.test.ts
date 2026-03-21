@@ -13,8 +13,8 @@ function createTestDb() {
     CREATE TABLE intents (
       id TEXT PRIMARY KEY, wallet_address TEXT NOT NULL, intent_text TEXT NOT NULL,
       parsed_intent TEXT NOT NULL, status TEXT NOT NULL, created_at INTEGER NOT NULL,
-      expires_at INTEGER NOT NULL, permissions_context TEXT, delegation_manager TEXT,
-      signed_delegation TEXT NOT NULL, delegator_smart_account TEXT NOT NULL,
+      expires_at INTEGER NOT NULL, permissions TEXT, delegation_manager TEXT,
+      dependencies TEXT,
       cycle INTEGER NOT NULL DEFAULT 0, trades_executed INTEGER NOT NULL DEFAULT 0,
       total_spent_usd REAL NOT NULL DEFAULT 0, last_cycle_at INTEGER, agent_id TEXT
     );
@@ -38,8 +38,9 @@ const makeIntent = (id: string, expiresAt: number, status: "active" | "paused" |
   status,
   createdAt: Math.floor(Date.now() / 1000),
   expiresAt,
-  signedDelegation: "{}",
-  delegatorSmartAccount: "0xabcd",
+  permissions: JSON.stringify([{ type: "native-token-periodic", context: "0xdeadbeef", token: "ETH" }]),
+  delegationManager: "0x0000000000000000000000000000000000000001",
+  dependencies: JSON.stringify([]),
 });
 
 describe("resumeActiveIntents", () => {

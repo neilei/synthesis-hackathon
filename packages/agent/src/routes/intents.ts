@@ -29,25 +29,20 @@ export function createIntentRoutes(deps: IntentRouteDeps) {
     const intentText =
       typeof body.intentText === "string" ? body.intentText.trim() : null;
     const parsedIntentRaw = body.parsedIntent;
-    const signedDelegation =
-      typeof body.signedDelegation === "string"
-        ? body.signedDelegation
+    const permissions =
+      typeof body.permissions === "string" ? body.permissions : null;
+    const delegationManager =
+      typeof body.delegationManager === "string"
+        ? body.delegationManager
         : null;
-    const delegatorSmartAccount =
-      typeof body.delegatorSmartAccount === "string"
-        ? body.delegatorSmartAccount
-        : null;
+    const dependencies =
+      typeof body.dependencies === "string" ? body.dependencies : null;
 
-    if (
-      !intentText ||
-      !parsedIntentRaw ||
-      !signedDelegation ||
-      !delegatorSmartAccount
-    ) {
+    if (!intentText || !parsedIntentRaw || !permissions || !delegationManager) {
       return c.json(
         {
           error:
-            "Missing required fields: intentText, parsedIntent, signedDelegation, delegatorSmartAccount",
+            "Missing required fields: intentText, parsedIntent, permissions, delegationManager",
         },
         400,
       );
@@ -76,16 +71,9 @@ export function createIntentRoutes(deps: IntentRouteDeps) {
       status: "active",
       createdAt: now,
       expiresAt,
-      signedDelegation,
-      delegatorSmartAccount,
-      permissionsContext:
-        typeof body.permissionsContext === "string"
-          ? body.permissionsContext
-          : null,
-      delegationManager:
-        typeof body.delegationManager === "string"
-          ? body.delegationManager
-          : null,
+      permissions,
+      delegationManager,
+      dependencies,
     });
 
     try {
