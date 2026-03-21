@@ -1,5 +1,5 @@
 /**
- * Delegation Details card — shows on-chain constraint metadata computed
+ * Permission Details card — shows on-chain constraint metadata computed
  * from a ParsedIntent. Pure computation, no wallet connection needed.
  *
  * @module @veil/dashboard/components/delegation-details
@@ -12,19 +12,23 @@ import type { ParsedIntent } from "@veil/common";
 import {
   AGENT_ADDRESS,
   truncateAddress,
-  computeMaxValueWei,
   computeExpiryTimestamp,
-  computeMaxCalls,
+  computePeriodAmount,
 } from "@veil/common";
+import { CONTRACTS } from "@/lib/contracts";
 
 interface DelegationDetailsProps {
   parsed: ParsedIntent;
 }
 
 export function DelegationDetails({ parsed }: DelegationDetailsProps) {
+  const hasEth = parsed.targetAllocation["ETH"] != null;
+  const hasUsdc = parsed.targetAllocation["USDC"] != null;
+  const expiry = computeExpiryTimestamp(parsed.timeWindowDays);
+
   return (
     <Card className="p-5">
-      <SectionHeading>Delegation Details</SectionHeading>
+      <SectionHeading>Permission Details</SectionHeading>
       <p className="mt-1 text-xs text-text-tertiary">
         ERC-7715 permission scope — the agent cannot exceed these on-chain
         constraints
@@ -38,34 +42,13 @@ export function DelegationDetails({ parsed }: DelegationDetailsProps) {
           </dd>
         </div>
         <div>
-          <dt className="text-text-secondary">Scope Target</dt>
-          <dd className="font-mono text-text-primary">Uniswap Router</dd>
-        </div>
-        <div>
-          <dt className="text-text-secondary">Function</dt>
-          <dd className="font-mono text-text-primary">execute()</dd>
-        </div>
-        <div>
-          <dt className="text-text-secondary">Max Value (wei)</dt>
-          <dd className="font-mono text-text-primary">
-            {computeMaxValueWei(
-              parsed.dailyBudgetUsd,
-              parsed.timeWindowDays,
-            ).toLocaleString()}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-text-secondary">Max Calls</dt>
-          <dd className="font-mono text-text-primary">
-            {computeMaxCalls(parsed.maxTradesPerDay, parsed.timeWindowDays)}
-          </dd>
+          <dt className="text-text-secondary">Period Duration</dt>
+          <dd className="font-mono text-text-primary">24 hours</dd>
         </div>
         <div>
           <dt className="text-text-secondary">Expires</dt>
           <dd className="font-mono text-text-primary">
-            {new Date(
-              computeExpiryTimestamp(parsed.timeWindowDays) * 1000,
-            ).toLocaleDateString("en-US", {
+            {new Date(expiry * 1000).toLocaleDateString("en-US", {
               month: "short",
               day: "numeric",
               year: "numeric",
@@ -74,22 +57,42 @@ export function DelegationDetails({ parsed }: DelegationDetailsProps) {
         </div>
       </dl>
 
-      <div className="mt-4 space-y-1.5">
+      {/* Permission types */}
+      <div className="mt-4 space-y-3">
         <SectionHeading size="xs" as="h3" className="text-text-secondary">
-          Caveat Enforcers
+          Requested Permissions
         </SectionHeading>
-        <div className="flex flex-wrap gap-2">
-          {["ValueLteEnforcer", "TimestampEnforcer", "LimitedCallsEnforcer"].map(
-            (enforcer) => (
-              <span
-                key={enforcer}
-                className="rounded border border-border px-2 py-0.5 font-mono text-xs text-text-secondary"
-              >
-                {enforcer}
+
+        {hasEth && (
+          <div className="rounded border border-border px-3 py-2">
+            <div className="flex items-center gap-2">
+              <span className="rounded bg-accent-positive/10 px-1.5 py-0.5 font-mono text-xs text-accent-positive">
+                native-token-periodic
               </span>
-            ),
-          )}
-        </div>
+              <span className="text-xs text-text-secondary">ETH</span>
+            </div>
+            <p className="mt-1 font-mono text-xs text-text-tertiary">
+              Up to {computePeriodAmount(parsed.dailyBudgetUsd, "ETH")} wei per day
+            </p>
+          </div>
+        )}
+
+        {hasUsdc && (
+          <div className="rounded border border-border px-3 py-2">
+            <div className="flex items-center gap-2">
+              <span className="rounded bg-accent-secondary/10 px-1.5 py-0.5 font-mono text-xs text-accent-secondary">
+                erc20-token-periodic
+              </span>
+              <span className="text-xs text-text-secondary">USDC</span>
+              <span className="font-mono text-xs text-text-tertiary">
+                {truncateAddress(CONTRACTS.USDC_SEPOLIA)}
+              </span>
+            </div>
+            <p className="mt-1 font-mono text-xs text-text-tertiary">
+              Up to {computePeriodAmount(parsed.dailyBudgetUsd, "USDC")} units per day
+            </p>
+          </div>
+        )}
       </div>
 
       <CardFooter>

@@ -325,7 +325,7 @@ describe("progress tracking", () => {
 
   // ── Intermediate actions don't affect step count ────────────────────
 
-  it("ignores intermediate actions (permit2, delegation)", () => {
+  it("ignores intermediate actions (permit2, token_pull)", () => {
     const p = progress([
       { action: "price_fetch" },
       { action: "portfolio_check" },
@@ -333,13 +333,13 @@ describe("progress tracking", () => {
       { action: "rebalance_decision", result: { shouldRebalance: true } },
       { action: "quote_received" },
       { action: "permit2_approval" },
-      { action: "delegation_caveat_enforced" },
+      { action: "token_pull" },
       { action: "swap_executed" },
       { action: "judge_started" },
       { action: "judge_completed" },
       { action: "cycle_complete", result: { allocation: {}, drift: 0, totalValue: 0, ethPrice: 0 } },
     ]);
-    // permit2_approval, delegation_caveat_enforced, judge_started are not milestones
+    // permit2_approval, token_pull, judge_started are not milestones
     expect(p.completed).toBe(8);
     expect(p.total).toBe(8);
     expect(p.pendingLabel).toBeNull();
@@ -465,7 +465,7 @@ describe("progress tracking", () => {
   it("init group progress uses raw entry count", () => {
     const feed: AgentLogEntry[] = [
       entry({ action: "privacy_guarantee", sequence: 0 }),
-      entry({ action: "delegation_created", sequence: 1 }),
+      entry({ action: "permissions_loaded", sequence: 1 }),
       entry({ action: "audit_report", sequence: 2 }),
     ];
     const groups = groupFeedByCycle(feed);

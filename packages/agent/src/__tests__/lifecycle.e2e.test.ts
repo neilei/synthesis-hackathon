@@ -114,8 +114,9 @@ describe("Intent Lifecycle E2E", () => {
       body: JSON.stringify({
         intentText: "E2E lifecycle: 60/40 ETH/USDC, $100/day, 7 days",
         parsedIntent: VALID_PARSED_INTENT,
-        signedDelegation: "0xdeadbeef_lifecycle_test",
-        delegatorSmartAccount: "0x0000000000000000000000000000000000E2E099",
+        permissions: JSON.stringify([{ type: "native-token-periodic", context: "0xdeadbeef", token: "ETH" }]),
+        delegationManager: "0x0000000000000000000000000000000000000001",
+        dependencies: JSON.stringify([]),
       }),
     });
 

@@ -1,16 +1,19 @@
 /**
- * Generates human-readable audit reports comparing an intent to its compiled
- * delegation. Shows what the delegation allows, prevents, worst-case damage,
- * and warnings. Displayed in the dashboard Audit tab.
+ * Generates human-readable audit reports from an intent's constraints.
+ * Shows what the agent is allowed to do, what it's prevented from doing,
+ * worst-case damage, and warnings. Displayed in the dashboard Audit tab.
+ *
+ * Note: With ERC-7715, delegation is created browser-side. The backend
+ * receives permissions but not the full Delegation object, so the audit
+ * is now purely intent-based with optional permission metadata.
  *
  * @module @veil/agent/delegation/audit
  */
 import type { IntentParse } from "../venice/schemas.js";
-import type { Delegation } from "@metamask/smart-accounts-kit";
 import { SECONDS_PER_DAY, detectAdversarialIntent } from "@veil/common";
 
 // ---------------------------------------------------------------------------
-// Detailed audit report generation (includes delegation inspection)
+// Detailed audit report generation
 // ---------------------------------------------------------------------------
 
 export interface DetailedAuditReport {
@@ -23,13 +26,16 @@ export interface DetailedAuditReport {
 }
 
 /**
- * Generate a detailed audit report comparing an intent to its compiled
- * delegation. Includes delegation inspection (caveats, signature, etc.)
- * beyond what the lightweight common generateAuditReport provides.
+ * Generate a detailed audit report from an intent's constraints.
+ * Optionally accepts permission metadata for the intent match section.
  */
 export function generateDetailedAudit(
   intent: IntentParse,
-  delegation: Delegation | Record<string, unknown>,
+  permissionInfo?: {
+    permissionCount: number;
+    types: string[];
+    hasDelegationManager: boolean;
+  },
 ): DetailedAuditReport {
   const tokens = Object.keys(intent.targetAllocation);
   const allocDesc = tokens
@@ -77,32 +83,16 @@ export function generateDetailedAudit(
     `= $${(totalBudget + slippageLoss).toLocaleString()} over ${intent.timeWindowDays} days`;
 
   // --- INTENT MATCH ---
-  const hasCaveats =
-    "caveats" in delegation &&
-    Array.isArray(delegation.caveats) &&
-    delegation.caveats.length > 0;
-  const hasDelegateAndDelegator =
-    "delegate" in delegation && "delegator" in delegation;
-  const hasSignature =
-    "signature" in delegation &&
-    typeof delegation.signature === "string" &&
-    delegation.signature !== "0x";
-
   const matchChecks: string[] = [];
-  if (hasCaveats) {
-    matchChecks.push("Caveats present: YES");
+  if (permissionInfo) {
+    matchChecks.push(
+      `Permissions granted: ${permissionInfo.permissionCount} (${permissionInfo.types.join(", ")})`,
+    );
+    matchChecks.push(
+      `DelegationManager: ${permissionInfo.hasDelegationManager ? "YES" : "NO"}`,
+    );
   } else {
-    matchChecks.push("Caveats present: NO (UNRESTRICTED - DANGEROUS)");
-  }
-  if (hasDelegateAndDelegator) {
-    matchChecks.push("Delegate/Delegator set: YES");
-  } else {
-    matchChecks.push("Delegate/Delegator set: NO");
-  }
-  if (hasSignature) {
-    matchChecks.push("Signed: YES");
-  } else {
-    matchChecks.push("Signed: NO (unsigned delegation)");
+    matchChecks.push("Permissions: pending user grant via MetaMask Flask");
   }
 
   const intentMatch = matchChecks.join("; ");
@@ -110,12 +100,6 @@ export function generateDetailedAudit(
   // --- WARNINGS ---
   const adversarialWarnings = detectAdversarialIntent(intent);
   const warnings = adversarialWarnings.map((w) => `WARNING: ${w.message}`);
-
-  if (!hasCaveats) {
-    warnings.push(
-      "CRITICAL: Delegation has no caveats — agent has unrestricted access",
-    );
-  }
 
   // --- FORMAT ---
   const sections = [

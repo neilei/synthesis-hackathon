@@ -115,8 +115,9 @@ async function createTestIntent(
     body: JSON.stringify({
       intentText,
       parsedIntent: MOCK_PARSED_INTENT,
-      signedDelegation: JSON.stringify({ delegator: walletAddress }),
-      delegatorSmartAccount: walletAddress,
+      permissions: JSON.stringify([{ type: "native-token-periodic", context: "0xdeadbeef", token: "ETH" }]),
+      delegationManager: "0x0000000000000000000000000000000000000001",
+      dependencies: JSON.stringify([]),
     }),
   });
   expect(res.status).toBe(201);

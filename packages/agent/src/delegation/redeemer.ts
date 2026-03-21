@@ -1,228 +1,180 @@
 /**
- * ERC-7710 delegation redemption. Deploys the delegator smart account if needed,
- * funds it with ETH, and sends the redeemDelegations transaction to the
- * DelegationManager from the agent EOA.
+ * ERC-7710 permission redemption. Uses the Smart Accounts Kit's
+ * erc7710WalletActions to pull tokens from the user's MetaMask smart
+ * account to the agent EOA, within ERC-7715 granted permission limits.
+ *
+ * Two-step architecture:
+ * 1. Pull tokens from user's smart account → agent EOA (via delegation)
+ * 2. Swap from agent EOA on Uniswap (no delegation involved)
  *
  * @module @veil/agent/delegation/redeemer
  */
 import {
   createWalletClient,
   createPublicClient,
-  formatEther,
+  encodeFunctionData,
   type Chain,
   type Hex,
+  type Address,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
+import { erc7710WalletActions } from "@metamask/smart-accounts-kit/actions";
 import { rpcTransport } from "../config.js";
 import { logger } from "../logging/logger.js";
-import {
-  createExecution,
-  ExecutionMode,
-  getSmartAccountsEnvironment,
-  type Delegation,
-  type MetaMaskSmartAccount,
-} from "@metamask/smart-accounts-kit";
-import { DelegationManager } from "@metamask/smart-accounts-kit/contracts";
+
+// Minimal ERC-20 ABI for transfer encoding
+const ERC20_TRANSFER_ABI = [
+  {
+    name: "transfer",
+    type: "function",
+    inputs: [
+      { name: "to", type: "address" },
+      { name: "amount", type: "uint256" },
+    ],
+    outputs: [{ name: "", type: "bool" }],
+  },
+] as const;
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-export interface RedeemParams {
-  /** The signed delegation chain (innermost first) */
-  delegation: Delegation;
-  /** The delegator's smart account (needed to check/trigger deployment) */
-  delegatorSmartAccount: MetaMaskSmartAccount;
-  /** The call to execute under delegation */
-  call: {
-    to: Hex;
-    data?: Hex;
-    value?: bigint;
-  };
+export interface PullNativeParams {
+  agentKey: `0x${string}`;
+  chain: Chain;
+  agentAddress: Address;
+  amount: bigint;
+  permissionsContext: Hex;
+  delegationManager: Address;
+}
+
+export interface PullErc20Params {
+  agentKey: `0x${string}`;
+  chain: Chain;
+  agentAddress: Address;
+  tokenAddress: Address;
+  amount: bigint;
+  permissionsContext: Hex;
+  delegationManager: Address;
+}
+
+export interface DeployDependencyParams {
+  agentKey: `0x${string}`;
+  chain: Chain;
+  smartAccountAddress: Address;
+  dependencies: { factory: Address; factoryData: Hex }[];
 }
 
 // ---------------------------------------------------------------------------
-// deployDelegatorIfNeeded — ensure the delegator smart account is deployed
+// deploySmartAccountIfNeeded — deploy user's smart account from dependencies
 // ---------------------------------------------------------------------------
 
-export async function deployDelegatorIfNeeded(
-  smartAccount: MetaMaskSmartAccount,
-  agentPrivateKey: `0x${string}`,
-  chain: Chain,
+export async function deploySmartAccountIfNeeded(
+  params: DeployDependencyParams,
 ): Promise<Hex | null> {
-  const publicClient = createPublicClient({ chain, transport: rpcTransport(chain) });
+  const publicClient = createPublicClient({
+    chain: params.chain,
+    transport: rpcTransport(params.chain),
+  });
 
-  // Check if smart account code exists at the address
-  const code = await publicClient.getCode({ address: smartAccount.address });
+  const code = await publicClient.getCode({
+    address: params.smartAccountAddress,
+  });
   if (code && code !== "0x") {
     return null; // Already deployed
   }
 
-  // Deploy the smart account by sending the factory call as a regular tx.
-  // The smart account's getFactoryArgs gives us the factory address + calldata.
-  const factoryArgs = await smartAccount.getFactoryArgs();
-  if (!factoryArgs) {
-    throw new Error("Smart account has no factory args for deployment");
+  if (params.dependencies.length === 0) {
+    throw new Error(
+      "Smart account not deployed and no dependencies provided for deployment",
+    );
   }
 
   const walletClient = createWalletClient({
-    account: privateKeyToAccount(agentPrivateKey),
-    chain,
-    transport: rpcTransport(chain),
+    account: privateKeyToAccount(params.agentKey),
+    chain: params.chain,
+    transport: rpcTransport(params.chain),
   });
 
+  // Deploy using the first dependency's factory
+  const dep = params.dependencies[0]!;
   const txHash = await walletClient.sendTransaction({
-    to: factoryArgs.factory,
-    data: factoryArgs.factoryData,
-    chain,
+    to: dep.factory,
+    data: dep.factoryData,
+    chain: params.chain,
     account: walletClient.account,
   });
 
-  // Wait for deployment confirmation
-  const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
+  const receipt = await publicClient.waitForTransactionReceipt({
+    hash: txHash,
+  });
   if (receipt.status !== "success") {
     throw new Error(`Smart account deployment failed: ${txHash}`);
   }
 
   logger.info(
-    `Delegator smart account deployed at ${smartAccount.address} (tx: ${txHash})`,
+    `User smart account deployed at ${params.smartAccountAddress} (tx: ${txHash})`,
   );
   return txHash;
 }
 
 // ---------------------------------------------------------------------------
-// fundDelegatorIfNeeded — ensure the delegator smart account has enough ETH
-// for the upcoming swap. Transfers from agent EOA if balance is insufficient.
+// pullNativeToken — pull ETH from user's smart account via ERC-7710
 // ---------------------------------------------------------------------------
 
-export async function fundDelegatorIfNeeded(
-  smartAccount: MetaMaskSmartAccount,
-  agentPrivateKey: `0x${string}`,
-  chain: Chain,
-  requiredWei: bigint,
-): Promise<Hex | null> {
-  const publicClient = createPublicClient({ chain, transport: rpcTransport(chain) });
-
-  const balance = await publicClient.getBalance({
-    address: smartAccount.address,
-  });
-
-  // Add 10% buffer for gas that the smart account might need
-  const requiredWithBuffer = requiredWei + requiredWei / 10n;
-
-  if (balance >= requiredWithBuffer) {
-    return null; // Already has enough
-  }
-
-  const deficit = requiredWithBuffer - balance;
-  logger.info(
-    `Funding delegator smart account with ${formatEther(deficit)} ETH...`,
-  );
-
-  const walletClient = createWalletClient({
-    account: privateKeyToAccount(agentPrivateKey),
-    chain,
-    transport: rpcTransport(chain),
-  });
-
-  const txHash = await walletClient.sendTransaction({
-    to: smartAccount.address,
-    value: deficit,
-    chain,
-    account: walletClient.account,
-  });
-
-  const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
-  if (receipt.status !== "success") {
-    throw new Error(`Funding delegator smart account failed: ${txHash}`);
-  }
-
-  logger.info(
-    `Delegator funded: ${formatEther(deficit)} ETH (tx: ${txHash})`,
-  );
-  return txHash;
-}
-
-// ---------------------------------------------------------------------------
-// redeemDelegation — execute a transaction under a signed delegation
-//
-// Uses the DelegationManager.encode.redeemDelegations approach from the
-// MetaMask Smart Accounts Kit docs. The agent (EOA) sends a regular tx
-// to the DelegationManager, which validates the delegation chain and
-// executes the action on the delegator's smart account.
-// ---------------------------------------------------------------------------
-
-export async function redeemDelegation(
-  agentPrivateKey: `0x${string}`,
-  chain: Chain,
-  params: RedeemParams,
+export async function pullNativeToken(
+  params: PullNativeParams,
 ): Promise<Hex> {
-  // 1. Ensure delegator smart account is deployed
-  await deployDelegatorIfNeeded(
-    params.delegatorSmartAccount,
-    agentPrivateKey,
-    chain,
+  const walletClient = createWalletClient({
+    account: privateKeyToAccount(params.agentKey),
+    chain: params.chain,
+    transport: rpcTransport(params.chain),
+  }).extend(erc7710WalletActions());
+
+  logger.info(
+    `Pulling ${params.amount} wei from user smart account via ERC-7710...`,
   );
 
-  // 2. Fund delegator if the call requires ETH value
-  if (params.call.value && params.call.value > 0n) {
-    await fundDelegatorIfNeeded(
-      params.delegatorSmartAccount,
-      agentPrivateKey,
-      chain,
-      params.call.value,
-    );
-  }
-
-  // 3. Encode the execution — what we want to do on behalf of the delegator
-  const execution = createExecution({
-    target: params.call.to,
-    callData: params.call.data ?? "0x",
-    value: params.call.value ?? 0n,
+  const txHash = await walletClient.sendTransactionWithDelegation({
+    to: params.agentAddress,
+    data: "0x" as Hex,
+    value: params.amount,
+    permissionsContext: params.permissionsContext,
+    delegationManager: params.delegationManager,
   });
 
-  // 4. Encode the redeemDelegations calldata
-  const redeemCalldata = DelegationManager.encode.redeemDelegations({
-    delegations: [[params.delegation]],
-    modes: [ExecutionMode.SingleDefault],
-    executions: [[execution]],
+  return txHash;
+}
+
+// ---------------------------------------------------------------------------
+// pullErc20Token — pull ERC-20 tokens from user's smart account via ERC-7710
+// ---------------------------------------------------------------------------
+
+export async function pullErc20Token(
+  params: PullErc20Params,
+): Promise<Hex> {
+  const transferData = encodeFunctionData({
+    abi: ERC20_TRANSFER_ABI,
+    functionName: "transfer",
+    args: [params.agentAddress, params.amount],
   });
 
-  // 5. Send the redeem tx from the agent EOA to the DelegationManager
-  const account = privateKeyToAccount(agentPrivateKey);
   const walletClient = createWalletClient({
-    account,
-    chain,
-    transport: rpcTransport(chain),
-  });
+    account: privateKeyToAccount(params.agentKey),
+    chain: params.chain,
+    transport: rpcTransport(params.chain),
+  }).extend(erc7710WalletActions());
 
-  const publicClient = createPublicClient({
-    chain,
-    transport: rpcTransport(chain),
-  });
+  logger.info(
+    `Pulling ${params.amount} tokens from ${params.tokenAddress} via ERC-7710...`,
+  );
 
-  const delegationManagerAddr = getSmartAccountsEnvironment(
-    chain.id,
-  ).DelegationManager as Hex;
-
-  // Pre-flight simulation to catch reverts before spending gas
-  try {
-    await publicClient.estimateGas({
-      account: account.address,
-      to: delegationManagerAddr,
-      data: redeemCalldata,
-    });
-  } catch (simErr) {
-    const simMsg = simErr instanceof Error ? simErr.message : String(simErr);
-    logger.error({ err: simErr }, `Delegation redemption simulation failed: ${simMsg}`);
-    throw new Error(`Delegation redemption would revert: ${simMsg}`);
-  }
-
-  const txHash = await walletClient.sendTransaction({
-    to: delegationManagerAddr,
-    data: redeemCalldata,
-    chain,
-    account: walletClient.account,
+  const txHash = await walletClient.sendTransactionWithDelegation({
+    to: params.tokenAddress,
+    data: transferData,
+    value: 0n,
+    permissionsContext: params.permissionsContext,
+    delegationManager: params.delegationManager,
   });
 
   return txHash;

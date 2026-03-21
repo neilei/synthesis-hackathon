@@ -65,8 +65,9 @@ async function main() {
         maxSlippage: 0.005,
         driftThreshold: 0.05,
       },
-      signedDelegation: "{}",
-      delegatorSmartAccount: account.address,
+      permissions: JSON.stringify([{ type: "native-token-periodic", context: "0x00", token: "ETH" }]),
+      delegationManager: account.address,
+      dependencies: "[]",
     }),
   });
   const intentBody = (await intentRes.json()) as {

@@ -34,8 +34,9 @@ test.describe.serial("Cycle Execution and Activity Feed", () => {
           maxSlippage: 0.005,
           driftThreshold: 0.05,
         },
-        signedDelegation: "0xdeadbeef_cycle_test",
-        delegatorSmartAccount: "0x0000000000000000000000000000000000CYC001",
+        permissions: "[{\"type\":\"native-token-periodic\",\"context\":\"0xdeadbeef_cycle_test\",\"token\":\"ETH\"}]",
+        delegationManager: "0x0000000000000000000000000000000000CYC001",
+        dependencies: "[]",
       },
     });
     expect(res.status()).toBe(201);

@@ -17,13 +17,10 @@ export const intents = sqliteTable("intents", {
   createdAt: integer("created_at", { mode: "number" }).notNull(),
   expiresAt: integer("expires_at", { mode: "number" }).notNull(),
 
-  // ERC-7715 demo narrative
-  permissionsContext: text("permissions_context"),
+  // ERC-7715 permissions (from MetaMask Flask)
+  permissions: text("permissions"), // JSON: [{ type, context, token }]
   delegationManager: text("delegation_manager"),
-
-  // Real delegation (functionCall scope for Uniswap)
-  signedDelegation: text("signed_delegation").notNull(), // JSON-serialized Delegation
-  delegatorSmartAccount: text("delegator_smart_account").notNull(),
+  dependencies: text("dependencies"), // JSON: [{ factory, factoryData }]
 
   // Execution state (updated each cycle)
   cycle: integer("cycle").notNull().default(0),

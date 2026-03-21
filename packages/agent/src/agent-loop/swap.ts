@@ -1,7 +1,12 @@
 /**
  * Swap execution pipeline for the agent loop. Handles safety checks,
- * Permit2 approval, Uniswap quoting, delegation redemption (with direct-tx
- * fallback), receipt confirmation, state updates, and ERC-8004 feedback.
+ * ERC-7710 token pulls from user's smart account, Permit2 approval,
+ * Uniswap quoting, direct swap execution, receipt confirmation, state
+ * updates, and ERC-8004 feedback.
+ *
+ * Two-step architecture:
+ * 1. Pull tokens from user's smart account → agent EOA (via ERC-7710 delegation)
+ * 2. Swap from agent EOA on Uniswap (no delegation involved)
  *
  * @module @veil/agent/agent-loop/swap
  */
@@ -12,7 +17,7 @@ import type { sepolia, base } from "viem/chains";
 
 import type { AgentConfig, AgentState } from "./index.js";
 import { CONTRACTS, env, rpcTransport } from "../config.js";
-import { redeemDelegation } from "../delegation/redeemer.js";
+import { pullNativeToken, pullErc20Token } from "../delegation/redeemer.js";
 import { getQuote, createSwap, checkApproval } from "../uniswap/trading.js";
 import { signPermit2Data } from "../uniswap/permit2.js";
 import { logAction } from "../logging/agent-log.js";
@@ -116,15 +121,73 @@ export async function executeSwap(
   const amountRaw = parseUnits(swap.sellAmount, decimals).toString();
 
   const isEthSell = swap.sellToken.toUpperCase() === "ETH";
-  const canUseDelegation =
-    isEthSell && state.delegation && state.delegatorSmartAccount;
 
-  const swapperAddress = canUseDelegation
-    ? state.delegatorSmartAccount!.address
-    : agentAddress;
+  // --- Step 1: Pull tokens from user's smart account via ERC-7710 ---
+  const ethPermission = state.permissions.find(
+    (p) => p.type === "native-token-periodic" || p.type === "native-token-stream",
+  );
+  const erc20Permission = state.permissions.find(
+    (p) => (p.type === "erc20-token-periodic" || p.type === "erc20-token-stream") &&
+      p.token.toUpperCase() === swap.sellToken.toUpperCase(),
+  );
 
-  // For ERC-20 tokens sold from agent EOA, check if Permit2 approval is needed
-  if (!isEthSell && !canUseDelegation) {
+  if (isEthSell && ethPermission) {
+    try {
+      const pullTx = await pullNativeToken({
+        agentKey: config.agentKey,
+        chain,
+        agentAddress,
+        amount: parseUnits(swap.sellAmount, 18),
+        permissionsContext: ethPermission.context as `0x${string}`,
+        delegationManager: state.delegationManager as `0x${string}`,
+      });
+      logger.info(`Pulled ${swap.sellAmount} ETH from user (tx: ${pullTx})`);
+      logAction("token_pull", {
+        cycle: state.cycle,
+        tool: "metamask-erc7710",
+        result: { txHash: pullTx, token: "ETH", amount: swap.sellAmount },
+      });
+      config.intentLogger?.log("token_pull", {
+        cycle: state.cycle,
+        tool: "metamask-erc7710",
+        result: { txHash: pullTx, token: "ETH", amount: swap.sellAmount },
+      });
+    } catch (pullErr) {
+      const pullMsg = pullErr instanceof Error ? pullErr.message : String(pullErr);
+      logger.error({ err: pullErr }, `Failed to pull ETH: ${pullMsg}`);
+      throw new Error(`Token pull failed: ${pullMsg}`);
+    }
+  } else if (!isEthSell && erc20Permission) {
+    try {
+      const pullTx = await pullErc20Token({
+        agentKey: config.agentKey,
+        chain,
+        agentAddress,
+        tokenAddress: sellTokenAddress,
+        amount: parseUnits(swap.sellAmount, decimals),
+        permissionsContext: erc20Permission.context as `0x${string}`,
+        delegationManager: state.delegationManager as `0x${string}`,
+      });
+      logger.info(`Pulled ${swap.sellAmount} ${swap.sellToken} from user (tx: ${pullTx})`);
+      logAction("token_pull", {
+        cycle: state.cycle,
+        tool: "metamask-erc7710",
+        result: { txHash: pullTx, token: swap.sellToken, amount: swap.sellAmount },
+      });
+      config.intentLogger?.log("token_pull", {
+        cycle: state.cycle,
+        tool: "metamask-erc7710",
+        result: { txHash: pullTx, token: swap.sellToken, amount: swap.sellAmount },
+      });
+    } catch (pullErr) {
+      const pullMsg = pullErr instanceof Error ? pullErr.message : String(pullErr);
+      logger.error({ err: pullErr }, `Failed to pull ${swap.sellToken}: ${pullMsg}`);
+      throw new Error(`Token pull failed: ${pullMsg}`);
+    }
+  }
+
+  // --- Step 2: Check Permit2 approval for ERC-20 sells ---
+  if (!isEthSell) {
     const approval = await checkApproval({
       token: sellTokenAddress,
       amount: amountRaw,
@@ -167,6 +230,7 @@ export async function executeSwap(
   const beforeSwapDrift = state.drift;
   const beforeSwapValue = state.totalValue;
 
+  // --- Step 3: Quote and execute swap from agent EOA ---
   const startQuote = Date.now();
   try {
     const quote = await getQuote({
@@ -175,7 +239,7 @@ export async function executeSwap(
       amount: amountRaw,
       type: "EXACT_INPUT",
       chainId: config.chainId,
-      swapper: swapperAddress,
+      swapper: agentAddress,
       slippageTolerance: config.intent.maxSlippage * 100,
       // V4 pools on Sepolia are broken (V4_SWAP command reverts).
       // Force V3 routing on testnets; mainnet can use default routing.
@@ -191,15 +255,14 @@ export async function executeSwap(
         output: quote.quote.output,
         routing: quote.routing,
         hasPermitData: !!quote.permitData,
-        swapper: swapperAddress,
-        viaDelegation: !!canUseDelegation,
+        swapper: agentAddress,
       },
     });
     config.intentLogger?.log("quote_received", {
       cycle: state.cycle,
       tool: "uniswap-trading-api",
       duration_ms: Date.now() - startQuote,
-      result: { input: quote.quote.input, output: quote.quote.output, viaDelegation: !!canUseDelegation },
+      result: { input: quote.quote.input, output: quote.quote.output },
     });
 
     logger.info(
@@ -217,130 +280,40 @@ export async function executeSwap(
       transport: rpcTransport(chain),
     });
 
-    // Sign permit data if present (only for direct tx path — smart account can't sign)
+    // Sign permit data if present
     let permitSignature: Hex | undefined;
-    if (quote.permitData && !canUseDelegation) {
+    if (quote.permitData) {
       permitSignature = await signPermit2Data(walletClient, quote.permitData);
     }
 
-    const swapResponse = await createSwap(quote, permitSignature, {
-      disableSimulation: !!canUseDelegation,
-    });
+    const swapResponse = await createSwap(quote, permitSignature);
 
-    // Execute through delegation for ETH sells, direct tx otherwise
+    // Execute direct tx from agent EOA
     const startTx = Date.now();
-    let txHash: Hex;
-    let usedDelegation = false;
 
-    if (canUseDelegation) {
-      try {
-        txHash = await redeemDelegation(config.agentKey, chain, {
-          delegation: state.delegation!,
-          delegatorSmartAccount: state.delegatorSmartAccount!,
-          call: {
-            to: swapResponse.swap.to as Hex,
-            data: swapResponse.swap.data as Hex,
-            value: BigInt(swapResponse.swap.value || "0"),
-          },
-        });
-        usedDelegation = true;
-        logger.info(`Swap executed via delegation redemption (ERC-7710)`);
-      } catch (delegationErr) {
-        const delegationMsg =
-          delegationErr instanceof Error ? delegationErr.message : String(delegationErr);
-        const isCaveatEnforcement = /Enforcer/i.test(delegationMsg);
-        if (isCaveatEnforcement) {
-          logger.warn(
-            { err: delegationErr },
-            `Delegation caveat enforced: ${delegationMsg}. Safety constraints are working. Falling back to direct tx.`,
-          );
-          logAction("delegation_caveat_enforced", {
-            cycle: state.cycle,
-            tool: "metamask-delegation",
-            result: { enforcer: delegationMsg, action: "fallback_to_direct_tx" },
-          });
-          config.intentLogger?.log("delegation_caveat_enforced", {
-            cycle: state.cycle,
-            tool: "metamask-delegation",
-            result: { enforcer: delegationMsg, action: "fallback_to_direct_tx" },
-          });
-        } else {
-          logger.warn({ err: delegationErr }, "Delegation redemption failed, falling back to direct tx");
-          logAction("delegation_redeem_failed", {
-            cycle: state.cycle,
-            tool: "metamask-delegation",
-            error: delegationMsg,
-          });
-          config.intentLogger?.log("delegation_redeem_failed", {
-            cycle: state.cycle,
-            tool: "metamask-delegation",
-            error: delegationMsg,
-          });
-        }
-
-        const fallbackQuote = await getQuote({
-          tokenIn: sellTokenAddress,
-          tokenOut: buyTokenAddress,
-          amount: amountRaw,
-          type: "EXACT_INPUT",
-          chainId: config.chainId,
-          swapper: agentAddress,
-          slippageTolerance: config.intent.maxSlippage * 100,
-          protocols: config.chainId === 11155111 ? ["V3"] : undefined,
-        });
-        const fallbackSwap = await createSwap(fallbackQuote);
-
-        // Pre-flight simulation for fallback direct tx (skip when permitData present —
-        // the Permit2 nonce hasn't been consumed yet so estimateGas reverts)
-        let fallbackGas: bigint | undefined;
-        if (!fallbackQuote.permitData) {
-          fallbackGas = await publicClient.estimateGas({
-            account: agentAddress,
-            to: fallbackSwap.swap.to,
-            data: fallbackSwap.swap.data,
-            value: BigInt(fallbackSwap.swap.value || "0"),
-          });
-        }
-
-        txHash = await walletClient.sendTransaction({
-          to: fallbackSwap.swap.to,
-          data: fallbackSwap.swap.data,
-          value: BigInt(fallbackSwap.swap.value || "0"),
-          chain,
-          account: walletClient.account,
-          // When Permit2 is involved, pass explicit gas to prevent viem's internal
-          // prepareTransactionRequest from calling estimateGas (which reverts on
-          // unconsumed Permit2 nonces). 500k is generous for a Uniswap swap.
-          ...(fallbackQuote.permitData ? { gas: 500_000n } : fallbackGas ? { gas: fallbackGas } : {}),
-        });
-      }
-    } else {
-      // Pre-flight simulation for direct tx (skip when Permit2 signature is
-      // embedded — the permit nonce hasn't been consumed yet so estimateGas
-      // will revert. This is the same reason Uniswap API disables simulation
-      // when permitData is present.)
-      let directGas: bigint | undefined;
-      if (!quote.permitData) {
-        directGas = await publicClient.estimateGas({
-          account: agentAddress,
-          to: swapResponse.swap.to,
-          data: swapResponse.swap.data,
-          value: BigInt(swapResponse.swap.value || "0"),
-        });
-      }
-
-      txHash = await walletClient.sendTransaction({
+    // Pre-flight simulation (skip when Permit2 signature is embedded —
+    // the permit nonce hasn't been consumed yet so estimateGas will revert)
+    let directGas: bigint | undefined;
+    if (!quote.permitData) {
+      directGas = await publicClient.estimateGas({
+        account: agentAddress,
         to: swapResponse.swap.to,
         data: swapResponse.swap.data,
         value: BigInt(swapResponse.swap.value || "0"),
-        chain,
-        account: walletClient.account,
-        // When Permit2 is involved, pass explicit gas to prevent viem's internal
-        // prepareTransactionRequest from calling estimateGas (which reverts on
-        // unconsumed Permit2 nonces). 500k is generous for a Uniswap swap.
-        ...(quote.permitData ? { gas: 500_000n } : directGas ? { gas: directGas } : {}),
       });
     }
+
+    const txHash = await walletClient.sendTransaction({
+      to: swapResponse.swap.to,
+      data: swapResponse.swap.data,
+      value: BigInt(swapResponse.swap.value || "0"),
+      chain,
+      account: walletClient.account,
+      // When Permit2 is involved, pass explicit gas to prevent viem's internal
+      // prepareTransactionRequest from calling estimateGas (which reverts on
+      // unconsumed Permit2 nonces). 500k is generous for a Uniswap swap.
+      ...(quote.permitData ? { gas: 500_000n } : directGas ? { gas: directGas } : {}),
+    });
 
     const receipt = await publicClient.waitForTransactionReceipt({
       hash: txHash,
@@ -364,20 +337,18 @@ export async function executeSwap(
       sellToken: swap.sellToken,
       buyToken: swap.buyToken,
       sellAmount: swap.sellAmount,
-      viaDelegation: usedDelegation,
     };
 
     logAction("swap_executed", {
       cycle: state.cycle,
-      tool: "uniswap-via-delegation",
+      tool: "uniswap-direct",
       duration_ms: Date.now() - startTx,
       result: swapResult,
     });
 
-    // Write to per-intent log
     config.intentLogger?.log("swap_executed", {
       cycle: state.cycle,
-      tool: "uniswap-via-delegation",
+      tool: "uniswap-direct",
       duration_ms: Date.now() - startTx,
       result: swapResult,
     });
@@ -420,7 +391,7 @@ export async function executeSwap(
           sellAmount: swap.sellAmount,
           gasUsed: Number(receipt.gasUsed),
           slippage: 0,
-          viaDelegation: usedDelegation,
+          viaDelegation: false,
         },
         agentReasoning,
         marketContext: {
@@ -466,7 +437,6 @@ export async function executeSwap(
           tool: "venice-judge",
           result: judgeResult,
         });
-        // Surface on-chain failures as a separate visible log entry
         if (result.warnings.length > 0) {
           const warningMsg = `${result.warnings.length} on-chain op(s) failed: ${result.warnings.join("; ")}`;
           logAction("judge_warning", {

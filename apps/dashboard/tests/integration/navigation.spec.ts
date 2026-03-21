@@ -52,8 +52,9 @@ test.describe.serial("Navigation and Persistence", () => {
           maxSlippage: 0.005,
           driftThreshold: 0.05,
         },
-        signedDelegation: "0xdeadbeef_nav_test",
-        delegatorSmartAccount: "0x0000000000000000000000000000000000NAV001",
+        permissions: "[{\"type\":\"native-token-periodic\",\"context\":\"0xdeadbeef_nav_test\",\"token\":\"ETH\"}]",
+        delegationManager: "0x0000000000000000000000000000000000NAV001",
+        dependencies: "[]",
       },
     });
     expect(createRes.status()).toBe(201);
@@ -93,8 +94,9 @@ test.describe.serial("Navigation and Persistence", () => {
           maxSlippage: 0.005,
           driftThreshold: 0.05,
         },
-        signedDelegation: "0xdeadbeef_back_test",
-        delegatorSmartAccount: "0x0000000000000000000000000000000000BAK001",
+        permissions: "[{\"type\":\"native-token-periodic\",\"context\":\"0xdeadbeef_back_test\",\"token\":\"ETH\"}]",
+        delegationManager: "0x0000000000000000000000000000000000BAK001",
+        dependencies: "[]",
       },
     });
     const { intent } = await createRes.json();

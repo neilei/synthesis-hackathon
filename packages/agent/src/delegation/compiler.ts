@@ -1,32 +1,19 @@
 /**
  * Intent compilation pipeline. Parses natural language via Venice LLM into structured
- * IntentParse, detects adversarial parameters, creates a MetaMask Smart Account
- * delegation with on-chain caveats (timestamp, limited calls, functionCall scope).
+ * IntentParse, detects adversarial parameters.
+ *
+ * Note: Delegation creation has moved to the browser via ERC-7715 (MetaMask Flask).
+ * The backend now receives pre-signed permissions and redeems them via ERC-7710.
+ * See redeemer.ts for the pull-token functions.
  *
  * @module @veil/agent/delegation/compiler
  */
-import type { Address, Hex } from "viem";
-import { createPublicClient, encodePacked } from "viem";
-import { sepolia, mainnet } from "viem/chains";
-import { privateKeyToAccount } from "viem/accounts";
-import {
-  createDelegation,
-  getSmartAccountsEnvironment,
-  toMetaMaskSmartAccount,
-  Implementation,
-  type Delegation,
-  type MetaMaskSmartAccount,
-} from "@metamask/smart-accounts-kit";
-import { SECONDS_PER_DAY } from "@veil/common";
 import { reasoningLlm } from "../venice/llm.js";
 import {
   IntentParseLlmSchema,
   IntentParseSchema,
   type IntentParse,
 } from "../venice/schemas.js";
-import { CONTRACTS, rpcTransport } from "../config.js";
-
-const CONSERVATIVE_ETH_PRICE_USD = 500;
 
 // ---------------------------------------------------------------------------
 // compileIntent — parse natural language into IntentParse via Venice LLM
@@ -83,120 +70,4 @@ Rules:
   }
 
   return validated.data;
-}
-
-// ---------------------------------------------------------------------------
-// createDelegatorSmartAccount — create and optionally deploy a MetaMask
-// Smart Account that serves as the delegation authority.
-// ---------------------------------------------------------------------------
-
-export async function createDelegatorSmartAccount(
-  delegatorKey: `0x${string}`,
-  chainId: number,
-): Promise<MetaMaskSmartAccount> {
-  const chain = chainId === 11155111 ? sepolia : mainnet;
-  const publicClient = createPublicClient({ chain, transport: rpcTransport(chain) });
-  const delegatorAccount = privateKeyToAccount(delegatorKey);
-
-  const smartAccount = await toMetaMaskSmartAccount({
-    client: publicClient,
-    implementation: Implementation.Hybrid,
-    deployParams: [delegatorAccount.address, [], [], []],
-    deploySalt: "0x",
-    signer: { account: delegatorAccount },
-  });
-
-  return smartAccount;
-}
-
-// ---------------------------------------------------------------------------
-// createDelegationFromIntent — compile an IntentParse into a signed delegation
-// ---------------------------------------------------------------------------
-
-export interface DelegationResult {
-  delegation: Delegation;
-  delegatorSmartAccount: MetaMaskSmartAccount;
-}
-
-export async function createDelegationFromIntent(
-  intent: IntentParse,
-  delegatorKey: `0x${string}`,
-  agentAddress: Address,
-  chainId: number,
-): Promise<DelegationResult> {
-  // Create a MetaMask Smart Account for the delegator.
-  // The DelegationManager requires the delegator to be a deployed smart account.
-  const delegatorSmartAccount = await createDelegatorSmartAccount(
-    delegatorKey,
-    chainId,
-  );
-
-  const environment = getSmartAccountsEnvironment(chainId);
-
-  // Timestamp caveat: delegation expires after timeWindowDays
-  const expiryTimestamp = BigInt(
-    Math.floor(Date.now() / 1000) + intent.timeWindowDays * SECONDS_PER_DAY,
-  );
-
-  // Limited calls caveat: max trades per day * days
-  const totalCalls = BigInt(intent.maxTradesPerDay * intent.timeWindowDays);
-
-  // Build caveats using resolved enforcer addresses from the environment
-  const caveats = [
-    {
-      enforcer: environment.caveatEnforcers.TimestampEnforcer as Address,
-      terms: encodePacked(
-        ["uint128", "uint128"],
-        [0n, expiryTimestamp],
-      ),
-      args: "0x" as Hex,
-    },
-    {
-      enforcer: environment.caveatEnforcers.LimitedCallsEnforcer as Address,
-      terms: encodePacked(["uint256"], [totalCalls]),
-      args: "0x" as Hex,
-    },
-  ];
-
-  // Constrain the agent to only call the Uniswap Universal Router's execute()
-  // function, with a max ETH value per call enforced on-chain.
-  const totalBudgetUsd = intent.dailyBudgetUsd * intent.timeWindowDays;
-  const maxEth = totalBudgetUsd / CONSERVATIVE_ETH_PRICE_USD;
-  const maxValueWei = BigInt(Math.ceil(maxEth * 1e18));
-
-  // Resolve Uniswap router for this chain
-  const routerAddress =
-    chainId === 11155111
-      ? CONTRACTS.UNISWAP_ROUTER_SEPOLIA
-      : CONTRACTS.UNISWAP_ROUTER_MAINNET;
-
-  // execute(bytes,bytes[],uint256) selector = 0x3593564c
-  const EXECUTE_SELECTOR = "0x3593564c" as Hex;
-
-  // The functionCall scope builder defaults valueLte to { maxValue: 0n } if
-  // omitted, which blocks all ETH-value calls. Pass it explicitly so the SDK
-  // encodes our actual max value into the ValueLteEnforcer caveat.
-  const delegation = createDelegation({
-    from: delegatorSmartAccount.address as Hex,
-    to: agentAddress as Hex,
-    environment,
-    scope: {
-      type: "functionCall" as const,
-      targets: [routerAddress],
-      selectors: [EXECUTE_SELECTOR],
-      valueLte: { maxValue: maxValueWei },
-    },
-    caveats,
-  });
-
-  // Sign the delegation using the smart account's signDelegation method
-  const signature = await delegatorSmartAccount.signDelegation({ delegation });
-
-  return {
-    delegation: {
-      ...delegation,
-      signature,
-    },
-    delegatorSmartAccount,
-  };
 }

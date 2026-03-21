@@ -5,7 +5,7 @@
  */
 import { describe, it, expect } from "vitest";
 import { generateDetailedAudit } from "../audit.js";
-import { makeIntent, makeSampleDelegation } from "../../__tests__/fixtures.js";
+import { makeIntent } from "../../__tests__/fixtures.js";
 
 // ---------------------------------------------------------------------------
 // Audit report generation
@@ -14,8 +14,7 @@ import { makeIntent, makeSampleDelegation } from "../../__tests__/fixtures.js";
 describe("generateDetailedAudit", () => {
   it("returns a report with all required sections", () => {
     const intent = makeIntent();
-    const delegation = makeSampleDelegation();
-    const report = generateDetailedAudit(intent, delegation);
+    const report = generateDetailedAudit(intent);
 
     expect(report.allows).toBeInstanceOf(Array);
     expect(report.prevents).toBeInstanceOf(Array);
@@ -29,8 +28,7 @@ describe("generateDetailedAudit", () => {
 
   it("includes correct budget in ALLOWS section", () => {
     const intent = makeIntent({ dailyBudgetUsd: 500, timeWindowDays: 14 });
-    const delegation = makeSampleDelegation();
-    const report = generateDetailedAudit(intent, delegation);
+    const report = generateDetailedAudit(intent);
 
     expect(report.allows.some((a) => a.includes("$500/day"))).toBe(true);
     expect(report.allows.some((a) => a.includes("14 days"))).toBe(true);
@@ -38,8 +36,7 @@ describe("generateDetailedAudit", () => {
 
   it("includes total budget cap in PREVENTS section", () => {
     const intent = makeIntent({ dailyBudgetUsd: 200, timeWindowDays: 7 });
-    const delegation = makeSampleDelegation();
-    const report = generateDetailedAudit(intent, delegation);
+    const report = generateDetailedAudit(intent);
 
     // Total = 200 * 7 = 1400
     expect(report.prevents.some((p) => p.includes("1,400"))).toBe(true);
@@ -51,8 +48,7 @@ describe("generateDetailedAudit", () => {
       timeWindowDays: 10,
       maxSlippage: 0.01,
     });
-    const delegation = makeSampleDelegation();
-    const report = generateDetailedAudit(intent, delegation);
+    const report = generateDetailedAudit(intent);
 
     // Total = 10,000, slippage = 10,000 * 0.01 = 100
     expect(report.worstCase).toContain("10,000");
@@ -63,30 +59,30 @@ describe("generateDetailedAudit", () => {
     const intent = makeIntent({
       targetAllocation: { ETH: 0.7, USDC: 0.3 },
     });
-    const delegation = makeSampleDelegation();
-    const report = generateDetailedAudit(intent, delegation);
+    const report = generateDetailedAudit(intent);
 
     expect(report.allows.some((a) => a.includes("ETH: 70%"))).toBe(true);
     expect(report.allows.some((a) => a.includes("USDC: 30%"))).toBe(true);
   });
 
-  it("shows caveats present when delegation has caveats", () => {
+  it("shows permission info when provided", () => {
     const intent = makeIntent();
-    const delegation = makeSampleDelegation();
-    const report = generateDetailedAudit(intent, delegation);
+    const report = generateDetailedAudit(intent, {
+      permissionCount: 2,
+      types: ["native-token-periodic", "erc20-token-periodic"],
+      hasDelegationManager: true,
+    });
 
-    expect(report.intentMatch).toContain("Caveats present: YES");
+    expect(report.intentMatch).toContain("Permissions granted: 2");
+    expect(report.intentMatch).toContain("native-token-periodic");
+    expect(report.intentMatch).toContain("DelegationManager: YES");
   });
 
-  it("warns when delegation has no caveats", () => {
+  it("shows pending status when no permission info provided", () => {
     const intent = makeIntent();
-    const delegation = makeSampleDelegation({ caveats: [] });
-    const report = generateDetailedAudit(intent, delegation);
+    const report = generateDetailedAudit(intent);
 
-    expect(report.intentMatch).toContain("Caveats present: NO");
-    expect(
-      report.warnings.some((w) => w.includes("CRITICAL") && w.includes("unrestricted")),
-    ).toBe(true);
+    expect(report.intentMatch).toContain("pending user grant");
   });
 
   it("includes adversarial warnings for dangerous intents", () => {
@@ -95,8 +91,7 @@ describe("generateDetailedAudit", () => {
       timeWindowDays: 60,
       maxSlippage: 0.1,
     });
-    const delegation = makeSampleDelegation();
-    const report = generateDetailedAudit(intent, delegation);
+    const report = generateDetailedAudit(intent);
 
     expect(report.warnings.length).toBeGreaterThanOrEqual(3);
     expect(report.warnings.some((w) => w.includes("$5000"))).toBe(true);
@@ -106,32 +101,28 @@ describe("generateDetailedAudit", () => {
 
   it("includes per-trade limit in ALLOWS section", () => {
     const intent = makeIntent({ maxPerTradeUsd: 5 });
-    const delegation = makeSampleDelegation();
-    const report = generateDetailedAudit(intent, delegation);
+    const report = generateDetailedAudit(intent);
 
     expect(report.allows.some((a) => a.includes("$5") && a.includes("per individual trade"))).toBe(true);
   });
 
   it("includes per-trade limit in PREVENTS section", () => {
     const intent = makeIntent({ maxPerTradeUsd: 10 });
-    const delegation = makeSampleDelegation();
-    const report = generateDetailedAudit(intent, delegation);
+    const report = generateDetailedAudit(intent);
 
     expect(report.prevents.some((p) => p.includes("$10") && p.includes("single trade"))).toBe(true);
   });
 
-  it("has no warnings for a safe intent with proper delegation", () => {
+  it("has no warnings for a safe intent", () => {
     const intent = makeIntent();
-    const delegation = makeSampleDelegation();
-    const report = generateDetailedAudit(intent, delegation);
+    const report = generateDetailedAudit(intent);
 
     expect(report.warnings).toHaveLength(0);
   });
 
   it("formatted report contains proper section markers", () => {
     const intent = makeIntent();
-    const delegation = makeSampleDelegation();
-    const report = generateDetailedAudit(intent, delegation);
+    const report = generateDetailedAudit(intent);
 
     expect(report.formatted).toContain("=== DELEGATION AUDIT REPORT ===");
     expect(report.formatted).toContain("--- ALLOWS ---");
@@ -139,29 +130,5 @@ describe("generateDetailedAudit", () => {
     expect(report.formatted).toContain("--- WORST CASE ---");
     expect(report.formatted).toContain("--- INTENT MATCH ---");
     expect(report.formatted).toContain("=== END AUDIT REPORT ===");
-  });
-
-  it("shows signature status in intent match", () => {
-    const intent = makeIntent();
-
-    const signed = makeSampleDelegation({ signature: "0xabc123" });
-    const reportSigned = generateDetailedAudit(intent, signed);
-    expect(reportSigned.intentMatch).toContain("Signed: YES");
-
-    const unsigned = makeSampleDelegation({ signature: "0x" });
-    const reportUnsigned = generateDetailedAudit(intent, unsigned);
-    expect(reportUnsigned.intentMatch).toContain("Signed: NO");
-  });
-
-  it("shows delegate/delegator presence", () => {
-    const intent = makeIntent();
-
-    const withAddrs = makeSampleDelegation();
-    const report = generateDetailedAudit(intent, withAddrs);
-    expect(report.intentMatch).toContain("Delegate/Delegator set: YES");
-
-    const without = { caveats: [], salt: "0x01", signature: "0xabc" };
-    const reportNo = generateDetailedAudit(intent, without);
-    expect(reportNo.intentMatch).toContain("Delegate/Delegator set: NO");
   });
 });

@@ -26,12 +26,6 @@ const envSchema = z.object({
     .string()
     .startsWith("0x")
     .transform((v) => v as `0x${string}`),
-  DELEGATOR_PRIVATE_KEY: z
-    .string()
-    .optional()
-    .transform((v) =>
-      v && v.startsWith("0x") ? (v as `0x${string}`) : undefined,
-    ),
   THEGRAPH_API_KEY: z.string().optional(),
   SEPOLIA_RPC_URL: z
     .string()

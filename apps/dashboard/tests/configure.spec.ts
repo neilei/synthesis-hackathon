@@ -1,7 +1,7 @@
 /**
  * Playwright e2e tests for the Configure tab: form input, presets, preview flow.
  *
- * Note: The full deploy flow (sign delegation → submit) requires a connected
+ * Note: The full deploy flow (grant permissions → submit) requires a connected
  * wallet which can't be mocked in Playwright without a real browser extension.
  * These tests cover the Preview step (parse intent via Venice) which doesn't
  * require wallet connection.
@@ -134,7 +134,7 @@ test.describe("Configure Screen", () => {
     await textarea.fill("60/40 ETH/USDC");
     await page.getByRole("button", { name: /preview strategy/i }).click();
 
-    await expect(page.getByText("Delegation Report")).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText("Permission Report")).toBeVisible({ timeout: 5000 });
     await expect(page.getByText("Swap ETH ↔ USDC on Uniswap V3")).toBeVisible();
     await expect(page.getByText("Transfer to external addresses")).toBeVisible();
     await expect(page.getByText("Maximum daily loss: $200")).toBeVisible();
@@ -235,7 +235,7 @@ test.describe("Configure Screen", () => {
     await expect(page.getByRole("button", { name: /preview strategy/i })).toBeVisible();
   });
 
-  test("shows delegation details card after preview", async ({ page }) => {
+  test("shows permission details card after preview", async ({ page }) => {
     await page.route("**/api/parse-intent", (route) =>
       route.fulfill({
         status: 200,
@@ -248,16 +248,12 @@ test.describe("Configure Screen", () => {
     await textarea.fill("60/40 ETH/USDC, $200/day, 7 days");
     await page.getByRole("button", { name: /preview strategy/i }).click();
 
-    await expect(page.getByText("Delegation Details")).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText("Permission Details")).toBeVisible({ timeout: 5000 });
     await expect(page.getByText("ERC-7715 permission scope")).toBeVisible();
 
-    // Caveat enforcers
-    await expect(page.getByText("ValueLteEnforcer")).toBeVisible();
-    await expect(page.getByText("TimestampEnforcer")).toBeVisible();
-    await expect(page.getByText("LimitedCallsEnforcer")).toBeVisible();
-
-    // Computed values: 10 trades/day * 7 days = 70 max calls
-    await expect(page.getByText("70")).toBeVisible();
+    // Permission types
+    await expect(page.getByText("native-token-periodic")).toBeVisible();
+    await expect(page.getByText("erc20-token-periodic")).toBeVisible();
 
     // Agent address (truncated)
     await expect(page.getByText(/0xf130...c927/i)).toBeVisible();

@@ -1,8 +1,8 @@
 /**
- * Playwright e2e tests for the Audit tab: delegation report display.
+ * Playwright e2e tests for the Audit tab: permission report display.
  *
  * The Audit tab is now reached via Configure preview → Deploy (which requires
- * wallet connection for delegation signing). Since we can't mock wagmi in
+ * wallet connection for permission granting). Since we can't mock wagmi in
  * Playwright, we test the Audit component's rendering by verifying the preview
  * step in Configure shows the same audit report data inline.
  *
@@ -72,8 +72,8 @@ test.describe("Audit Report (via Configure Preview)", () => {
     await expect(page.getByText("10", { exact: true }).first()).toBeVisible();
   });
 
-  test("shows delegation report with allows section", async ({ page }) => {
-    await expect(page.getByText("Delegation Report")).toBeVisible();
+  test("shows permission report with allows section", async ({ page }) => {
+    await expect(page.getByText("Permission Report")).toBeVisible();
     await expect(page.getByText("Allows")).toBeVisible();
     await expect(
       page.getByText("Swap ETH ↔ USDC on Uniswap V3"),
@@ -118,44 +118,30 @@ test.describe("Audit Report (via Configure Preview)", () => {
     ).toBeVisible();
   });
 
-  test("shows Delegation Details card with section heading", async ({ page }) => {
-    await expect(page.getByText("Delegation Details")).toBeVisible();
+  test("shows Permission Details card with section heading", async ({ page }) => {
+    await expect(page.getByText("Permission Details")).toBeVisible();
     await expect(
       page.getByText("ERC-7715 permission scope"),
     ).toBeVisible();
   });
 
-  test("shows delegation constraint metadata", async ({ page }) => {
+  test("shows permission constraint metadata", async ({ page }) => {
     // Agent address (truncated)
     await expect(page.getByText("Delegate (Agent)")).toBeVisible();
     await expect(page.getByText(/0xf130...c927/i)).toBeVisible();
 
-    // Scope
-    await expect(page.getByText("Scope Target")).toBeVisible();
-    await expect(page.getByText("Uniswap Router")).toBeVisible();
-
-    // Function
-    await expect(page.getByText("Function")).toBeVisible();
-    await expect(page.getByText("execute()")).toBeVisible();
-  });
-
-  test("shows computed delegation values from parsed intent", async ({ page }) => {
-    // Max Calls: 10 trades/day * 7 days = 70
-    await expect(page.getByText("Max Calls")).toBeVisible();
-    await expect(page.getByText("70")).toBeVisible();
-
-    // Max Value (wei) — $200 * 7 / $500 conservative = 2.8 ETH = 2800000000000000000
-    await expect(page.getByText("Max Value (wei)")).toBeVisible();
+    // Period Duration
+    await expect(page.getByText("Period Duration")).toBeVisible();
+    await expect(page.getByText("24 hours")).toBeVisible();
 
     // Expires (should be ~7 days from now)
     await expect(page.getByText("Expires")).toBeVisible();
   });
 
-  test("shows caveat enforcer badges", async ({ page }) => {
-    await expect(page.getByText("Caveat Enforcers")).toBeVisible();
-    await expect(page.getByText("ValueLteEnforcer")).toBeVisible();
-    await expect(page.getByText("TimestampEnforcer")).toBeVisible();
-    await expect(page.getByText("LimitedCallsEnforcer")).toBeVisible();
+  test("shows requested permission types", async ({ page }) => {
+    await expect(page.getByText("Requested Permissions")).toBeVisible();
+    await expect(page.getByText("native-token-periodic")).toBeVisible();
+    await expect(page.getByText("erc20-token-periodic")).toBeVisible();
   });
 
   test("shows MetaMask ERC-7715 sponsor badge", async ({ page }) => {

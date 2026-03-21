@@ -58,10 +58,9 @@ export async function createIntent(
   body: {
     intentText: string;
     parsedIntent: ParsedIntent;
-    signedDelegation: string;
-    delegatorSmartAccount: string;
-    permissionsContext?: string;
-    delegationManager?: string;
+    permissions: string;
+    delegationManager: string;
+    dependencies: string;
   },
 ): Promise<{ intent: IntentRecord; audit: AuditReport }> {
   const res = await fetch("/api/intents", {

@@ -14,6 +14,7 @@
     "test:integration": "INTEGRATION=1 playwright test --project integration"
   },
   "dependencies": {
+    "@metamask/smart-accounts-kit": "0.4.0-beta.1",
     "@tanstack/react-query": "^5.90.21",
     "@veil/common": "workspace:*",
     "next": "16.1.6",

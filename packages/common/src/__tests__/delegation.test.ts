@@ -1,8 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
-  computeMaxValueWei,
   computeExpiryTimestamp,
-  computeMaxCalls,
+  computePeriodAmount,
+  computeConservativeEthPrice,
+  ETH_PRICE_ABSOLUTE_FLOOR_USD,
   detectAdversarialIntent,
   generateAuditReport,
 } from "../delegation.js";
@@ -17,26 +18,6 @@ const SAMPLE_INTENT: ParsedIntent = {
   maxSlippage: 0.005,
   driftThreshold: 0.05,
 };
-
-describe("computeMaxValueWei", () => {
-  it("computes max ETH value in wei using conservative price", () => {
-    // (200 * 7) / 500 = 2.8 ETH = 2.8e18 wei
-    const result = computeMaxValueWei(200, 7);
-    expect(result).toBe(BigInt("2800000000000000000"));
-  });
-
-  it("accepts custom conservative price", () => {
-    // (200 * 7) / 1000 = 1.4 ETH
-    const result = computeMaxValueWei(200, 7, 1000);
-    expect(result).toBe(BigInt("1400000000000000000"));
-  });
-
-  it("handles small budget", () => {
-    // (10 * 1) / 500 = 0.02 ETH
-    const result = computeMaxValueWei(10, 1);
-    expect(result).toBe(BigInt("20000000000000000"));
-  });
-});
 
 describe("computeExpiryTimestamp", () => {
   it("computes expiry as now + days * 86400", () => {
@@ -55,13 +36,66 @@ describe("computeExpiryTimestamp", () => {
   });
 });
 
-describe("computeMaxCalls", () => {
-  it("computes total calls from trades per day and days", () => {
-    expect(computeMaxCalls(10, 7)).toBe(70);
+describe("computeConservativeEthPrice", () => {
+  it("halves live price", () => {
+    expect(computeConservativeEthPrice(2000)).toBe(1000);
   });
 
-  it("works with 1 trade per day", () => {
-    expect(computeMaxCalls(1, 30)).toBe(30);
+  it("never goes below absolute floor", () => {
+    expect(computeConservativeEthPrice(800)).toBe(ETH_PRICE_ABSOLUTE_FLOOR_USD);
+  });
+
+  it("uses explicit ethPriceFloor over live price", () => {
+    expect(computeConservativeEthPrice(2000, 1500)).toBe(1500);
+  });
+
+  it("clamps explicit floor to absolute floor", () => {
+    expect(computeConservativeEthPrice(2000, 300)).toBe(ETH_PRICE_ABSOLUTE_FLOOR_USD);
+  });
+
+  it("falls back to absolute floor with no args", () => {
+    expect(computeConservativeEthPrice()).toBe(ETH_PRICE_ABSOLUTE_FLOOR_USD);
+  });
+});
+
+describe("computePeriodAmount", () => {
+  it("falls back to $500 floor with no price args", () => {
+    // $200/day at $500/ETH = 0.4 ETH
+    const result = computePeriodAmount(200, "ETH");
+    expect(result).toBe(400000000000000000n);
+  });
+
+  it("uses livePrice/2 when provided", () => {
+    // $200/day, live $2000 → conservative $1000 → 0.2 ETH
+    const result = computePeriodAmount(200, "ETH", 2000);
+    expect(result).toBe(200000000000000000n);
+  });
+
+  it("uses explicit ethPriceFloor when provided", () => {
+    // $200/day, floor $800 → 0.25 ETH
+    const result = computePeriodAmount(200, "ETH", undefined, 800);
+    expect(result).toBe(250000000000000000n);
+  });
+
+  it("converts daily budget USD to USDC units (6 decimals)", () => {
+    const result = computePeriodAmount(200, "USDC");
+    expect(result).toBe(200_000_000n);
+  });
+
+  it("USDC ignores ETH price args", () => {
+    const result = computePeriodAmount(200, "USDC", 2000, 1500);
+    expect(result).toBe(200_000_000n);
+  });
+
+  it("returns 0 for zero budget", () => {
+    expect(computePeriodAmount(0, "ETH")).toBe(0n);
+    expect(computePeriodAmount(0, "USDC")).toBe(0n);
+  });
+
+  it("rounds up to avoid underestimating amounts", () => {
+    // $1/day at $500/ETH = 0.002 ETH = 2000000000000000 wei
+    const result = computePeriodAmount(1, "ETH");
+    expect(result).toBe(2000000000000000n);
   });
 });
 

@@ -5,9 +5,9 @@
 An autonomous DeFi agent for the Synthesis Hackathon (deadline: 2026-03-22). The agent:
 
 1. Takes a natural language portfolio intent ("60/40 ETH/USDC, $200/day, 7 days")
-2. Compiles it into an ERC-7715 delegation with on-chain caveats the agent cannot violate
+2. Grants ERC-7715 periodic permissions via MetaMask Flask (user approves once in browser)
 3. Privately reasons about when to rebalance (Venice AI, no data retention)
-4. Executes trades on Uniswap via ERC-7710 delegation redemption
+4. Pulls tokens via ERC-7710 delegation redemption, then swaps on Uniswap from agent EOA
 5. Logs every decision to per-intent JSONL logs and ERC-8004 reputation registry
 
 ## Project Structure (Monorepo)
@@ -65,12 +65,12 @@ Root `package.json` uses pnpm workspaces. Run everything from root:
 - **Structured output**: `llm.withStructuredOutput(zodSchema)` + `safeParse()` post-validation
 - **Budget tracking**: Venice `x-venice-balance-usd` response header captured via custom fetch wrapper
 - **The Graph**: Uses official Uniswap V3 Ethereum mainnet subgraph (ID: `5zvR82QoaXYFyDEKLZ9t6v9adgnptxYpKpSbxtgVENFV`). Types generated via graphql-codegen.
-- **Delegation flow**: ERC-7715 creates scoped permission (human approves once), ERC-7710 redeems server-side (no browser needed). Falls back to direct tx if delegation fails. Must pass `valueLte: { maxValue }` in `functionCall` scope — SDK defaults to `maxValue: 0n` if omitted, blocking all ETH-value calls.
+- **Delegation flow**: Two-step pull+swap architecture. Browser-side: ERC-7715 `wallet_requestExecutionPermissions` via MetaMask Flask grants `native-token-periodic` and `erc20-token-periodic` permissions. Server-side: ERC-7710 `sendTransactionWithDelegation()` pulls tokens from user's smart account to agent EOA, then agent swaps on Uniswap directly. Uses `@metamask/smart-accounts-kit@0.4.0-beta.1` for both frontend (`erc7715ProviderActions`) and backend (`erc7710WalletActions`). Permission amounts use conservative ETH pricing (live price / 2, $500 floor).
 - **Agent identity**: ERC-8004 NFT on Base, reputation feedback uses dynamic agentId from registration
 - **Intent persistence**: SQLite via drizzle-orm + better-sqlite3. DB at `data/veil.db` (WAL mode). Schema: intents, swaps, auth_nonces tables. Repository pattern in `packages/agent/src/db/`.
 - **Multi-wallet agent**: WorkerPool manages concurrent AgentWorker instances (max 5). Each intent gets its own worker. Active intents resume on server restart with staggered 2-3s delays.
 - **Wallet-scoped API**: Nonce-signing auth flow: `GET /api/auth/nonce?wallet=` → sign message → `POST /api/auth/verify` → HMAC bearer token. All intent CRUD endpoints require auth. No `/api/deploy` endpoint — replaced by `POST /api/intents`.
-- **Dashboard wagmi integration**: wagmi v2 + custom ConnectWallet component (no RainbowKit). Wallet connection required for intent management. ERC-7715 delegation signing mocked browser-side; ERC-7710 redemption is real server-side.
+- **Dashboard wagmi integration**: wagmi v2 + custom ConnectWallet component (no RainbowKit). Wallet connection required for intent management. ERC-7715 permission granting is real via MetaMask Flask browser-side; ERC-7710 token pull is real server-side. Requires MetaMask Flask v13.5+.
 - **Per-intent logging**: Each intent gets `data/logs/{intentId}.jsonl`. Downloadable via `GET /api/intents/:id/logs`.
 
 ## Design Context

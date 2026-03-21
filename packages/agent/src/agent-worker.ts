@@ -62,8 +62,8 @@ export class DefaultAgentWorker implements AgentWorker {
       return;
     }
 
-    if (!env.DELEGATOR_PRIVATE_KEY) {
-      const msg = "DELEGATOR_PRIVATE_KEY is not set — the worker cannot create a delegation without it. Set it in .env and restart.";
+    if (!intent.permissions || !intent.delegationManager) {
+      const msg = "Intent has no ERC-7715 permissions — cannot start agent without user-granted permissions.";
       logger.error({ intentId: this.intentId }, msg);
       this.intentLogger.log("worker_error", { error: msg });
       this.deps.repo.updateIntentStatus(this.intentId, "failed");
@@ -87,12 +87,25 @@ export class DefaultAgentWorker implements AgentWorker {
       return;
     }
 
+    let permissions;
+    let dependencies;
+    try {
+      permissions = JSON.parse(intent.permissions);
+      dependencies = intent.dependencies ? JSON.parse(intent.dependencies) : [];
+    } catch {
+      logger.error({ intentId: this.intentId }, "Failed to parse permissions/dependencies JSON");
+      this.running = false;
+      return;
+    }
+
     const config: AgentConfig = {
       intent: parsed,
-      delegatorKey: env.DELEGATOR_PRIVATE_KEY,
       agentKey: env.AGENT_PRIVATE_KEY,
       chainId: 11155111,
       intervalMs: 20_000,
+      permissions,
+      delegationManager: intent.delegationManager,
+      dependencies,
       signal: this.abortController.signal,
       intentLogger: this.intentLogger,
       intentId: this.intentId,
@@ -104,7 +117,6 @@ export class DefaultAgentWorker implements AgentWorker {
         this.deps.repo.updateIntentAgentId(this.intentId, agentId);
       },
       onCycleComplete: (loopState) => {
-        // Capture the live state from the running loop
         this.state = loopState;
         this.persistState(loopState);
       },

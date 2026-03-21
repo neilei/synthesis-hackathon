@@ -376,15 +376,14 @@ describe("Identity JSON route", () => {
       status: "active",
       createdAt: 1000000,
       expiresAt: 2000000,
-      signedDelegation: "{}",
-      delegatorSmartAccount: "0xabc",
+      permissions: JSON.stringify([{ type: "native-token-periodic", context: "0xdeadbeef", token: "ETH" }]),
+      delegationManager: "0x0000000000000000000000000000000000000001",
+      dependencies: JSON.stringify([]),
       cycle: 0,
       tradesExecuted: 0,
       totalSpentUsd: 0,
       lastCycleAt: null,
       agentId: null,
-      permissionsContext: null,
-      delegationManager: null,
     });
 
     const res = await app.request("/api/intents/test-intent-123/identity.json");
@@ -428,15 +427,14 @@ describe("Identity JSON route", () => {
       status: "completed",
       createdAt: 1000000,
       expiresAt: 2000000,
-      signedDelegation: "{}",
-      delegatorSmartAccount: "0xabc",
+      permissions: JSON.stringify([{ type: "native-token-periodic", context: "0xdeadbeef", token: "ETH" }]),
+      delegationManager: "0x0000000000000000000000000000000000000001",
+      dependencies: JSON.stringify([]),
       cycle: 0,
       tradesExecuted: 0,
       totalSpentUsd: 0,
       lastCycleAt: null,
       agentId: null,
-      permissionsContext: null,
-      delegationManager: null,
     });
 
     const res = await app.request("/api/intents/done-intent/identity.json");

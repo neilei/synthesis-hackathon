@@ -3,7 +3,7 @@
  * 1. Enter intent text (+ presets)
  * 2. Preview parsed intent (calls POST /api/parse-intent)
  * 3. Review audit report inline
- * 4. Sign delegation + submit (calls POST /api/intents)
+ * 4. Request ERC-7715 permissions via MetaMask Flask + submit (calls POST /api/intents)
  *
  * @module @veil/dashboard/components/configure
  */
@@ -12,7 +12,7 @@
 import { useState, useCallback } from "react";
 import { useAccount } from "wagmi";
 import { useAuth } from "@/hooks/use-auth";
-import { useDelegation } from "@/hooks/use-delegation";
+import { usePermissions } from "@/hooks/use-permissions";
 import { parseIntent, createIntent, type IntentRecord } from "@/lib/api";
 import { Card } from "./ui/card";
 import { CardFooter } from "./ui/card-footer";
@@ -42,7 +42,7 @@ const PRESETS = [
 export function Configure({ onSuccess }: ConfigureProps) {
   const { isConnected } = useAccount();
   const { token, isAuthenticated, authenticating, authenticate, error: authError } = useAuth();
-  const { signDelegation, signing } = useDelegation();
+  const { requestPermissions, requesting } = usePermissions();
 
   const [intentText, setIntentText] = useState("");
   const [parsed, setParsed] = useState<ParsedIntent | null>(null);
@@ -70,33 +70,32 @@ export function Configure({ onSuccess }: ConfigureProps) {
     if (!parsed || !token) return;
     setError(null);
 
-    // Step 1: Sign delegation
+    // Step 1: Request ERC-7715 permissions via MetaMask Flask
     setStep("signing");
-    const delegation = await signDelegation(parsed);
-    if (!delegation) {
-      setError("Delegation signing failed");
+    const result = await requestPermissions(parsed);
+    if (!result) {
+      setError("Permission request failed or was rejected.");
       setStep("preview");
       return;
     }
 
-    // Step 2: Submit to backend
+    // Step 2: Submit to backend with permissions
     setStep("submitting");
     try {
-      const result = await createIntent(token, {
+      const response = await createIntent(token, {
         intentText: intentText.trim(),
         parsedIntent: parsed,
-        signedDelegation: delegation.signedDelegation,
-        delegatorSmartAccount: delegation.delegatorSmartAccount,
-        permissionsContext: delegation.permissionsContext,
-        delegationManager: delegation.delegationManager,
+        permissions: JSON.stringify(result.permissions),
+        delegationManager: result.delegationManager,
+        dependencies: JSON.stringify(result.dependencies),
       });
-      onSuccess(result.intent, result.audit);
+      onSuccess(response.intent, response.audit);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Failed to create intent";
       setError(msg);
       setStep("preview");
     }
-  }, [parsed, token, signDelegation, intentText, onSuccess]);
+  }, [parsed, token, requestPermissions, intentText, onSuccess]);
 
   const handleReset = useCallback(() => {
     setParsed(null);
@@ -122,7 +121,7 @@ export function Configure({ onSuccess }: ConfigureProps) {
   const statusLabel = (() => {
     switch (step) {
       case "parsing": return "Analyzing your strategy...";
-      case "signing": return "Signing delegation...";
+      case "signing": return "Requesting permissions in MetaMask Flask...";
       case "submitting": return "Submitting intent...";
       default: return null;
     }
@@ -231,7 +230,7 @@ export function Configure({ onSuccess }: ConfigureProps) {
             {/* Audit report */}
             {audit && (
               <Card className="p-5">
-                <SectionHeading>Delegation Report</SectionHeading>
+                <SectionHeading>Permission Report</SectionHeading>
                 <div className="mt-4">
                   <AuditReportSection audit={audit} />
                 </div>
@@ -241,7 +240,7 @@ export function Configure({ onSuccess }: ConfigureProps) {
               </Card>
             )}
 
-            {/* Delegation Details */}
+            {/* Permission Details */}
             <DelegationDetails parsed={parsed} />
 
             {/* Deploy button */}
@@ -256,15 +255,20 @@ export function Configure({ onSuccess }: ConfigureProps) {
                     <AuthPrompt authenticating={authenticating} error={authError} onAuthenticate={authenticate} />
                   </div>
                 ) : (
-                  <Button
-                    variant="solid"
-                    size="md"
-                    onClick={handleDeploy}
-                    disabled={signing || isBusy}
-                    className="w-full font-semibold uppercase tracking-widest"
-                  >
-                    Deploy Agent
-                  </Button>
+                  <div className="space-y-2">
+                    <Button
+                      variant="solid"
+                      size="md"
+                      onClick={handleDeploy}
+                      disabled={requesting || isBusy}
+                      className="w-full font-semibold uppercase tracking-widest"
+                    >
+                      Grant Permissions &amp; Deploy
+                    </Button>
+                    <p className="text-center text-xs text-text-tertiary">
+                      Requires MetaMask Flask (v13.5+). Judges without Flask can view pre-built agents under Monitor.
+                    </p>
+                  </div>
                 )}
               </div>
             )}

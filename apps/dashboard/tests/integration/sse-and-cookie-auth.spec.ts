@@ -76,8 +76,9 @@ test.describe.serial("SSE and Cookie Auth", () => {
       data: {
         intentText: "SSE test: 60/40 ETH/USDC, $100/day, 7 days",
         parsedIntent: VALID_PARSED_INTENT,
-        signedDelegation: "0xdeadbeef_sse_test",
-        delegatorSmartAccount: "0x0000000000000000000000000000000000SSE001",
+        permissions: "[{\"type\":\"native-token-periodic\",\"context\":\"0xdeadbeef_sse_test\",\"token\":\"ETH\"}]",
+        delegationManager: "0x0000000000000000000000000000000000SSE001",
+        dependencies: "[]",
       },
     });
 
@@ -102,7 +103,7 @@ test.describe.serial("SSE and Cookie Auth", () => {
     expect(data).toHaveProperty("logs");
     expect(Array.isArray(data.logs)).toBe(true);
     // Worker should have logged at least worker_start or worker_error
-    // (may fail immediately if DELEGATOR_PRIVATE_KEY missing, that's fine)
+    // (may fail immediately if permissions invalid, that's fine)
     if (data.logs.length > 0) {
       const first = data.logs[0];
       expect(first).toHaveProperty("sequence");

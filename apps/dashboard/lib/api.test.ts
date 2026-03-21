@@ -158,8 +158,9 @@ describe("createIntent", () => {
         maxTradesPerDay: 10,
         maxPerTradeUsd: 200,
       },
-      signedDelegation: "0xdel",
-      delegatorSmartAccount: "0xsa",
+      permissions: "[{\"type\":\"native-token-periodic\",\"context\":\"0xabc\",\"token\":\"ETH\"}]",
+      delegationManager: "0xDM1",
+      dependencies: "[]",
     };
 
     const result = await createIntent("my-token", body);
@@ -187,8 +188,9 @@ describe("createIntent", () => {
       createIntent("bad-token", {
         intentText: "x",
         parsedIntent: {} as never,
-        signedDelegation: "0x",
-        delegatorSmartAccount: "0x",
+        permissions: "[]",
+        delegationManager: "0x",
+        dependencies: "[]",
       }),
     ).rejects.toThrow("Unauthorized");
   });

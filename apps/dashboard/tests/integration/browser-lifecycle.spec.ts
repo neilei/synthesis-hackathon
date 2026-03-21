@@ -52,8 +52,9 @@ test.describe.serial("Browser Intent Lifecycle", () => {
           maxSlippage: 0.005,
           driftThreshold: 0.05,
         },
-        signedDelegation: "0xdeadbeef_browser_lifecycle",
-        delegatorSmartAccount: "0x0000000000000000000000000000000000BRW001",
+        permissions: "[{\"type\":\"native-token-periodic\",\"context\":\"0xdeadbeef_browser_lifecycle\",\"token\":\"ETH\"}]",
+        delegationManager: "0x0000000000000000000000000000000000BRW001",
+        dependencies: "[]",
       },
     });
     expect(res.status()).toBe(201);
@@ -165,7 +166,7 @@ test.describe.serial("Browser Intent Lifecycle", () => {
     }
   });
 
-  test("View Audit button toggles Delegation Report", async ({
+  test("View Audit button toggles Permission Report", async ({
     page,
     auth,
   }) => {
@@ -182,8 +183,8 @@ test.describe.serial("Browser Intent Lifecycle", () => {
       // Click to show audit
       await viewAuditBtn.click();
 
-      // Delegation Report heading should appear (from Audit component)
-      await expect(page.getByText("Delegation Report")).toBeVisible({
+      // Permission Report heading should appear (from Audit component)
+      await expect(page.getByText("Permission Report")).toBeVisible({
         timeout: 5000,
       });
 
@@ -195,8 +196,8 @@ test.describe.serial("Browser Intent Lifecycle", () => {
       // Click to hide audit
       await page.getByRole("button", { name: /hide audit/i }).click();
 
-      // Delegation Report should disappear
-      await expect(page.getByText("Delegation Report")).not.toBeVisible();
+      // Permission Report should disappear
+      await expect(page.getByText("Permission Report")).not.toBeVisible();
 
       // Button text should revert to "View Audit"
       await expect(

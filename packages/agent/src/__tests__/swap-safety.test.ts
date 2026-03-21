@@ -33,7 +33,7 @@ vi.mock("../venice/llm.js", () => ({
   reasoningLlm: {},
   fastLlm: {},
 }));
-vi.mock("../delegation/redeemer.js", () => ({ redeemDelegation: vi.fn() }));
+vi.mock("../delegation/redeemer.js", () => ({ pullNativeToken: vi.fn(), pullErc20Token: vi.fn(), deploySmartAccountIfNeeded: vi.fn() }));
 vi.mock("../identity/judge.js", () => ({
   evaluateSwap: vi.fn(),
   evaluateSwapFailure: vi.fn(),

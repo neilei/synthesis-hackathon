@@ -54,7 +54,7 @@ export interface CycleGroup {
 //   8. cycle_complete  OR  cycle_error
 //
 // Additionally, budget_check only fires when budgetTier !== "normal" (rare).
-// permit2_approval, delegation_caveat_enforced, delegation_redeem_failed,
+// permit2_approval, token_pull, permissions_missing,
 // and safety_block are intermediate events that don't affect the step count.
 
 /** Milestone actions that count toward progress (in order). */

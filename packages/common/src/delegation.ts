@@ -8,7 +8,9 @@
 import type { ParsedIntent, AuditReport } from "./schemas.js";
 import { SECONDS_PER_DAY } from "./constants.js";
 
-const CONSERVATIVE_ETH_PRICE_USD = 500;
+/** Absolute floor — never price ETH below this regardless of live price. */
+export const ETH_PRICE_ABSOLUTE_FLOOR_USD = 500;
+const CONSERVATIVE_ETH_PRICE_USD = ETH_PRICE_ABSOLUTE_FLOOR_USD;
 const SAFETY_MAX_DAILY_BUDGET_USD = 1_000;
 const SAFETY_MAX_TIME_WINDOW_DAYS = 30;
 const SAFETY_MAX_SLIPPAGE = 0.02;
@@ -17,31 +19,54 @@ const SAFETY_MAX_SLIPPAGE = 0.02;
 // Delegation parameter computation
 // ---------------------------------------------------------------------------
 
-/**
- * Compute the maximum ETH value (in wei) a single delegation call can send.
- * Uses a conservative ETH price floor to ensure the budget covers the worst case.
- */
-export function computeMaxValueWei(
-  dailyBudgetUsd: number,
-  timeWindowDays: number,
-  conservativeEthPrice = CONSERVATIVE_ETH_PRICE_USD,
-): bigint {
-  const totalBudgetEth =
-    (dailyBudgetUsd * timeWindowDays) / conservativeEthPrice;
-  return BigInt(Math.ceil(totalBudgetEth * 1e18));
-}
-
 /** Compute delegation expiry as unix timestamp (seconds). */
 export function computeExpiryTimestamp(timeWindowDays: number): number {
   return Math.floor(Date.now() / 1000) + timeWindowDays * SECONDS_PER_DAY;
 }
 
-/** Compute max total calls allowed over the delegation lifetime. */
-export function computeMaxCalls(
-  maxTradesPerDay: number,
-  timeWindowDays: number,
+/**
+ * Compute a conservative ETH price floor from a live price.
+ * Halves the live price to give headroom for drops, but never goes
+ * below ETH_PRICE_ABSOLUTE_FLOOR_USD ($500).
+ *
+ * Users can override this in their intent prompt:
+ *   "... with ETH floor price $1500" → pass as ethPriceFloor
+ *   "... with ETH price $2000"       → pass as liveEthPrice
+ */
+export function computeConservativeEthPrice(
+  liveEthPrice?: number,
+  ethPriceFloor?: number,
 ): number {
-  return maxTradesPerDay * timeWindowDays;
+  if (ethPriceFloor != null) {
+    return Math.max(ethPriceFloor, ETH_PRICE_ABSOLUTE_FLOOR_USD);
+  }
+  if (liveEthPrice != null) {
+    return Math.max(liveEthPrice / 2, ETH_PRICE_ABSOLUTE_FLOOR_USD);
+  }
+  return CONSERVATIVE_ETH_PRICE_USD;
+}
+
+/**
+ * Compute the token amount per period for an ERC-7715 periodic permission.
+ * For ETH: converts daily USD budget to wei using a conservative price.
+ *   - If liveEthPrice is provided, uses livePrice/2 (never below $500 floor).
+ *   - If ethPriceFloor is provided, uses that directly (never below $500).
+ *   - Otherwise falls back to $500.
+ * For USDC: converts daily USD budget to USDC units (6 decimals).
+ */
+export function computePeriodAmount(
+  dailyBudgetUsd: number,
+  token: "ETH" | "USDC",
+  liveEthPrice?: number,
+  ethPriceFloor?: number,
+): bigint {
+  if (dailyBudgetUsd === 0) return 0n;
+  if (token === "USDC") {
+    return BigInt(Math.ceil(dailyBudgetUsd * 1e6));
+  }
+  const price = computeConservativeEthPrice(liveEthPrice, ethPriceFloor);
+  const ethAmount = dailyBudgetUsd / price;
+  return BigInt(Math.ceil(ethAmount * 1e18));
 }
 
 // ---------------------------------------------------------------------------

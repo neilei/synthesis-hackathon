@@ -72,8 +72,9 @@ test.describe("Full Intent Lifecycle", () => {
       data: {
         intentText: "E2E test: 60/40 ETH/USDC, $100/day, 7 days",
         parsedIntent: VALID_PARSED_INTENT,
-        signedDelegation: "0xdeadbeef_e2e_test",
-        delegatorSmartAccount: "0x0000000000000000000000000000000000E2E001",
+        permissions: "[{\"type\":\"native-token-periodic\",\"context\":\"0xdeadbeef_e2e_test\",\"token\":\"ETH\"}]",
+        delegationManager: "0x0000000000000000000000000000000000E2E001",
+        dependencies: "[]",
       },
     });
 

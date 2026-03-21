@@ -41,9 +41,9 @@ export function Audit({ data, onViewMonitor }: AuditProps) {
           </CardFooter>
         </Card>
 
-        {/* RIGHT COLUMN — Delegation Report */}
+        {/* RIGHT COLUMN — Permission Report */}
         <Card className="p-5">
-          <SectionHeading>Delegation Report</SectionHeading>
+          <SectionHeading>Permission Report</SectionHeading>
 
           {audit ? (
             <div className="mt-5">
@@ -51,7 +51,7 @@ export function Audit({ data, onViewMonitor }: AuditProps) {
             </div>
           ) : (
             <p className="mt-5 text-sm text-text-secondary">
-              No delegation audit available for this strategy. Try adjusting your intent.
+              No permission audit available for this strategy. Try adjusting your intent.
             </p>
           )}
 

@@ -10,17 +10,12 @@ import { AIMessage } from "@langchain/core/messages";
 import type { Address } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { sepolia, base } from "viem/chains";
-import type { Delegation, MetaMaskSmartAccount } from "@metamask/smart-accounts-kit";
-
 import { env } from "../config.js";
 import type { IntentParse } from "../venice/schemas.js";
 import { RebalanceDecisionSchema } from "../venice/schemas.js";
 import { reasoningLlm, fastLlm, FAST_MODEL, RESEARCH_MODEL, REASONING_MODEL } from "../venice/llm.js";
 import { detectAdversarialIntent } from "@veil/common";
-import {
-  compileIntent,
-  createDelegationFromIntent,
-} from "../delegation/compiler.js";
+import { compileIntent } from "../delegation/compiler.js";
 import { generateDetailedAudit, type DetailedAuditReport } from "../delegation/audit.js";
 import { logAction, logStart, logStop } from "../logging/agent-log.js";
 import { getBudgetTier } from "../logging/budget.js";
@@ -43,11 +38,16 @@ export { executeSwap, resolveTokenAddress } from "./swap.js";
 
 export interface AgentConfig {
   intent: IntentParse;
-  delegatorKey: `0x${string}`;
   agentKey: `0x${string}`;
   chainId: number;
   intervalMs: number;
-  maxCycles?: number; // for demo mode — stop after N cycles
+  /** ERC-7715 permissions granted by user in MetaMask Flask */
+  permissions: { type: string; context: string; token: string }[];
+  /** DelegationManager contract address from permission response */
+  delegationManager: string;
+  /** Factory deployment info for user's smart account */
+  dependencies: { factory: string; factoryData: string }[];
+  maxCycles?: number;
   /** Signal to abort the loop from outside (e.g. worker stop) */
   signal?: AbortSignal;
   /** Called after each cycle with the current state for external persistence */
@@ -69,8 +69,9 @@ export interface AgentConfig {
 }
 
 export interface AgentState {
-  delegation: Delegation | null;
-  delegatorSmartAccount: MetaMaskSmartAccount | null;
+  permissions: { type: string; context: string; token: string }[];
+  delegationManager: string;
+  dependencies: { factory: string; factoryData: string }[];
   tradesExecuted: number;
   totalSpentUsd: number;
   running: boolean;
@@ -119,8 +120,9 @@ export async function runAgentLoop(config: AgentConfig): Promise<AgentState> {
   const chain = config.chainId === 8453 ? base : sepolia;
 
   const state: AgentState = {
-    delegation: null,
-    delegatorSmartAccount: null,
+    permissions: config.permissions,
+    delegationManager: config.delegationManager,
+    dependencies: config.dependencies,
     tradesExecuted: config.initialTradesExecuted ?? 0,
     totalSpentUsd: config.initialTotalSpentUsd ?? 0,
     running: true,
@@ -266,57 +268,40 @@ export async function runAgentLoop(config: AgentConfig): Promise<AgentState> {
     });
   }
 
-  // --- Step 2: Create delegation ---
-  logger.info("Creating delegation...");
-  const startDelegation = Date.now();
-  try {
-    const delegationResult = await createDelegationFromIntent(
-      config.intent,
-      config.delegatorKey,
-      agentAddress,
-      config.chainId,
-    );
-    state.delegation = delegationResult.delegation;
-    state.delegatorSmartAccount = delegationResult.delegatorSmartAccount;
-    logAction("delegation_created", {
-      tool: "metamask-delegation",
-      duration_ms: Date.now() - startDelegation,
-      result: {
-        delegate: agentAddress,
-        delegator: "delegator" in state.delegation ? state.delegation.delegator : "unknown",
-        signature: state.delegation.signature?.slice(0, 20) + "...",
-        caveatsCount:
-          "caveats" in state.delegation && Array.isArray(state.delegation.caveats)
-            ? state.delegation.caveats.length
-            : 0,
-      },
-    });
-    config.intentLogger?.log("delegation_created", {
-      tool: "metamask-delegation",
-      duration_ms: Date.now() - startDelegation,
-      result: {
-        delegate: agentAddress,
-        caveatsCount:
-          "caveats" in state.delegation && Array.isArray(state.delegation.caveats)
-            ? state.delegation.caveats.length
-            : 0,
-      },
-    });
-    logger.info(
-      `Delegation signed: ${state.delegation.signature?.slice(0, 20)}...`,
-    );
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    logAction("delegation_failed", { error: msg });
-    config.intentLogger?.log("delegation_failed", { error: msg });
-    logger.error({ err }, "Failed to create delegation");
+  // --- Step 2: Verify ERC-7715 permissions ---
+  logger.info("Loading ERC-7715 permissions from user grant...");
+  if (state.permissions.length === 0) {
+    const msg = "No ERC-7715 permissions granted — cannot pull tokens from user.";
+    logger.error(msg);
     state.deployError = msg;
-    logStop("delegation_failed");
+    state.running = false;
+    logAction("permissions_missing", { error: msg });
+    config.intentLogger?.log("permissions_missing", { error: msg });
     return state;
   }
 
+  logAction("permissions_loaded", {
+    tool: "metamask-erc7715",
+    result: {
+      permissionCount: state.permissions.length,
+      types: state.permissions.map((p) => p.type),
+      delegationManager: state.delegationManager,
+      dependencyCount: state.dependencies.length,
+    },
+  });
+  config.intentLogger?.log("permissions_loaded", {
+    tool: "metamask-erc7715",
+    result: {
+      permissionCount: state.permissions.length,
+      types: state.permissions.map((p) => p.type),
+    },
+  });
+  logger.info(
+    `Loaded ${state.permissions.length} permission(s): ${state.permissions.map((p) => p.type).join(", ")}`,
+  );
+
   // --- Step 3: Audit report ---
-  const report = generateDetailedAudit(config.intent, state.delegation);
+  const report = generateDetailedAudit(config.intent);
   state.audit = report;
   logger.info("\n" + report.formatted);
   logAction("audit_report", {
@@ -617,22 +602,22 @@ export async function startFromCli(
   intentText: string,
   maxCycles?: number,
 ): Promise<void> {
-  if (!env.DELEGATOR_PRIVATE_KEY) {
-    throw new Error("DELEGATOR_PRIVATE_KEY is not set — cannot start agent without it. Set it in .env and restart.");
-  }
-
-  const delegatorKey = env.DELEGATOR_PRIVATE_KEY;
-
   logger.info("Parsing intent via Venice...");
   const intent = await compileIntent(intentText);
   logger.info({ intent }, "Parsed intent");
 
+  // CLI mode uses empty permissions — the real flow is browser-based via MetaMask Flask.
+  // This is for local testing only.
+  logger.warn("CLI mode: no ERC-7715 permissions — agent will run without token pulls.");
+
   await runAgentLoop({
     intent,
-    delegatorKey,
     agentKey: env.AGENT_PRIVATE_KEY,
-    chainId: 11155111, // Sepolia default
-    intervalMs: 60_000, // 1 minute for demo
+    chainId: 11155111,
+    intervalMs: 60_000,
+    permissions: [],
+    delegationManager: "",
+    dependencies: [],
     maxCycles,
   });
 }

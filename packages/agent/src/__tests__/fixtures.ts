@@ -17,22 +17,3 @@ export function makeIntent(overrides: Partial<IntentParse> = {}): IntentParse {
   };
 }
 
-/** Create a sample delegation object for audit tests. */
-export function makeSampleDelegation(overrides: Record<string, unknown> = {}) {
-  return {
-    delegate: "0xagent",
-    delegator: "0xdelegator",
-    authority:
-      "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-    caveats: [
-      {
-        enforcer: "0x1234",
-        terms: "0x",
-        args: "0x",
-      },
-    ],
-    salt: "0x01",
-    signature: "0xsigned",
-    ...overrides,
-  };
-}
