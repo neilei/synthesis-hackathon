@@ -978,10 +978,7 @@ export function usePermissions() {
           permissionRequests.push({
             chainId: walletClient.chain.id,
             expiry,
-            signer: {
-              type: "account" as const,
-              data: { address: AGENT_ADDRESS },
-            },
+            to: AGENT_ADDRESS as `0x${string}`,
             isAdjustmentAllowed: true,
             permission: {
               type: "native-token-periodic" as const,
@@ -1002,10 +999,7 @@ export function usePermissions() {
           permissionRequests.push({
             chainId: walletClient.chain.id,
             expiry,
-            signer: {
-              type: "account" as const,
-              data: { address: AGENT_ADDRESS },
-            },
+            to: AGENT_ADDRESS as `0x${string}`,
             isAdjustmentAllowed: true,
             permission: {
               type: "erc20-token-periodic" as const,
