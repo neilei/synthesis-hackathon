@@ -1,26 +1,22 @@
 /**
- * Unit tests for delegation redemption: smart account deployment, funding, and redeem encoding.
+ * Unit tests for ERC-7710 pull functions via erc7710WalletActions.
  *
  * @module @veil/agent/delegation/redeemer.test
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import type { Hex } from "viem";
+import type { Hex, Address } from "viem";
 
 // Use vi.hoisted so mock fns are available inside vi.mock factories
 const {
   mockSendTransaction,
+  mockSendTransactionWithDelegation,
   mockGetCode,
-  mockGetBalance,
   mockWaitForTransactionReceipt,
-  mockEstimateGas,
 } = vi.hoisted(() => ({
-  mockSendTransaction: vi.fn().mockResolvedValue("0xTxHash"),
+  mockSendTransaction: vi.fn().mockResolvedValue("0xDeployTx" as Hex),
+  mockSendTransactionWithDelegation: vi.fn().mockResolvedValue("0xPullTx" as Hex),
   mockGetCode: vi.fn().mockResolvedValue("0x1234"),
-  mockGetBalance: vi.fn().mockResolvedValue(1000000000000000000n), // 1 ETH
-  mockWaitForTransactionReceipt: vi
-    .fn()
-    .mockResolvedValue({ status: "success" }),
-  mockEstimateGas: vi.fn().mockResolvedValue(21000n),
+  mockWaitForTransactionReceipt: vi.fn().mockResolvedValue({ status: "success" }),
 }));
 
 vi.mock("viem", async (importOriginal) => {
@@ -31,12 +27,13 @@ vi.mock("viem", async (importOriginal) => {
       account: { address: "0xAgentAddress" },
       chain: { id: 1, name: "mock" },
       sendTransaction: mockSendTransaction,
+      extend: vi.fn().mockReturnValue({
+        sendTransactionWithDelegation: mockSendTransactionWithDelegation,
+      }),
     }),
     createPublicClient: vi.fn().mockReturnValue({
       getCode: mockGetCode,
-      getBalance: mockGetBalance,
       waitForTransactionReceipt: mockWaitForTransactionReceipt,
-      estimateGas: mockEstimateGas,
     }),
     http: vi.fn().mockReturnValue("http-transport"),
   };
@@ -49,86 +46,57 @@ vi.mock("viem/accounts", () => ({
   }),
 }));
 
-// --- Mock @metamask/smart-accounts-kit ---
-vi.mock("@metamask/smart-accounts-kit", () => ({
-  createExecution: vi.fn().mockReturnValue({
-    target: "0xTarget",
-    callData: "0xCalldata",
-    value: 0n,
-  }),
-  ExecutionMode: { SingleDefault: "0x00" },
-  getSmartAccountsEnvironment: vi.fn().mockReturnValue({
-    DelegationManager: "0xMockDelegationManager",
-  }),
+vi.mock("@metamask/smart-accounts-kit/actions", () => ({
+  erc7710WalletActions: vi.fn().mockReturnValue(vi.fn()),
 }));
 
-// --- Mock @metamask/smart-accounts-kit/contracts ---
-vi.mock("@metamask/smart-accounts-kit/contracts", () => ({
-  DelegationManager: {
-    encode: {
-      redeemDelegations: vi.fn().mockReturnValue("0xRedeemCalldata"),
-    },
-  },
+vi.mock("../../config.js", () => ({
+  rpcTransport: vi.fn().mockReturnValue("http-transport"),
 }));
-vi.mock("../../config.js", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../../config.js")>();
-  return {
-    ...actual,
-    rpcTransport: vi.fn().mockReturnValue("http-transport"),
-  };
-});
+
 vi.mock("../../logging/logger.js", () => ({
   logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn(), debug: vi.fn() },
 }));
 
-import { createExecution, ExecutionMode } from "@metamask/smart-accounts-kit";
-import { DelegationManager } from "@metamask/smart-accounts-kit/contracts";
 import {
-  redeemDelegation,
-  deployDelegatorIfNeeded,
-  fundDelegatorIfNeeded,
-  type RedeemParams,
+  pullNativeToken,
+  pullErc20Token,
+  deploySmartAccountIfNeeded,
 } from "../redeemer.js";
+
+const chain = { id: 11155111, name: "sepolia" } as Parameters<typeof pullNativeToken>[0]["chain"];
 
 beforeEach(() => {
   vi.clearAllMocks();
-  // Default: account is deployed and has enough balance
-  mockGetCode.mockResolvedValue("0x1234");
-  mockGetBalance.mockResolvedValue(1000000000000000000n);
+  mockGetCode.mockResolvedValue("0x1234"); // default: deployed
+  mockSendTransactionWithDelegation.mockResolvedValue("0xPullTx" as Hex);
 });
 
-describe("deployDelegatorIfNeeded", () => {
-  const mockSmartAccount = {
-    address: "0xSmartAccountAddress",
-    getFactoryArgs: vi.fn().mockResolvedValue({
-      factory: "0xFactory",
-      factoryData: "0xFactoryData",
-    }),
-  } as any;
-  const chain = { id: 1, name: "mainnet" } as any;
-
+describe("deploySmartAccountIfNeeded", () => {
   it("returns null if smart account is already deployed", async () => {
     mockGetCode.mockResolvedValue("0x1234");
-    const result = await deployDelegatorIfNeeded(
-      mockSmartAccount,
-      "0xabc123" as `0x${string}`,
+    const result = await deploySmartAccountIfNeeded({
+      agentKey: "0xabc123" as `0x${string}`,
       chain,
-    );
+      smartAccountAddress: "0xSmartAccount" as Address,
+      dependencies: [],
+    });
     expect(result).toBeNull();
   });
 
-  it("deploys smart account if not deployed", async () => {
+  it("deploys using first dependency factory if not deployed", async () => {
     mockGetCode.mockResolvedValue("0x");
-    mockSendTransaction.mockResolvedValueOnce("0xDeployTx");
-    mockWaitForTransactionReceipt.mockResolvedValueOnce({
-      status: "success",
-    });
+    mockSendTransaction.mockResolvedValueOnce("0xDeployTx" as Hex);
+    mockWaitForTransactionReceipt.mockResolvedValueOnce({ status: "success" });
 
-    const result = await deployDelegatorIfNeeded(
-      mockSmartAccount,
-      "0xabc123" as `0x${string}`,
+    const result = await deploySmartAccountIfNeeded({
+      agentKey: "0xabc123" as `0x${string}`,
       chain,
-    );
+      smartAccountAddress: "0xSmartAccount" as Address,
+      dependencies: [
+        { factory: "0xFactory" as Address, factoryData: "0xFactoryData" as Hex },
+      ],
+    });
 
     expect(result).toBe("0xDeployTx");
     expect(mockSendTransaction).toHaveBeenCalledWith(
@@ -139,178 +107,83 @@ describe("deployDelegatorIfNeeded", () => {
     );
   });
 
+  it("throws if not deployed and no dependencies", async () => {
+    mockGetCode.mockResolvedValue("0x");
+    await expect(
+      deploySmartAccountIfNeeded({
+        agentKey: "0xabc123" as `0x${string}`,
+        chain,
+        smartAccountAddress: "0xSmartAccount" as Address,
+        dependencies: [],
+      }),
+    ).rejects.toThrow("no dependencies provided");
+  });
+
   it("throws if deployment receipt is not success", async () => {
     mockGetCode.mockResolvedValue("0x");
-    mockSendTransaction.mockResolvedValueOnce("0xDeployTx");
-    mockWaitForTransactionReceipt.mockResolvedValueOnce({
-      status: "reverted",
-    });
+    mockSendTransaction.mockResolvedValueOnce("0xDeployTx" as Hex);
+    mockWaitForTransactionReceipt.mockResolvedValueOnce({ status: "reverted" });
 
     await expect(
-      deployDelegatorIfNeeded(
-        mockSmartAccount,
-        "0xabc123" as `0x${string}`,
+      deploySmartAccountIfNeeded({
+        agentKey: "0xabc123" as `0x${string}`,
         chain,
-      ),
-    ).rejects.toThrow("Smart account deployment failed");
+        smartAccountAddress: "0xSmartAccount" as Address,
+        dependencies: [
+          { factory: "0xFactory" as Address, factoryData: "0xFactoryData" as Hex },
+        ],
+      }),
+    ).rejects.toThrow("deployment failed");
   });
 });
 
-describe("fundDelegatorIfNeeded", () => {
-  const mockSmartAccount = {
-    address: "0xSmartAccountAddress",
-  } as any;
-  const chain = { id: 1, name: "mainnet" } as any;
-
-  it("returns null if balance is sufficient", async () => {
-    mockGetBalance.mockResolvedValue(2000000000000000000n); // 2 ETH
-    const result = await fundDelegatorIfNeeded(
-      mockSmartAccount,
-      "0xabc123" as `0x${string}`,
+describe("pullNativeToken", () => {
+  it("calls sendTransactionWithDelegation with correct params", async () => {
+    const result = await pullNativeToken({
+      agentKey: "0xabc123" as `0x${string}`,
       chain,
-      1000000000000000000n, // need 1 ETH
-    );
-    expect(result).toBeNull();
-  });
-
-  it("transfers deficit if balance is insufficient", async () => {
-    mockGetBalance.mockResolvedValue(0n);
-    mockSendTransaction.mockResolvedValueOnce("0xFundTx");
-    mockWaitForTransactionReceipt.mockResolvedValueOnce({
-      status: "success",
+      agentAddress: "0xAgentAddress" as Address,
+      amount: 100000000000000000n,
+      permissionsContext: "0xdeadbeef" as Hex,
+      delegationManager: "0xDelegationManager" as Address,
     });
 
-    const result = await fundDelegatorIfNeeded(
-      mockSmartAccount,
-      "0xabc123" as `0x${string}`,
-      chain,
-      1000000000000000000n, // need 1 ETH
-    );
-
-    expect(result).toBe("0xFundTx");
-    expect(mockSendTransaction).toHaveBeenCalledWith(
+    expect(mockSendTransactionWithDelegation).toHaveBeenCalledWith(
       expect.objectContaining({
-        to: "0xSmartAccountAddress",
+        to: "0xAgentAddress",
+        data: "0x",
+        value: 100000000000000000n,
+        permissionsContext: "0xdeadbeef",
+        delegationManager: "0xDelegationManager",
       }),
     );
-  });
-
-  it("throws if funding tx fails", async () => {
-    mockGetBalance.mockResolvedValue(0n);
-    mockSendTransaction.mockResolvedValueOnce("0xFundTx");
-    mockWaitForTransactionReceipt.mockResolvedValueOnce({
-      status: "reverted",
-    });
-
-    await expect(
-      fundDelegatorIfNeeded(
-        mockSmartAccount,
-        "0xabc123" as `0x${string}`,
-        chain,
-        1000000000000000000n,
-      ),
-    ).rejects.toThrow("Funding delegator smart account failed");
+    expect(result).toBe("0xPullTx");
   });
 });
 
-describe("redeemDelegation", () => {
-  const mockDelegation = {
-    delegator: "0xDelegator",
-    delegate: "0xDelegate",
-    authority: "0x0",
-    caveats: [],
-    salt: 0n,
-    signature: "0xSig",
-  } as any;
-
-  const mockSmartAccount = {
-    address: "0xSmartAccountAddress",
-    getFactoryArgs: vi.fn().mockResolvedValue({
-      factory: "0xFactory",
-      factoryData: "0xFactoryData",
-    }),
-  } as any;
-
-  const chain = { id: 1, name: "mainnet" } as any;
-
-  function makeRedeemParams(
-    callOverrides: Partial<RedeemParams["call"]> = {},
-  ): RedeemParams {
-    return {
-      delegation: mockDelegation,
-      delegatorSmartAccount: mockSmartAccount,
-      call: { to: "0xTargetContract" as Hex, ...callOverrides },
-    };
-  }
-
-  it("calls createExecution with the correct call params", async () => {
-    const params = makeRedeemParams({ data: "0xCalldata" as Hex, value: 100n });
-
-    await redeemDelegation("0xabc123" as `0x${string}`, chain, params);
-
-    expect(createExecution).toHaveBeenCalledWith({
-      target: "0xTargetContract",
-      callData: "0xCalldata",
-      value: 100n,
+describe("pullErc20Token", () => {
+  it("encodes transfer() calldata for ERC-20 pull", async () => {
+    const result = await pullErc20Token({
+      agentKey: "0xabc123" as `0x${string}`,
+      chain,
+      agentAddress: "0xf13021F02E23a8113C1bD826575a1682F6Fac927" as Address,
+      tokenAddress: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238" as Address,
+      amount: 200000000n,
+      permissionsContext: "0xdeadbeef" as Hex,
+      delegationManager: "0xDelegationManager" as Address,
     });
-  });
 
-  it("calls DelegationManager.encode.redeemDelegations", async () => {
-    const params = makeRedeemParams({ data: "0xCalldata" as Hex, value: 100n });
-
-    await redeemDelegation("0xabc123" as `0x${string}`, chain, params);
-
-    expect(DelegationManager.encode.redeemDelegations).toHaveBeenCalledWith({
-      delegations: [[mockDelegation]],
-      modes: [ExecutionMode.SingleDefault],
-      executions: [[expect.any(Object)]],
-    });
-  });
-
-  it("sends tx to DelegationManager with encoded calldata", async () => {
-    const params = makeRedeemParams();
-
-    await redeemDelegation("0xabc123" as `0x${string}`, chain, params);
-
-    expect(mockSendTransaction).toHaveBeenCalledWith(
+    expect(mockSendTransactionWithDelegation).toHaveBeenCalledWith(
       expect.objectContaining({
-        to: "0xMockDelegationManager",
-        data: "0xRedeemCalldata",
+        to: "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+        value: 0n,
+        permissionsContext: "0xdeadbeef",
+        delegationManager: "0xDelegationManager",
       }),
     );
-  });
-
-  it("returns the transaction hash", async () => {
-    const params = makeRedeemParams();
-
-    const txHash = await redeemDelegation(
-      "0xabc123" as `0x${string}`,
-      chain,
-      params,
-    );
-    expect(txHash).toBe("0xTxHash");
-  });
-
-  it("uses default data (0x) and value (0n) when not provided", async () => {
-    const params = makeRedeemParams();
-
-    await redeemDelegation("0xabc123" as `0x${string}`, chain, params);
-
-    expect(createExecution).toHaveBeenCalledWith({
-      target: "0xTargetContract",
-      callData: "0x",
-      value: 0n,
-    });
-  });
-
-  it("funds delegator if call has ETH value and balance is insufficient", async () => {
-    mockGetBalance.mockResolvedValue(0n); // Smart account has no ETH
-
-    const params = makeRedeemParams({ value: 1000000000000000n });
-
-    await redeemDelegation("0xabc123" as `0x${string}`, chain, params);
-
-    // Should have called sendTransaction at least twice: fund + redeem
-    expect(mockSendTransaction).toHaveBeenCalledTimes(2);
+    // Verify data starts with transfer() selector (0xa9059cbb)
+    const call = mockSendTransactionWithDelegation.mock.calls[0][0];
+    expect(call.data.startsWith("0xa9059cbb")).toBe(true);
+    expect(result).toBe("0xPullTx");
   });
 });
