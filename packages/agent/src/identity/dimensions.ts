@@ -4,7 +4,7 @@
  * The schema builder creates a Zod schema dynamically from dimensions,
  * which is used as structured output for Venice LLM evaluation.
  *
- * @module @veil/agent/identity/dimensions
+ * @module @maw/agent/identity/dimensions
  */
 import { z } from "zod";
 

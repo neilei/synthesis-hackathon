@@ -2,7 +2,7 @@
  * Venice API budget tracker. Captures x-venice-balance-usd headers to determine
  * budget tier (normal/conservation/critical).
  *
- * @module @veil/agent/logging/budget
+ * @module @maw/agent/logging/budget
  */
 let lastKnownBalance: number | null = null;
 let totalCallCount = 0;

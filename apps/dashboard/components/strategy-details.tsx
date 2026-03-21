@@ -1,5 +1,5 @@
-import { formatPercentage } from "@veil/common";
-import type { ParsedIntent } from "@veil/common";
+import { formatPercentage } from "@maw/common";
+import type { ParsedIntent } from "@maw/common";
 
 interface StrategyDetailsProps {
   parsed: ParsedIntent;

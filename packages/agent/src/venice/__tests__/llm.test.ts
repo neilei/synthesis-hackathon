@@ -2,7 +2,7 @@
  * Unit tests for Venice LLM configuration — verifies model names,
  * venice_parameters (web search, web scraping, thinking), and tier separation.
  *
- * @module @veil/agent/venice/llm.test
+ * @module @maw/agent/venice/llm.test
  */
 import { describe, it, expect, vi, beforeAll } from "vitest";
 
@@ -122,12 +122,12 @@ describe("Venice LLM configuration", () => {
   it("research tier has prompt_cache_key set", () => {
     const research = constructorCalls[1]!;
     const kwargs = research.modelKwargs as { venice_parameters: Record<string, unknown> };
-    expect(kwargs.venice_parameters.prompt_cache_key).toBe("veil-research");
+    expect(kwargs.venice_parameters.prompt_cache_key).toBe("maw-research");
   });
 
   it("reasoning tier has prompt_cache_key set", () => {
     const reasoning = constructorCalls[2]!;
     const kwargs = reasoning.modelKwargs as { venice_parameters: Record<string, unknown> };
-    expect(kwargs.venice_parameters.prompt_cache_key).toBe("veil-reasoning");
+    expect(kwargs.venice_parameters.prompt_cache_key).toBe("maw-reasoning");
   });
 });

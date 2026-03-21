@@ -16,7 +16,7 @@
  *
  * The agent wallet must have USDC on Sepolia for this test to work.
  *
- * @module @veil/agent/__tests__/swap-permit2.e2e.test
+ * @module @maw/agent/__tests__/swap-permit2.e2e.test
  */
 import { describe, it, expect } from "vitest";
 import {
@@ -208,7 +208,7 @@ describe("ERC-8004 registration + validation request e2e", () => {
   let agentId: bigint | undefined;
 
   it("registers a fresh agent identity on Base Sepolia", async () => {
-    const testURI = `https://api.veil.moe/api/intents/e2e-test-${Date.now()}/identity.json`;
+    const testURI = `https://api.maw.finance/api/intents/e2e-test-${Date.now()}/identity.json`;
     const result = await registerAgent(testURI, "base-sepolia");
 
     expect(result.txHash).toBeTruthy();
@@ -236,7 +236,7 @@ describe("ERC-8004 registration + validation request e2e", () => {
 
     const testEvidence = { test: true, timestamp: new Date().toISOString() };
     const requestHash = keccak256(toHex(JSON.stringify(testEvidence)));
-    const requestURI = `https://api.veil.moe/api/evidence/e2e-test/${requestHash}`;
+    const requestURI = `https://api.maw.finance/api/evidence/e2e-test/${requestHash}`;
 
     // This was failing with "Not authorized" when using a stale agentId.
     // With a fresh registration, the agent wallet owns this agentId.

@@ -1,7 +1,7 @@
 /**
  * Next.js application configuration.
  *
- * @module @veil/dashboard/next.config
+ * @module @maw/dashboard/next.config
  */
 import type { NextConfig } from "next";
 

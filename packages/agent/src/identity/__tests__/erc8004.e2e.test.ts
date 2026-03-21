@@ -8,7 +8,7 @@
  * Hits real Base Sepolia RPC — no mocks. Wallet must be funded with ETH on
  * Base Sepolia for write operations.
  *
- * @module @veil/agent/identity/erc8004.e2e.test
+ * @module @maw/agent/identity/erc8004.e2e.test
  */
 import { describe, it, expect } from "vitest";
 import {
@@ -25,7 +25,7 @@ import { baseSepolia } from "viem/chains";
 import {
   IDENTITY_REGISTRY_ABI_HUMAN,
   REPUTATION_REGISTRY_ABI_HUMAN,
-} from "@veil/common";
+} from "@maw/common";
 import { env, CONTRACTS, rpcTransport } from "../../config.js";
 
 // ---------------------------------------------------------------------------
@@ -145,7 +145,7 @@ describe("ERC-8004 ABI E2E (Base Sepolia)", () => {
   });
 
   it("setMetadata writes a key-value pair on an agent we own", async () => {
-    const metadataValue = toHex("veil-e2e-test");
+    const metadataValue = toHex("maw-e2e-test");
 
     const hash = await walletClient.writeContract({
       address: identityAddress,

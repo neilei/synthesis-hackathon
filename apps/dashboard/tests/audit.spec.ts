@@ -6,7 +6,7 @@
  * Playwright, we test the Audit component's rendering by verifying the preview
  * step in Configure shows the same audit report data inline.
  *
- * @module @veil/dashboard/tests/audit.spec
+ * @module @maw/dashboard/tests/audit.spec
  */
 import { test, expect } from "@playwright/test";
 

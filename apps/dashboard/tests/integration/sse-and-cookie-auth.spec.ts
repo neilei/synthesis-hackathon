@@ -2,20 +2,20 @@
  * Integration tests for SSE activity feed and cookie-based auth.
  *
  * Tests the real server endpoints:
- * - POST /api/auth/verify sets HttpOnly veil_token cookie
+ * - POST /api/auth/verify sets HttpOnly maw_token cookie
  * - GET /api/intents/:id/events authenticates via cookie (SSE)
  * - GET /api/intents/:id returns logs from SQLite
  * - CORS includes Access-Control-Allow-Credentials: true
  *
  * Run:
- *   INTEGRATION=1 pnpm --filter @veil/dashboard test:e2e --project integration -g "SSE and Cookie Auth"
+ *   INTEGRATION=1 pnpm --filter @maw/dashboard test:e2e --project integration -g "SSE and Cookie Auth"
  *
- * @module @veil/dashboard/tests/integration/sse-and-cookie-auth.spec
+ * @module @maw/dashboard/tests/integration/sse-and-cookie-auth.spec
  */
 import { test, expect } from "@playwright/test";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 
-const BASE_URL = process.env.DEPLOYED_URL ?? "https://api.veil.moe";
+const BASE_URL = process.env.DEPLOYED_URL ?? "https://api.maw.finance";
 
 const VALID_PARSED_INTENT = {
   targetAllocation: { ETH: 0.6, USDC: 0.4 },
@@ -48,7 +48,7 @@ test.describe.serial("SSE and Cookie Auth", () => {
     const { nonce } = await nonceRes.json();
 
     // Sign and verify
-    const message = `Sign this message to authenticate with Veil.\n\nNonce: ${nonce}`;
+    const message = `Sign this message to authenticate with Maw.\n\nNonce: ${nonce}`;
     const signature = await account.signMessage({ message });
 
     const verifyRes = await request.post(`${BASE_URL}/api/auth/verify`, {
@@ -63,7 +63,7 @@ test.describe.serial("SSE and Cookie Auth", () => {
     // Verify Set-Cookie header is present
     const setCookie = verifyRes.headers()["set-cookie"];
     expect(setCookie).toBeDefined();
-    expect(setCookie).toContain("veil_token=");
+    expect(setCookie).toContain("maw_token=");
     expect(setCookie).toContain("HttpOnly");
     expect(setCookie).toContain("Path=/api");
   });
@@ -177,7 +177,7 @@ test.describe.serial("SSE and Cookie Auth", () => {
   test("step 7: CORS includes credentials header", async ({ request }) => {
     const res = await request.fetch(`${BASE_URL}/api/auth/nonce?wallet=0x1`, {
       method: "GET",
-      headers: { Origin: "https://veil.moe" },
+      headers: { Origin: "https://maw.finance" },
     });
 
     const corsCredentials =

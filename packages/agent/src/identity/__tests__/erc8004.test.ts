@@ -1,7 +1,7 @@
 /**
  * Unit tests for ERC-8004 identity registration and reputation feedback.
  *
- * @module @veil/agent/identity/erc8004.test
+ * @module @maw/agent/identity/erc8004.test
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Address, Hex } from "viem";

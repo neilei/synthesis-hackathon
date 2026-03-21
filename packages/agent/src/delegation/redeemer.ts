@@ -7,7 +7,7 @@
  * 1. Pull tokens from user's smart account → agent EOA (via delegation)
  * 2. Swap from agent EOA on Uniswap (no delegation involved)
  *
- * @module @veil/agent/delegation/redeemer
+ * @module @maw/agent/delegation/redeemer
  */
 import {
   createWalletClient,

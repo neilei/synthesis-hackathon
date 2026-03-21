@@ -2,7 +2,7 @@
  * Zod validation schemas for Uniswap Trading API responses.
  * These validate external API data before it enters the agent.
  *
- * @module @veil/agent/uniswap/schemas
+ * @module @maw/agent/uniswap/schemas
  */
 import { z } from "zod";
 import type { Hex } from "viem";

@@ -1,7 +1,7 @@
 /**
  * Unit tests for ERC-7710 pull functions via erc7710WalletActions.
  *
- * @module @veil/agent/delegation/redeemer.test
+ * @module @maw/agent/delegation/redeemer.test
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Hex, Address } from "viem";

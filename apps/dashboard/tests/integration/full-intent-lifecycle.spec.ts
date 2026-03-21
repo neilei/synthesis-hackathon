@@ -5,17 +5,17 @@
  * Uses a random wallet (viem) to sign the nonce — no browser wallet needed.
  *
  * Run against VPS:
- *   INTEGRATION=1 DEPLOYED_URL=https://api.veil.moe pnpm --filter @veil/dashboard test:e2e --project integration -g "Full Intent Lifecycle"
+ *   INTEGRATION=1 DEPLOYED_URL=https://api.maw.finance pnpm --filter @maw/dashboard test:e2e --project integration -g "Full Intent Lifecycle"
  *
  * Run against Vercel:
- *   INTEGRATION=1 DEPLOYED_URL=https://veil.moe pnpm --filter @veil/dashboard test:e2e --project integration -g "Full Intent Lifecycle"
+ *   INTEGRATION=1 DEPLOYED_URL=https://maw.finance pnpm --filter @maw/dashboard test:e2e --project integration -g "Full Intent Lifecycle"
  *
- * @module @veil/dashboard/tests/integration/full-intent-lifecycle.spec
+ * @module @maw/dashboard/tests/integration/full-intent-lifecycle.spec
  */
 import { test, expect } from "@playwright/test";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 
-const BASE_URL = process.env.DEPLOYED_URL ?? "https://api.veil.moe";
+const BASE_URL = process.env.DEPLOYED_URL ?? "https://api.maw.finance";
 
 const VALID_PARSED_INTENT = {
   targetAllocation: { ETH: 0.6, USDC: 0.4 },
@@ -51,7 +51,7 @@ test.describe("Full Intent Lifecycle", () => {
     expect(data.nonce.length).toBeGreaterThan(0);
 
     // Sign the nonce message (same format as auth.ts)
-    const message = `Sign this message to authenticate with Veil.\n\nNonce: ${data.nonce}`;
+    const message = `Sign this message to authenticate with Maw.\n\nNonce: ${data.nonce}`;
     const signature = await account.signMessage({ message });
 
     // Verify signature to get bearer token
@@ -176,7 +176,7 @@ test.describe("Full Intent Lifecycle", () => {
       `${BASE_URL}/api/auth/nonce?wallet=${otherAccount.address}`,
     );
     const { nonce } = await nonceRes.json();
-    const message = `Sign this message to authenticate with Veil.\n\nNonce: ${nonce}`;
+    const message = `Sign this message to authenticate with Maw.\n\nNonce: ${nonce}`;
     const sig = await otherAccount.signMessage({ message });
 
     const verifyRes = await request.post(`${BASE_URL}/api/auth/verify`, {

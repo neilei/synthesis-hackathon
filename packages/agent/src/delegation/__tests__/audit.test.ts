@@ -1,7 +1,7 @@
 /**
  * Unit tests for audit report generation: allows, prevents, worst-case, warnings.
  *
- * @module @veil/agent/delegation/audit.test
+ * @module @maw/agent/delegation/audit.test
  */
 import { describe, it, expect } from "vitest";
 import { generateDetailedAudit } from "../audit.js";

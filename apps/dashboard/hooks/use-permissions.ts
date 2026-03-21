@@ -5,8 +5,8 @@ import { useConfig } from "wagmi";
 import { sepolia } from "wagmi/chains";
 import { getWalletClient } from "wagmi/actions";
 import { erc7715ProviderActions, type PermissionRequestParameter } from "@metamask/smart-accounts-kit/actions";
-import type { ParsedIntent } from "@veil/common";
-import { AGENT_ADDRESS, computePeriodAmount, computeExpiryTimestamp } from "@veil/common";
+import type { ParsedIntent } from "@maw/common";
+import { AGENT_ADDRESS, computePeriodAmount, computeExpiryTimestamp } from "@maw/common";
 import { CONTRACTS } from "@/lib/contracts";
 
 export interface GrantedPermission {

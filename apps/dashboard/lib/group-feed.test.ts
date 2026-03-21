@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type { AgentLogEntry } from "@veil/common";
+import type { AgentLogEntry } from "@maw/common";
 import { groupFeedByCycle } from "./group-feed";
 
 const entry = (

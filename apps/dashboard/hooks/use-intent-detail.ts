@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import type { AgentLogEntry } from "@veil/common";
+import type { AgentLogEntry } from "@maw/common";
 import { fetchIntentDetail, type IntentRecord } from "@/lib/api";
 
 export interface IntentDetail extends IntentRecord {

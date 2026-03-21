@@ -1,4 +1,4 @@
-import type { AgentLogEntry } from "@veil/common";
+import type { AgentLogEntry } from "@maw/common";
 import type { AgentLogSelect } from "../db/repository.js";
 
 /** Actions entirely stripped from public feeds. */

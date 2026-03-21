@@ -1,4 +1,4 @@
-# Veil — Intent-Compiled Private DeFi Agent
+# Maw — Intent-Compiled Private DeFi Agent
 
 ## What This Is
 
@@ -13,7 +13,7 @@ An autonomous DeFi agent for the Synthesis Hackathon (deadline: 2026-03-22). The
 ## Project Structure (Monorepo)
 
 ```
-packages/common/    Shared types, constants, and utilities (@veil/common)
+packages/common/    Shared types, constants, and utilities (@maw/common)
 packages/agent/     Backend — agent loop, API server, all integrations
 apps/dashboard/     Frontend — Next.js dashboard (Configure, Audit, Monitor)
 docs/               Design docs, plans, research
@@ -30,7 +30,7 @@ Root `package.json` uses pnpm workspaces. Run everything from root:
 - `pnpm run codegen` — GraphQL codegen for The Graph
 - `pnpm run dev:dashboard` — Next.js dashboard dev server
 - `pnpm run build:dashboard` — build dashboard for production
-- `pnpm --filter @veil/dashboard test:e2e` — Playwright e2e tests (uses port 3200)
+- `pnpm --filter @maw/dashboard test:e2e` — Playwright e2e tests (uses port 3200)
 
 ## Chains
 
@@ -60,14 +60,14 @@ Root `package.json` uses pnpm workspaces. Run everything from root:
 
 ## Key Technical Decisions
 
-- **Shared types**: `@veil/common` is the single source of truth for API contract types (Zod schemas + derived types), shared constants, and formatting utilities. Both `packages/agent` and `apps/dashboard` import from common — never define duplicate type interfaces.
+- **Shared types**: `@maw/common` is the single source of truth for API contract types (Zod schemas + derived types), shared constants, and formatting utilities. Both `packages/agent` and `apps/dashboard` import from common — never define duplicate type interfaces.
 - **Venice multi-model**: qwen3-5-9b (fast), qwen3-5-9b (research/web search + scraping), gemini-3-flash-preview (reasoning). All confirmed valid via `GET /api/v1/models`. Venice model catalog changes frequently — always verify against the live API, never static docs.
 - **Structured output**: `llm.withStructuredOutput(zodSchema)` + `safeParse()` post-validation
 - **Budget tracking**: Venice `x-venice-balance-usd` response header captured via custom fetch wrapper
 - **The Graph**: Uses official Uniswap V3 Ethereum mainnet subgraph (ID: `5zvR82QoaXYFyDEKLZ9t6v9adgnptxYpKpSbxtgVENFV`). Types generated via graphql-codegen.
 - **Delegation flow**: Two-step pull+swap architecture. Browser-side: ERC-7715 `wallet_requestExecutionPermissions` via MetaMask Flask grants `native-token-periodic` and `erc20-token-periodic` permissions. Server-side: ERC-7710 `sendTransactionWithDelegation()` pulls tokens from user's smart account to agent EOA, then agent swaps on Uniswap directly. Uses `@metamask/smart-accounts-kit@0.4.0-beta.1` for both frontend (`erc7715ProviderActions`) and backend (`erc7710WalletActions`). Permission amounts use conservative ETH pricing (live price / 2, $500 floor). Pre-pull allowance checks use `createCaveatEnforcerClient` + `decodeDelegations` to query remaining period budget on-chain before attempting pulls, and feed allowance data into the Venice reasoning prompt so the LLM sizes trades within delegation limits.
 - **Agent identity**: ERC-8004 NFT on Base, reputation feedback uses dynamic agentId from registration
-- **Intent persistence**: SQLite via drizzle-orm + better-sqlite3. DB at `data/veil.db` (WAL mode). Schema: intents, swaps, auth_nonces tables. Repository pattern in `packages/agent/src/db/`.
+- **Intent persistence**: SQLite via drizzle-orm + better-sqlite3. DB at `data/maw.db` (WAL mode). Schema: intents, swaps, auth_nonces tables. Repository pattern in `packages/agent/src/db/`.
 - **Multi-wallet agent**: WorkerPool manages concurrent AgentWorker instances (max 5). Each intent gets its own worker. Active intents resume on server restart with staggered 2-3s delays.
 - **Wallet-scoped API**: Nonce-signing auth flow: `GET /api/auth/nonce?wallet=` → sign message → `POST /api/auth/verify` → HMAC bearer token. All intent CRUD endpoints require auth. No `/api/deploy` endpoint — replaced by `POST /api/intents`.
 - **Dashboard wagmi integration**: wagmi v2 + custom ConnectWallet component (no RainbowKit). Wallet connection required for intent management. ERC-7715 permission granting is real via MetaMask Flask browser-side; ERC-7710 token pull is real server-side. Requires MetaMask Flask v13.5+.

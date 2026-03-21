@@ -3,7 +3,7 @@
  * research (qwen3-5-9b with web search), reasoning (gemini-3-flash-preview).
  * Custom fetch wrapper captures billing headers for budget tracking.
  *
- * @module @veil/agent/venice/llm
+ * @module @maw/agent/venice/llm
  */
 import { ChatOpenAI, type ChatOpenAIFields } from "@langchain/openai";
 import { env } from "../config.js";
@@ -70,7 +70,7 @@ const researchVeniceParams = {
     enable_web_citations: true,
     include_search_results_in_stream: true,
     return_search_results_as_documents: false,
-    prompt_cache_key: "veil-research",
+    prompt_cache_key: "maw-research",
   },
 };
 
@@ -109,7 +109,7 @@ const reasoningVeniceParams = {
     enable_web_citations: false,
     include_search_results_in_stream: false,
     return_search_results_as_documents: false,
-    prompt_cache_key: "veil-reasoning",
+    prompt_cache_key: "maw-reasoning",
   },
 };
 

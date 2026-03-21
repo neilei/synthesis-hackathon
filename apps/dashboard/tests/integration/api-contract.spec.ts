@@ -1,8 +1,8 @@
 /**
  * Integration tests: verify dashboard type expectations match agent server responses.
- * Run: INTEGRATION=1 pnpm --filter @veil/dashboard test:e2e --project integration
+ * Run: INTEGRATION=1 pnpm --filter @maw/dashboard test:e2e --project integration
  *
- * @module @veil/dashboard/tests/integration/api-contract.spec
+ * @module @maw/dashboard/tests/integration/api-contract.spec
  */
 import { test, expect } from "@playwright/test";
 

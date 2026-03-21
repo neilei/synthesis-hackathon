@@ -4,7 +4,7 @@
  *
  * Run: INTEGRATION=1 npx playwright test --project integration navigation
  *
- * @module @veil/dashboard/tests/integration/navigation.spec
+ * @module @maw/dashboard/tests/integration/navigation.spec
  */
 import { test, expect, gotoAuthenticated } from "../fixtures/auth";
 

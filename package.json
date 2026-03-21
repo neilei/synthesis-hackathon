@@ -1,22 +1,22 @@
 {
-  "name": "veil",
+  "name": "maw",
   "version": "0.1.0",
   "private": true,
   "packageManager": "pnpm@10.30.3",
   "description": "Intent-compiled private DeFi agent — monorepo",
   "scripts": {
-    "dev": "pnpm --filter @veil/agent dev",
+    "dev": "pnpm --filter @maw/agent dev",
     "build": "turbo run build",
     "test": "turbo run test",
     "test:unit": "turbo run test",
-    "test:e2e": "pnpm --filter @veil/agent test:e2e",
-    "test:e2e:dashboard": "pnpm --filter @veil/dashboard test:e2e",
-    "test:integration": "pnpm --filter @veil/dashboard test:integration",
-    "serve": "pnpm --filter @veil/agent serve",
-    "codegen": "pnpm --filter @veil/agent codegen",
+    "test:e2e": "pnpm --filter @maw/agent test:e2e",
+    "test:e2e:dashboard": "pnpm --filter @maw/dashboard test:e2e",
+    "test:integration": "pnpm --filter @maw/dashboard test:integration",
+    "serve": "pnpm --filter @maw/agent serve",
+    "codegen": "pnpm --filter @maw/agent codegen",
     "lint": "turbo run lint",
-    "dev:dashboard": "pnpm --filter @veil/dashboard dev",
-    "build:dashboard": "pnpm --filter @veil/dashboard build"
+    "dev:dashboard": "pnpm --filter @maw/dashboard dev",
+    "build:dashboard": "pnpm --filter @maw/dashboard build"
   },
   "pnpm": {
     "onlyBuiltDependencies": ["better-sqlite3"]

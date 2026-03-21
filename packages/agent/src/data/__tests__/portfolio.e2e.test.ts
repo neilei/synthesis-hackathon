@@ -1,7 +1,7 @@
 /**
  * E2E tests for portfolio balance fetching against live Sepolia RPC.
  *
- * @module @veil/agent/data/portfolio.e2e.test
+ * @module @maw/agent/data/portfolio.e2e.test
  */
 import { describe, it, expect } from "vitest";
 import type { Address } from "viem";

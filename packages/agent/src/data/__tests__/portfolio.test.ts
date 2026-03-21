@@ -1,7 +1,7 @@
 /**
  * Unit tests for portfolio balance fetching and allocation calculation.
  *
- * @module @veil/agent/data/portfolio.test
+ * @module @maw/agent/data/portfolio.test
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Address } from "viem";

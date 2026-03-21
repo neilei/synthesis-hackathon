@@ -2,7 +2,7 @@
  * Variant-based button component. Consolidates the 7+ button patterns
  * used across the dashboard into a single composable primitive.
  *
- * @module @veil/dashboard/components/ui/button
+ * @module @maw/dashboard/components/ui/button
  */
 
 type ButtonVariant = "secondary" | "outline" | "solid" | "danger" | "text";

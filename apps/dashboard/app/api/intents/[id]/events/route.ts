@@ -1,4 +1,4 @@
-import { API_PATHS } from "@veil/common";
+import { API_PATHS } from "@maw/common";
 import { type NextRequest } from "next/server";
 import { AGENT_API_URL } from "@/lib/agent-url";
 
@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 /**
  * SSE proxy: streams live log entries from the agent server to the browser.
  * EventSource cannot set custom headers, so auth is extracted from the
- * HttpOnly `veil_token` cookie (set during /api/auth/verify) and forwarded
+ * HttpOnly `maw_token` cookie (set during /api/auth/verify) and forwarded
  * as a Bearer token to the agent server.
  */
 export async function GET(
@@ -25,7 +25,7 @@ export async function GET(
       headers["Authorization"] = auth;
     } else {
       // Fall back to HttpOnly cookie set during auth verify
-      const token = request.cookies.get("veil_token")?.value;
+      const token = request.cookies.get("maw_token")?.value;
       if (token) {
         headers["Authorization"] = `Bearer ${token}`;
       }

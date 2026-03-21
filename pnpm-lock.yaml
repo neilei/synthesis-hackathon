@@ -14,15 +14,15 @@ importers:
 
   apps/dashboard:
     dependencies:
+      '@maw/common':
+        specifier: workspace:*
+        version: link:../../packages/common
       '@metamask/smart-accounts-kit':
         specifier: 0.4.0-beta.1
         version: 0.4.0-beta.1(viem@2.47.4(typescript@5.9.3)(zod@4.3.6))
       '@tanstack/react-query':
         specifier: ^5.90.21
         version: 5.90.21(react@19.2.3)
-      '@veil/common':
-        specifier: workspace:*
-        version: link:../../packages/common
       next:
         specifier: 16.1.6
         version: 16.1.6(@babel/core@7.29.0)(@playwright/test@1.58.2)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
@@ -90,12 +90,12 @@ importers:
       '@langchain/openai':
         specifier: ^1.2.0
         version: 1.2.13(@langchain/core@1.1.32(openai@6.29.0(ws@8.19.0)(zod@4.3.6))(ws@8.19.0))(ws@8.19.0)
+      '@maw/common':
+        specifier: workspace:*
+        version: link:../common
       '@metamask/smart-accounts-kit':
         specifier: 0.4.0-beta.1
         version: 0.4.0-beta.1(viem@2.47.4(typescript@5.9.3)(zod@4.3.6))
-      '@veil/common':
-        specifier: workspace:*
-        version: link:../common
       better-sqlite3:
         specifier: ^12.8.0
         version: 12.8.0

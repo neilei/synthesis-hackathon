@@ -1,8 +1,8 @@
 /**
- * @file Shared constants used across the Veil monorepo — addresses, ports, API paths.
+ * @file Shared constants used across the Maw monorepo — addresses, ports, API paths.
  */
 
-/** The Veil agent's Ethereum address (EOA). */
+/** The Maw agent's Ethereum address (EOA). */
 export const AGENT_ADDRESS = "0xf13021F02E23a8113C1bD826575a1682F6Fac927";
 
 /** Default port for the agent API server. */

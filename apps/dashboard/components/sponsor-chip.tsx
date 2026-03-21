@@ -5,7 +5,7 @@
  * Uses plain <img> instead of next/image — these are tiny static SVGs where
  * the Next.js Image component adds unnecessary React overhead with no benefit.
  *
- * @module @veil/dashboard/components/sponsor-chip
+ * @module @maw/dashboard/components/sponsor-chip
  */
 
 type Sponsor = "venice" | "metamask" | "uniswap" | "protocol-labs";

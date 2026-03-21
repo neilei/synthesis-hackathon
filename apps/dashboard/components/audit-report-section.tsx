@@ -2,12 +2,12 @@
  * Shared audit report rendering — used by both Configure (inline preview)
  * and Audit (full-page post-deploy view).
  *
- * @module @veil/dashboard/components/audit-report-section
+ * @module @maw/dashboard/components/audit-report-section
  */
 import { SectionHeading } from "./ui/section-heading";
 import { AuditListItem } from "./ui/audit-list-item";
 import { WarningIcon } from "./ui/icons";
-import type { AuditReport } from "@veil/common";
+import type { AuditReport } from "@maw/common";
 
 interface AuditReportSectionProps {
   audit: AuditReport;

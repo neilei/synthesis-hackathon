@@ -5,10 +5,10 @@
  * happens browser-side via ERC-7715 (MetaMask Flask). See redeemer.test.ts
  * for ERC-7710 pull-token tests.
  *
- * @module @veil/agent/delegation/compiler.test
+ * @module @maw/agent/delegation/compiler.test
  */
 import { describe, it, expect } from "vitest";
-import { detectAdversarialIntent } from "@veil/common";
+import { detectAdversarialIntent } from "@maw/common";
 import { makeIntent } from "../../__tests__/fixtures.js";
 
 // ---------------------------------------------------------------------------

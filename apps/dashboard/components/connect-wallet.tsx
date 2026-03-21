@@ -1,7 +1,7 @@
 "use client";
 
 import { useAccount, useConnect, useDisconnect } from "wagmi";
-import { truncateAddress } from "@veil/common";
+import { truncateAddress } from "@maw/common";
 import { Button } from "./ui/button";
 
 export function ConnectWallet() {

@@ -1,7 +1,7 @@
 /**
  * Vitest configuration for e2e tests. 120-second timeout for external service calls.
  *
- * @module @veil/agent/vitest.e2e.config
+ * @module @maw/agent/vitest.e2e.config
  */
 import { defineConfig } from "vitest/config";
 

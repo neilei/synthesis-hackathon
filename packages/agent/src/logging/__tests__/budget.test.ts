@@ -1,7 +1,7 @@
 /**
  * Unit tests for Venice budget tracking: tier detection and model recommendations.
  *
- * @module @veil/agent/logging/budget.test
+ * @module @maw/agent/logging/budget.test
  */
 import { describe, it, expect, beforeEach } from "vitest";
 import {

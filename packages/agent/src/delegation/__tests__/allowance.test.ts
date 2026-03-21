@@ -1,7 +1,7 @@
 /**
  * Unit tests for on-chain delegation allowance queries.
  *
- * @module @veil/agent/delegation/allowance.test
+ * @module @maw/agent/delegation/allowance.test
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Hex } from "viem";

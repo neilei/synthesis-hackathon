@@ -1,10 +1,10 @@
 /**
- * Client-side fetch wrappers for the Veil API.
+ * Client-side fetch wrappers for the Maw API.
  *
- * @module @veil/dashboard/lib/api
+ * @module @maw/dashboard/lib/api
  */
-import { ParsedIntentSchema } from "@veil/common";
-import type { ParsedIntent, AuditReport, IntentRecord, AgentLogEntry } from "@veil/common";
+import { ParsedIntentSchema } from "@maw/common";
+import type { ParsedIntent, AuditReport, IntentRecord, AgentLogEntry } from "@maw/common";
 
 // ---------------------------------------------------------------------------
 // Auth API

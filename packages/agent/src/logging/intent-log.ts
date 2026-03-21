@@ -1,8 +1,8 @@
 import { appendFileSync, readFileSync, existsSync, mkdirSync } from "node:fs";
 import { EventEmitter } from "node:events";
 import { dirname } from "node:path";
-import type { AgentLogEntry } from "@veil/common";
-import { AgentLogEntrySchema } from "@veil/common";
+import type { AgentLogEntry } from "@maw/common";
+import { AgentLogEntrySchema } from "@maw/common";
 import type { IntentRepository } from "../db/repository.js";
 
 const logEmitter = new EventEmitter();

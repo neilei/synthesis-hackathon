@@ -2,7 +2,7 @@
  * Unit tests for Venice image generation — prompt generation and avatar flow.
  * All external calls (LLM, fetch) are mocked.
  *
- * @module @veil/agent/venice/image.test
+ * @module @maw/agent/venice/image.test
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { existsSync, unlinkSync } from "node:fs";

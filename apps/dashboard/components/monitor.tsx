@@ -30,9 +30,9 @@ import { SponsorChip } from "./sponsor-chip";
 import {
   generateAuditReport,
   formatCurrency,
-} from "@veil/common";
+} from "@maw/common";
 import { getScoreColor } from "@/lib/score-color";
-import type { ParsedIntent } from "@veil/common";
+import type { ParsedIntent } from "@maw/common";
 
 /** Wraps Audit with memoized audit report generation to avoid recomputing on every render. */
 function MemoizedAudit({ parsed, onViewMonitor }: { parsed: ParsedIntent; onViewMonitor: () => void }) {

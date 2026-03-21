@@ -7,10 +7,10 @@
  * receives permissions but not the full Delegation object, so the audit
  * is now purely intent-based with optional permission metadata.
  *
- * @module @veil/agent/delegation/audit
+ * @module @maw/agent/delegation/audit
  */
 import type { IntentParse } from "../venice/schemas.js";
-import { SECONDS_PER_DAY, detectAdversarialIntent } from "@veil/common";
+import { SECONDS_PER_DAY, detectAdversarialIntent } from "@maw/common";
 
 // ---------------------------------------------------------------------------
 // Detailed audit report generation

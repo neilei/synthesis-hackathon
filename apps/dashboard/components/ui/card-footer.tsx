@@ -2,7 +2,7 @@
  * Card footer with top border divider. Used for sponsor attribution
  * at the bottom of cards throughout the dashboard.
  *
- * @module @veil/dashboard/components/ui/card-footer
+ * @module @maw/dashboard/components/ui/card-footer
  */
 
 interface CardFooterProps {

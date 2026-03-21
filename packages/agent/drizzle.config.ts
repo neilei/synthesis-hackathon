@@ -5,6 +5,6 @@ export default defineConfig({
   out: "./drizzle",
   dialect: "sqlite",
   dbCredentials: {
-    url: "./data/veil.db",
+    url: "./data/maw.db",
   },
 });

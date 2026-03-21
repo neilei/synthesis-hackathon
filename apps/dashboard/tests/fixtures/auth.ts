@@ -12,7 +12,7 @@
  *     await gotoAuthenticated(page, "/", auth);
  *   });
  *
- * @module @veil/dashboard/tests/fixtures/auth
+ * @module @maw/dashboard/tests/fixtures/auth
  */
 import { test as base, type Page } from "@playwright/test";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
@@ -41,7 +41,7 @@ export const test = base.extend<{ auth: AuthFixture }>({
     const { nonce } = (await nonceRes.json()) as { nonce: string };
 
     // Step 2: Sign the nonce message (same format as auth route)
-    const message = `Sign this message to authenticate with Veil.\n\nNonce: ${nonce}`;
+    const message = `Sign this message to authenticate with Maw.\n\nNonce: ${nonce}`;
     const signature = await account.signMessage({ message });
 
     // Step 3: Verify signature to get bearer token
@@ -60,7 +60,7 @@ export const test = base.extend<{ auth: AuthFixture }>({
     await page.addInitScript(
       ({ wallet, tkn }: { wallet: string; tkn: string }) => {
         sessionStorage.setItem(
-          "veil_auth_token",
+          "maw_auth_token",
           JSON.stringify({ wallet: wallet.toLowerCase(), token: tkn }),
         );
       },

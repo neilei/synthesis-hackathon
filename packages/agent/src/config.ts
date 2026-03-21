@@ -2,7 +2,7 @@
  * Environment validation (via Zod), contract addresses, chain configs, and API endpoints.
  * Loaded at startup by every module that touches external services.
  *
- * @module @veil/agent/config
+ * @module @maw/agent/config
  */
 import { config as dotenvConfig } from "dotenv";
 import { resolve } from "path";

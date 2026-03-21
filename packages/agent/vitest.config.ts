@@ -1,7 +1,7 @@
 /**
  * Vitest configuration for unit tests. Excludes e2e test files.
  *
- * @module @veil/agent/vitest.config
+ * @module @maw/agent/vitest.config
  */
 import { defineConfig } from "vitest/config";
 

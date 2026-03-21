@@ -2,7 +2,7 @@
  * Centered empty state with icon dot, heading, description, and optional CTA.
  * Used for "Connect wallet", "No agents running", error boundary fallback, etc.
  *
- * @module @veil/dashboard/components/ui/empty-state
+ * @module @maw/dashboard/components/ui/empty-state
  */
 
 interface EmptyStateProps {

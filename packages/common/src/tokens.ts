@@ -1,5 +1,5 @@
 /**
- * @file Token metadata and styling helpers for the Veil dashboard.
+ * @file Token metadata and styling helpers for the Maw dashboard.
  *
  * All lookups normalize the token symbol to uppercase before matching.
  * Unknown tokens receive neutral fallback styles.

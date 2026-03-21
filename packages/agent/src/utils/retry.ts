@@ -2,7 +2,7 @@
  * Generic retry wrapper with exponential backoff.
  * Only retries on retryable errors (network, 429, 500-503).
  *
- * @module @veil/agent/utils/retry
+ * @module @maw/agent/utils/retry
  */
 import { logger } from "../logging/logger.js";
 

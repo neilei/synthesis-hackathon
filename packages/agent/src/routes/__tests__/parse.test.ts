@@ -4,9 +4,9 @@ import { createParseRoutes } from "../parse.js";
 vi.mock("../../delegation/compiler.js", () => ({
   compileIntent: vi.fn(),
 }));
-vi.mock("@veil/common", async () => {
-  const actual = await vi.importActual<typeof import("@veil/common")>(
-    "@veil/common",
+vi.mock("@maw/common", async () => {
+  const actual = await vi.importActual<typeof import("@maw/common")>(
+    "@maw/common",
   );
   return {
     ...actual,

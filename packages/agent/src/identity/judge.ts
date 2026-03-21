@@ -4,7 +4,7 @@
  * dimensions, stores evidence documents, and submits on-chain validation
  * requests/responses + composite reputation feedback.
  *
- * @module @veil/agent/identity/judge
+ * @module @maw/agent/identity/judge
  */
 import { AIMessage } from "@langchain/core/messages";
 import { type Hex } from "viem";

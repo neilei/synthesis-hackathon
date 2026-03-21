@@ -1,7 +1,7 @@
 {
-  "name": "@veil/common",
+  "name": "@maw/common",
   "version": "0.1.0",
-  "description": "Shared schemas, constants, and utilities for the Veil monorepo",
+  "description": "Shared schemas, constants, and utilities for the Maw monorepo",
   "type": "module",
   "main": "dist/src/index.js",
   "types": "dist/src/index.d.ts",

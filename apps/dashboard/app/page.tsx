@@ -2,7 +2,7 @@
  * Home page. Manages tab state and coordinates data flow between Configure
  * and Monitor screens.
  *
- * @module @veil/dashboard/app/page
+ * @module @maw/dashboard/app/page
  */
 "use client";
 

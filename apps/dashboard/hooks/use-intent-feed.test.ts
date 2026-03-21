@@ -1,7 +1,7 @@
 /**
  * Tests for the useIntentFeed hook — historical load + SSE live updates.
  *
- * @module @veil/dashboard/hooks/use-intent-feed.test
+ * @module @maw/dashboard/hooks/use-intent-feed.test
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";

@@ -1,19 +1,19 @@
 /**
  * Smoke tests against a deployed instance (VPS or Vercel).
  *
- * VPS:    INTEGRATION=1 DEPLOYED_URL=https://api.veil.moe pnpm --filter @veil/dashboard test:e2e --project integration
- * Vercel: INTEGRATION=1 DEPLOYED_URL=https://veil.moe pnpm --filter @veil/dashboard test:e2e --project integration
+ * VPS:    INTEGRATION=1 DEPLOYED_URL=https://api.maw.finance pnpm --filter @maw/dashboard test:e2e --project integration
+ * Vercel: INTEGRATION=1 DEPLOYED_URL=https://maw.finance pnpm --filter @maw/dashboard test:e2e --project integration
  *
- * @module @veil/dashboard/tests/integration/deployed-smoke.spec
+ * @module @maw/dashboard/tests/integration/deployed-smoke.spec
  */
 import { test, expect } from "@playwright/test";
 
 const DEPLOYED_URL =
-  process.env.DEPLOYED_URL ?? "https://api.veil.moe";
-const isVercel = DEPLOYED_URL.includes("veil.moe") && !DEPLOYED_URL.includes("api.");
+  process.env.DEPLOYED_URL ?? "https://api.maw.finance";
+const isVercel = DEPLOYED_URL.includes("maw.finance") && !DEPLOYED_URL.includes("api.");
 
 test.describe("Deployed VPS Smoke Tests", () => {
-  test("dashboard serves HTML with Veil content", async ({ request }) => {
+  test("dashboard serves HTML with Maw content", async ({ request }) => {
     const response = await request.get(DEPLOYED_URL);
     expect(response.status()).toBe(200);
     const contentType = response.headers()["content-type"] ?? "";
@@ -21,7 +21,7 @@ test.describe("Deployed VPS Smoke Tests", () => {
     const html = await response.text();
     expect(html.toLowerCase()).toContain("<!doctype html");
     // Should contain either the built dashboard or the fallback API page
-    expect(html.toLowerCase()).toContain("veil");
+    expect(html.toLowerCase()).toContain("maw");
   });
 
   test("API nonce endpoint returns valid JSON", async ({ request }) => {

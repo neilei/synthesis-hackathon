@@ -9,7 +9,7 @@
  *
  * @see https://eips.ethereum.org/EIPS/eip-8004
  * @see https://best-practices.8004scan.io/docs/implementation/agent-metadata-parsing
- * @module @veil/agent/routes/identity
+ * @module @maw/agent/routes/identity
  */
 import { existsSync } from "node:fs";
 import { join } from "node:path";
@@ -52,18 +52,18 @@ export function createIdentityRoutes(deps: IdentityRouteDeps) {
     // ERC-8004 registration-v1 format
     const identity = {
       type: "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
-      name: "Veil DeFi Rebalancer",
+      name: "Maw DeFi Rebalancer",
       description: `Autonomous DeFi agent that privately reasons about portfolio rebalancing via Venice AI and executes trades on Uniswap within ERC-7715 delegation constraints. Strategy: ${allocSummary || "custom"}. Budget: $${parsedIntent?.dailyBudgetUsd ?? 0}/day.`,
       image: existsSync(join("data", "images", `${intentId}.webp`))
-        ? `https://api.veil.moe/api/intents/${intentId}/avatar.webp`
-        : "https://api.veil.moe/veil-agent.svg",
+        ? `https://api.maw.finance/api/intents/${intentId}/avatar.webp`
+        : "https://api.maw.finance/maw-agent.svg",
       active: intent.status === "active",
       protocol: "custom",
       x402Support: false,
       services: [
         {
           name: "web",
-          endpoint: `https://api.veil.moe/api/intents/${intentId}/identity.json`,
+          endpoint: `https://api.maw.finance/api/intents/${intentId}/identity.json`,
         },
       ],
       registrations: agentId !== null
@@ -76,7 +76,7 @@ export function createIdentityRoutes(deps: IdentityRouteDeps) {
         : [],
       supportedTrust: ["reputation"],
       // Extended metadata (not part of ERC-8004 spec, but useful for consumers)
-      veil: {
+      maw: {
         intent: {
           id: intent.id,
           status: intent.status,

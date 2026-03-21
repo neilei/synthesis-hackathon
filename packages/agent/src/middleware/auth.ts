@@ -16,7 +16,7 @@ export const requireAuth = createMiddleware<AuthEnv>(async (c, next) => {
   if (auth?.startsWith("Bearer ")) {
     token = auth.slice(7);
   } else {
-    token = getCookie(c, "veil_token");
+    token = getCookie(c, "maw_token");
   }
 
   if (!token) {

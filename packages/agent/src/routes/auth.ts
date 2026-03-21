@@ -55,7 +55,7 @@ export function createAuthRoutes(deps: AuthRouteDeps) {
 
     // Verify signature
     try {
-      const message = `Sign this message to authenticate with Veil.\n\nNonce: ${nonceRecord.nonce}`;
+      const message = `Sign this message to authenticate with Maw.\n\nNonce: ${nonceRecord.nonce}`;
       const recovered = await recoverMessageAddress({
         message,
         // Safe cast: signature is validated as a string above; viem expects hex-prefixed type
@@ -79,7 +79,7 @@ export function createAuthRoutes(deps: AuthRouteDeps) {
     // Set HttpOnly cookie for SSE EventSource (can't set custom headers)
     c.header(
       "Set-Cookie",
-      `veil_token=${token}; HttpOnly; SameSite=Strict; Path=/api; Max-Age=86400`,
+      `maw_token=${token}; HttpOnly; SameSite=Strict; Path=/api; Max-Age=86400`,
     );
 
     return c.json({ token });

@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { compileIntent } from "../delegation/compiler.js";
-import { generateAuditReport } from "@veil/common";
+import { generateAuditReport } from "@maw/common";
 import { logger } from "../logging/logger.js";
 
 export function createParseRoutes() {

@@ -11,7 +11,7 @@ import {
 import { useAccount, useSignMessage } from "wagmi";
 import { fetchNonce, verifySignature } from "@/lib/api";
 
-const STORAGE_KEY = "veil_auth_token";
+const STORAGE_KEY = "maw_auth_token";
 
 interface AuthState {
   token: string | null;
@@ -85,7 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null);
     try {
       const nonce = await fetchNonce(address);
-      const message = `Sign this message to authenticate with Veil.\n\nNonce: ${nonce}`;
+      const message = `Sign this message to authenticate with Maw.\n\nNonce: ${nonce}`;
       const signature = await signMessageAsync({ message });
       const authToken = await verifySignature(address, signature);
       setToken(authToken);

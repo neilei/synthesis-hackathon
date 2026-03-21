@@ -3,7 +3,7 @@
  * and validation registry interactions on Base. Called at agent startup for
  * registration, and after each swap for judge-driven validation + feedback.
  *
- * @module @veil/agent/identity/erc8004
+ * @module @maw/agent/identity/erc8004
  */
 import {
   createPublicClient,
@@ -18,11 +18,11 @@ import {
   IDENTITY_REGISTRY_ABI_HUMAN,
   REPUTATION_REGISTRY_ABI_HUMAN,
   VALIDATION_REGISTRY_ABI_HUMAN,
-} from "@veil/common";
+} from "@maw/common";
 import { env, CONTRACTS, rpcTransport } from "../config.js";
 
 // ---------------------------------------------------------------------------
-// ABI fragments for ERC-8004 registries (sourced from @veil/common)
+// ABI fragments for ERC-8004 registries (sourced from @maw/common)
 // ---------------------------------------------------------------------------
 
 const identityRegistryAbi = parseAbi(IDENTITY_REGISTRY_ABI_HUMAN);

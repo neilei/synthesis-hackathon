@@ -6,7 +6,7 @@
  *
  * Run: INTEGRATION=1 npx playwright test --project integration cycle-feed
  *
- * @module @veil/dashboard/tests/integration/cycle-feed.spec
+ * @module @maw/dashboard/tests/integration/cycle-feed.spec
  */
 import { test, expect, gotoAuthenticated } from "../fixtures/auth";
 

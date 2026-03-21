@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 
-import type { AgentLogEntry } from "@veil/common";
+import type { AgentLogEntry } from "@maw/common";
 import { Card } from "./ui/card";
 import { SectionHeading } from "./ui/section-heading";
 import { CycleGroup } from "./cycle-group";

@@ -2,19 +2,19 @@
  * Permission Details card — shows on-chain constraint metadata computed
  * from a ParsedIntent. Pure computation, no wallet connection needed.
  *
- * @module @veil/dashboard/components/delegation-details
+ * @module @maw/dashboard/components/delegation-details
  */
 import { Card } from "./ui/card";
 import { CardFooter } from "./ui/card-footer";
 import { SectionHeading } from "./ui/section-heading";
 import { SponsorChip } from "./sponsor-chip";
-import type { ParsedIntent } from "@veil/common";
+import type { ParsedIntent } from "@maw/common";
 import {
   AGENT_ADDRESS,
   truncateAddress,
   computeExpiryTimestamp,
   computePeriodAmount,
-} from "@veil/common";
+} from "@maw/common";
 import { CONTRACTS } from "@/lib/contracts";
 
 interface DelegationDetailsProps {

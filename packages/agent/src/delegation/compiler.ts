@@ -6,7 +6,7 @@
  * The backend now receives pre-signed permissions and redeems them via ERC-7710.
  * See redeemer.ts for the pull-token functions.
  *
- * @module @veil/agent/delegation/compiler
+ * @module @maw/agent/delegation/compiler
  */
 import { reasoningLlm } from "../venice/llm.js";
 import {

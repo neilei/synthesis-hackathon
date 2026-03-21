@@ -6,7 +6,7 @@
  * the wallet-not-connected state and basic navigation. Full integration
  * tests with a connected wallet are in tests/integration/.
  *
- * @module @veil/dashboard/tests/monitor.spec
+ * @module @maw/dashboard/tests/monitor.spec
  */
 import { test, expect } from "@playwright/test";
 

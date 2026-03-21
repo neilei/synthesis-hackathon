@@ -5,7 +5,7 @@
  * specific intent loaded from the database. Each worker has its own state,
  * per-intent logger, and writes cycle state back to SQLite.
  *
- * @module @veil/agent/agent-worker
+ * @module @maw/agent/agent-worker
  */
 import type { AgentState, AgentConfig } from "./agent-loop/index.js";
 import { runAgentLoop } from "./agent-loop/index.js";

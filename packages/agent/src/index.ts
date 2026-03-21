@@ -1,7 +1,7 @@
 /**
  * CLI entry point. Parses --intent and --cycles args, then starts the agent loop.
  *
- * @module @veil/agent/index
+ * @module @maw/agent/index
  */
 import { env } from "./config.js";
 import { privateKeyToAccount } from "viem/accounts";
@@ -11,7 +11,7 @@ import { logger } from "./logging/logger.js";
 const agentAccount = privateKeyToAccount(env.AGENT_PRIVATE_KEY);
 
 logger.info("=".repeat(60));
-logger.info("  VEIL — Intent-Compiled Private DeFi Agent");
+logger.info("  MAW — Intent-Compiled Private DeFi Agent");
 logger.info("=".repeat(60));
 logger.info(`  Agent address:  ${agentAccount.address}`);
 logger.info(`  Venice API:     ${env.VENICE_BASE_URL}`);
@@ -41,5 +41,5 @@ if (intentIdx !== -1 && args[intentIdx + 1]) {
   logger.info(
     'Usage: tsx src/index.ts --intent "60/40 ETH/USDC, $200/day, 7 days" [--cycles 3]',
   );
-  logger.info("Veil agent ready. Provide --intent to start autonomous loop.");
+  logger.info("Maw agent ready. Provide --intent to start autonomous loop.");
 }

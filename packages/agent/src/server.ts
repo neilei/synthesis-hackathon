@@ -2,7 +2,7 @@
  * HTTP server (port 3147) exposing wallet-scoped intent API.
  * Serves the Next.js dashboard static build as a SPA fallback.
  *
- * @module @veil/agent/server
+ * @module @maw/agent/server
  */
 import { Hono } from "hono";
 import { cors } from "hono/cors";
@@ -13,7 +13,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { privateKeyToAccount } from "viem/accounts";
 
 import { env } from "./config.js";
-import { DEFAULT_AGENT_PORT, API_PATHS } from "@veil/common";
+import { DEFAULT_AGENT_PORT, API_PATHS } from "@maw/common";
 import { logger } from "./logging/logger.js";
 import { IntentRepository } from "./db/repository.js";
 import { getDb } from "./db/connection.js";
@@ -238,7 +238,7 @@ app.use(
   serveStatic({ root: DASHBOARD_DIST }),
 );
 app.use(
-  "/veil-agent.svg",
+  "/maw-agent.svg",
   serveStatic({ root: DASHBOARD_DIST }),
 );
 
@@ -255,9 +255,9 @@ app.get("*", (c) => {
   }
 
   return c.html(`<!doctype html>
-<html><head><title>Veil API</title></head>
+<html><head><title>Maw API</title></head>
 <body style="font-family:monospace;background:#0a0c0f;color:#c9d1d9;padding:2rem">
-<h1 style="color:#00ff9d">VEIL</h1>
+<h1 style="color:#00ff9d">MAW</h1>
 <p>Agent API is running. Dashboard not built yet.</p>
 <p>API endpoints:</p>
 <ul>
@@ -273,7 +273,7 @@ app.get("*", (c) => {
 <li>GET /api/intents/:id/identity.json — agent identity (public, no auth)</li>
 <li>GET /api/evidence/:intentId/:hash — retrieve evidence document</li>
 </ul>
-<p style="color:#6e7681">Build the dashboard: <code>pnpm --filter @veil/dashboard build</code></p>
+<p style="color:#6e7681">Build the dashboard: <code>pnpm --filter @maw/dashboard build</code></p>
 </body></html>`);
 });
 
@@ -283,7 +283,7 @@ app.get("*", (c) => {
 
 async function startup() {
   // Initialize database (DB_PATH env var allows e2e tests to use isolated DBs)
-  const dbPath = process.env.DB_PATH || "data/veil.db";
+  const dbPath = process.env.DB_PATH || "data/maw.db";
   repo = new IntentRepository(getDb(dbPath));
 
   // Wire up worker factory so WorkerPool can create AgentWorker instances
@@ -294,7 +294,7 @@ async function startup() {
   const agentAccount = privateKeyToAccount(env.AGENT_PRIVATE_KEY);
 
   logger.info("=".repeat(60));
-  logger.info("  VEIL — Dashboard Server");
+  logger.info("  MAW — Dashboard Server");
   logger.info("=".repeat(60));
   logger.info(`  Agent address:  ${agentAccount.address}`);
   logger.info(`  Dashboard:      http://localhost:${PORT}`);

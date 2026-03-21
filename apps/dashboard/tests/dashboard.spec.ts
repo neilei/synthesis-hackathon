@@ -1,7 +1,7 @@
 /**
  * Playwright e2e tests for dashboard navigation and tab behavior.
  *
- * @module @veil/dashboard/tests/dashboard.spec
+ * @module @maw/dashboard/tests/dashboard.spec
  */
 import { test, expect } from "@playwright/test";
 
@@ -11,7 +11,7 @@ test.describe("Dashboard Navigation", () => {
   });
 
   test("has correct page title", async ({ page }) => {
-    await expect(page).toHaveTitle(/Veil/);
+    await expect(page).toHaveTitle(/Maw/);
   });
 
   test("shows two tabs", async ({ page }) => {
@@ -47,7 +47,7 @@ test.describe("Dashboard Navigation", () => {
     await page.goto("/");
 
     // Core elements still visible
-    await expect(page.getByRole("heading", { name: "VEIL" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "MAW" })).toBeVisible();
     await expect(page.getByPlaceholder(/60\/40/)).toBeVisible();
     await expect(
       page.getByRole("button", { name: /preview strategy/i }),

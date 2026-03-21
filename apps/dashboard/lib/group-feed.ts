@@ -1,4 +1,4 @@
-import type { AgentLogEntry } from "@veil/common";
+import type { AgentLogEntry } from "@maw/common";
 
 export interface CycleSnapshot {
   allocation: Record<string, number>;

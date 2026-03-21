@@ -3,9 +3,9 @@
  * loop: check drift, reason via Venice, quote and execute swaps on Uniswap, log
  * results. Exposes singleton state for the dashboard server.
  *
- * @module @veil/agent/agent-loop
+ * @module @maw/agent/agent-loop
  */
-import type { SwapRecord } from "@veil/common";
+import type { SwapRecord } from "@maw/common";
 import { AIMessage } from "@langchain/core/messages";
 import { type Address, type Hex, formatUnits } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
@@ -14,7 +14,7 @@ import { env } from "../config.js";
 import type { IntentParse } from "../venice/schemas.js";
 import { RebalanceDecisionSchema } from "../venice/schemas.js";
 import { reasoningLlm, fastLlm, FAST_MODEL, RESEARCH_MODEL, REASONING_MODEL } from "../venice/llm.js";
-import { detectAdversarialIntent } from "@veil/common";
+import { detectAdversarialIntent } from "@maw/common";
 import { compileIntent } from "../delegation/compiler.js";
 import { generateDetailedAudit, type DetailedAuditReport } from "../delegation/audit.js";
 import { logAction, logStart, logStop } from "../logging/agent-log.js";
@@ -177,7 +177,7 @@ export async function runAgentLoop(config: AgentConfig): Promise<AgentState> {
     // Register new identity for this intent
     try {
       const intentId = config.intentId ?? "unknown";
-      const agentURI = `https://api.veil.moe/api/intents/${intentId}/identity.json`;
+      const agentURI = `https://api.maw.finance/api/intents/${intentId}/identity.json`;
       const { txHash, agentId } = await withRetry(
         () => registerAgent(agentURI, "base-sepolia"),
         { label: "erc8004:register", maxRetries: 3 },
@@ -254,7 +254,7 @@ export async function runAgentLoop(config: AgentConfig): Promise<AgentState> {
     return state;
   }
 
-  logger.info("=== VEIL AGENT STARTING ===");
+  logger.info("=== MAW AGENT STARTING ===");
   logger.info(`Agent address: ${agentAddress}`);
   logger.info(`Chain: ${chain.name} (${config.chainId})`);
   logger.info(
@@ -489,7 +489,7 @@ export async function runAgentLoop(config: AgentConfig): Promise<AgentState> {
   }
 
   logStop("loop_ended");
-  logger.info("=== VEIL AGENT STOPPED ===");
+  logger.info("=== MAW AGENT STOPPED ===");
   return state;
 }
 

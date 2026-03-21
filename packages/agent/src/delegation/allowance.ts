@@ -3,7 +3,7 @@
  * Queries the caveat enforcer contracts to determine how much the agent
  * can still pull from the user's smart account in the current period.
  *
- * @module @veil/agent/delegation/allowance
+ * @module @maw/agent/delegation/allowance
  */
 import { createPublicClient, type Hex } from "viem";
 import { sepolia } from "viem/chains";

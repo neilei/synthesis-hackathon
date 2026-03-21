@@ -1,5 +1,5 @@
 /**
- * @file Formatting utilities shared across the Veil monorepo — addresses,
+ * @file Formatting utilities shared across the Maw monorepo — addresses,
  * hashes, currency, timestamps, and percentages.
  */
 

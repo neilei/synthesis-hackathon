@@ -2,7 +2,7 @@
  * Error display banner with optional retry button. Used throughout the dashboard
  * for API failures and connection errors.
  *
- * @module @veil/dashboard/components/error-banner
+ * @module @maw/dashboard/components/error-banner
  */
 import { Button } from "./ui/button";
 

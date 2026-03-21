@@ -1,7 +1,7 @@
 /**
  * E2E tests for token price lookup against live CoinMarketCap API.
  *
- * @module @veil/agent/data/prices.e2e.test
+ * @module @maw/agent/data/prices.e2e.test
  */
 import { describe, it, expect } from "vitest";
 import {

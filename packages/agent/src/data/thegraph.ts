@@ -2,7 +2,7 @@
  * Queries Uniswap V3 subgraph (The Graph) for pool data: TVL, volume, fee tiers.
  * Uses generated SDK from codegen. Called each cycle for market context.
  *
- * @module @veil/agent/data/thegraph
+ * @module @maw/agent/data/thegraph
  */
 import { GraphQLClient } from "graphql-request";
 import { THEGRAPH_UNISWAP_V3_BASE, env } from "../config.js";

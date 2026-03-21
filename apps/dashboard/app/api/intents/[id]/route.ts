@@ -1,4 +1,4 @@
-import { API_PATHS } from "@veil/common";
+import { API_PATHS } from "@maw/common";
 import { type NextRequest } from "next/server";
 import { AGENT_API_URL } from "@/lib/agent-url";
 

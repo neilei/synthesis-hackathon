@@ -1,7 +1,7 @@
 /**
  * E2E tests for The Graph Uniswap V3 pool data against live subgraph.
  *
- * @module @veil/agent/data/thegraph.e2e.test
+ * @module @maw/agent/data/thegraph.e2e.test
  */
 import { describe, it, expect } from "vitest";
 import { getPoolData } from "../thegraph.js";

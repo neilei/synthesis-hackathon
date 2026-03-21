@@ -1,4 +1,4 @@
-import { getTokenBg, getTokenLabel, getTokenLabelColor, formatAllocationSummary } from "@veil/common";
+import { getTokenBg, getTokenLabel, getTokenLabelColor, formatAllocationSummary } from "@maw/common";
 
 interface AllocationBarProps {
   allocation: Record<string, number>;

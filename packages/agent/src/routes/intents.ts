@@ -6,7 +6,7 @@ import {
   ParsedIntentSchema,
   computeExpiryTimestamp,
   generateAuditReport,
-} from "@veil/common";
+} from "@maw/common";
 import type { IntentRepository } from "../db/repository.js";
 import type { WorkerPool } from "../worker-pool.js";
 import { IntentLogger, onLogEntry } from "../logging/intent-log.js";

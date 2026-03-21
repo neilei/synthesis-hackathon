@@ -10,7 +10,7 @@ import { AllocationBar } from "./allocation-bar";
 import { StrategyDetails } from "./strategy-details";
 import { DelegationDetails } from "./delegation-details";
 import { AuditReportSection } from "./audit-report-section";
-import type { ParsedIntent, AuditReport } from "@veil/common";
+import type { ParsedIntent, AuditReport } from "@maw/common";
 
 interface AuditProps {
   data: { parsed: ParsedIntent; audit: AuditReport | null };

@@ -60,10 +60,10 @@ describe("identity.json route", () => {
     expect(body.type).toBe(
       "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
     );
-    expect(body.name).toBe("Veil DeFi Rebalancer");
+    expect(body.name).toBe("Maw DeFi Rebalancer");
     expect(body.description).toContain("60% ETH / 40% USDC");
     expect(body.description).toContain("$200/day");
-    expect(body.image).toBe("https://api.veil.moe/veil-agent.svg");
+    expect(body.image).toBe("https://api.maw.finance/maw-agent.svg");
     expect(body.active).toBe(true);
     expect(body.supportedTrust).toEqual(["reputation"]);
   });
@@ -80,18 +80,18 @@ describe("identity.json route", () => {
     expect(body.registrations[0].agentRegistry).toContain("eip155:84532:");
   });
 
-  it("includes veil-specific metadata", async () => {
+  it("includes maw-specific metadata", async () => {
     const repo = createMockRepo(SAMPLE_INTENT);
     app.route("/api/intents", createIdentityRoutes({ repo }));
 
     const res = await app.request("/api/intents/test-intent-123/identity.json");
     const body = await res.json();
 
-    expect(body.veil.intent.id).toBe("test-intent-123");
-    expect(body.veil.intent.targetAllocation).toEqual({ ETH: 0.6, USDC: 0.4 });
-    expect(body.veil.execution.cycle).toBe(5);
-    expect(body.veil.identity.agentId).toBe(2191);
-    expect(body.veil.identity.registry).toBe(
+    expect(body.maw.intent.id).toBe("test-intent-123");
+    expect(body.maw.intent.targetAllocation).toEqual({ ETH: 0.6, USDC: 0.4 });
+    expect(body.maw.execution.cycle).toBe(5);
+    expect(body.maw.identity.agentId).toBe(2191);
+    expect(body.maw.identity.registry).toBe(
       "0x8004A818BFB912233c491871b3d84c89A494BD9e",
     );
   });
@@ -122,7 +122,7 @@ describe("identity.json route", () => {
     const res = await app.request("/api/intents/test-intent-123/identity.json");
     const body = await res.json();
 
-    expect(body.veil.identity.agentId).toBeNull();
+    expect(body.maw.identity.agentId).toBeNull();
     expect(body.registrations).toEqual([]);
   });
 
@@ -144,6 +144,6 @@ describe("identity.json route", () => {
     const res = await app.request("/api/intents/test-intent-123/identity.json");
     const body = await res.json();
 
-    expect(body.image).toBe("https://api.veil.moe/veil-agent.svg");
+    expect(body.image).toBe("https://api.maw.finance/maw-agent.svg");
   });
 });

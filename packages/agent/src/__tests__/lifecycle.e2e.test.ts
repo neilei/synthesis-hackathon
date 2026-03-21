@@ -2,7 +2,7 @@
  * Intent lifecycle e2e test — spawns agent server, exercises full
  * auth → create → detail → SSE → cancel → isolation flow.
  *
- * @module @veil/agent/__tests__/lifecycle.e2e.test
+ * @module @maw/agent/__tests__/lifecycle.e2e.test
  */
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { spawn, type ChildProcess } from "child_process";
@@ -19,7 +19,7 @@ const PORT = 3149;
 const BASE = `http://localhost:${PORT}`;
 let serverProcess: ChildProcess;
 
-const tmpDir = mkdtempSync(join(tmpdir(), "veil-lifecycle-e2e-"));
+const tmpDir = mkdtempSync(join(tmpdir(), "maw-lifecycle-e2e-"));
 const DB_PATH = join(tmpDir, "test.db");
 
 async function waitForServer(timeoutMs = 30000): Promise<void> {
@@ -44,7 +44,7 @@ async function getAuthToken(): Promise<{ wallet: string; token: string }> {
   const nonceRes = await fetch(`${BASE}/api/auth/nonce?wallet=${wallet}`);
   const { nonce } = (await nonceRes.json()) as { nonce: string };
 
-  const message = `Sign this message to authenticate with Veil.\n\nNonce: ${nonce}`;
+  const message = `Sign this message to authenticate with Maw.\n\nNonce: ${nonce}`;
   const signature = await account.signMessage({ message });
 
   const verifyRes = await fetch(`${BASE}/api/auth/verify`, {

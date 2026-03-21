@@ -1,5 +1,5 @@
 /**
- * @file Barrel export for @veil/common — shared schemas, constants, and utilities.
+ * @file Barrel export for @maw/common — shared schemas, constants, and utilities.
  */
 
 export {

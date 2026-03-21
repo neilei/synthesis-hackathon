@@ -8,7 +8,7 @@
  * 1. Pull tokens from user's smart account → agent EOA (via ERC-7710 delegation)
  * 2. Swap from agent EOA on Uniswap (no delegation involved)
  *
- * @module @veil/agent/agent-loop/swap
+ * @module @maw/agent/agent-loop/swap
  */
 import type { Address, Hex } from "viem";
 import { createWalletClient, createPublicClient, parseUnits, formatUnits } from "viem";

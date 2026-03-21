@@ -2,7 +2,7 @@
  * Market data gathering for the agent loop: prices, portfolio balances,
  * pool liquidity from The Graph, and drift calculation.
  *
- * @module @veil/agent/agent-loop/market-data
+ * @module @maw/agent/agent-loop/market-data
  */
 import type { Address } from "viem";
 

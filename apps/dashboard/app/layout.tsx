@@ -2,7 +2,7 @@
  * Root HTML layout. Configures Inter and JetBrains Mono fonts, sets dark theme,
  * and provides site metadata.
  *
- * @module @veil/dashboard/app/layout
+ * @module @maw/dashboard/app/layout
  */
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
@@ -20,7 +20,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Veil — Intent-Compiled Private DeFi Agent",
+  title: "Maw — Intent-Compiled Private DeFi Agent",
   description:
     "An autonomous DeFi agent that rebalances your portfolio within safe, on-chain constraints",
 };

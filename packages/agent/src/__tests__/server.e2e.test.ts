@@ -1,7 +1,7 @@
 /**
  * E2E tests for the HTTP server against a live agent instance.
  *
- * @module @veil/agent/server.e2e.test
+ * @module @maw/agent/server.e2e.test
  */
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { spawn, type ChildProcess } from "child_process";
@@ -23,7 +23,7 @@ const BASE = `http://localhost:${PORT}`;
 let serverProcess: ChildProcess;
 
 // Isolated temp DB so parallel e2e test suites don't conflict
-const tmpDir = mkdtempSync(join(tmpdir(), "veil-server-e2e-"));
+const tmpDir = mkdtempSync(join(tmpdir(), "maw-server-e2e-"));
 const DB_PATH = join(tmpDir, "test.db");
 
 async function waitForServer(timeoutMs = 30000): Promise<void> {

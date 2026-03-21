@@ -74,7 +74,7 @@ let _db: BetterSQLite3Database<typeof schema> | null = null;
 let _sqlite: Database.Database | null = null;
 
 export function getDb(
-  dbPath = "data/veil.db",
+  dbPath = "data/maw.db",
 ): BetterSQLite3Database<typeof schema> {
   if (_db) return _db;
 

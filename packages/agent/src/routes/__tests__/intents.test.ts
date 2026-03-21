@@ -17,7 +17,7 @@ vi.mock("nanoid", () => ({
   nanoid: vi.fn().mockReturnValue("test-intent-id"),
 }));
 
-vi.mock("@veil/common", async () => {
+vi.mock("@maw/common", async () => {
   const { z } = await import("zod");
   return {
     ParsedIntentSchema: z.object({

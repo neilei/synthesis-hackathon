@@ -1,7 +1,7 @@
 /**
  * Tab navigation bar for the dashboard screens: Configure and Monitor.
  *
- * @module @veil/dashboard/components/tabs
+ * @module @maw/dashboard/components/tabs
  */
 "use client";
 

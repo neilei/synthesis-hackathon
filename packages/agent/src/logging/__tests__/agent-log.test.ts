@@ -1,7 +1,7 @@
 /**
  * Unit tests for JSONL event logging: entry creation, sequencing, file output.
  *
- * @module @veil/agent/logging/agent-log.test
+ * @module @maw/agent/logging/agent-log.test
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 

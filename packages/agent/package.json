@@ -1,7 +1,7 @@
 {
-  "name": "@veil/agent",
+  "name": "@maw/agent",
   "version": "0.1.0",
-  "description": "Veil agent — intent-compiled private DeFi agent",
+  "description": "Maw agent — intent-compiled private DeFi agent",
   "type": "module",
   "scripts": {
     "dev": "tsx src/index.ts",
@@ -17,7 +17,7 @@
     "@langchain/core": "^1.1.0",
     "@langchain/openai": "^1.2.0",
     "@metamask/smart-accounts-kit": "0.4.0-beta.1",
-    "@veil/common": "workspace:*",
+    "@maw/common": "workspace:*",
     "better-sqlite3": "^12.8.0",
     "dotenv": "^17.3.0",
     "drizzle-orm": "^0.45.1",

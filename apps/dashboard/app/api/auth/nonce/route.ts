@@ -1,4 +1,4 @@
-import { API_PATHS } from "@veil/common";
+import { API_PATHS } from "@maw/common";
 import { proxyGet } from "@/lib/proxy";
 
 export async function GET(request: Request) {

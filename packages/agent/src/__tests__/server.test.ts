@@ -2,7 +2,7 @@
  * Integration tests for the Hono server — CORS, routing, SPA fallback.
  * Route handler logic is tested in routes/__tests__/*.test.ts.
  *
- * @module @veil/agent/server.test
+ * @module @maw/agent/server.test
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
@@ -111,7 +111,7 @@ vi.mock("../auth.js", () => ({
 vi.mock("../startup.js", () => ({
   resumeActiveIntents: vi.fn().mockResolvedValue({ expired: 0, resumed: 0 }),
 }));
-vi.mock("@veil/common", async () => {
+vi.mock("@maw/common", async () => {
   const { z } = await import("zod");
   return {
     DEFAULT_AGENT_PORT: 3147,
@@ -192,16 +192,16 @@ describe("CORS", () => {
 
   it("echoes request Origin header for credential support", async () => {
     const res = await app.request("/api/auth/nonce?wallet=0x1234", {
-      headers: { Origin: "https://veil.moe" },
+      headers: { Origin: "https://maw.finance" },
     });
-    expect(res.headers.get("access-control-allow-origin")).toBe("https://veil.moe");
+    expect(res.headers.get("access-control-allow-origin")).toBe("https://maw.finance");
     expect(res.headers.get("access-control-allow-credentials")).toBe("true");
   });
 
   it("OPTIONS returns credentials header", async () => {
     const res = await app.request("/api/intents", {
       method: "OPTIONS",
-      headers: { Origin: "https://veil.moe" },
+      headers: { Origin: "https://maw.finance" },
     });
     expect(res.headers.get("access-control-allow-credentials")).toBe("true");
   });
@@ -256,7 +256,7 @@ describe("Route dispatch", () => {
 
     try {
       const res = await app.request("/api/intents?wallet=0xwallet", {
-        headers: { Cookie: "veil_token=mock-token" },
+        headers: { Cookie: "maw_token=mock-token" },
       });
 
       expect(res.status).toBe(200);
@@ -312,7 +312,7 @@ describe("SPA fallback", () => {
     const res = await app.request("/");
     expect(res.status).toBe(200);
     const html = await res.text();
-    expect(html).toContain("VEIL");
+    expect(html).toContain("MAW");
   });
 
   it("GET /nonexistent returns HTML (not JSON 404)", async () => {
@@ -326,7 +326,7 @@ describe("SPA fallback", () => {
     const res = await app.request("/dashboard");
     expect(res.status).toBe(200);
     const html = await res.text();
-    expect(html).toContain("VEIL");
+    expect(html).toContain("MAW");
   });
 });
 
@@ -391,7 +391,7 @@ describe("Identity JSON route", () => {
 
     const body = await res.json();
     expect(body.type).toBe("https://eips.ethereum.org/EIPS/eip-8004#registration-v1");
-    expect(body.name).toBe("Veil DeFi Rebalancer");
+    expect(body.name).toBe("Maw DeFi Rebalancer");
     expect(body.description).toContain("60% ETH");
     expect(body.description).toContain("40% USDC");
     expect(body.description).toContain("$100/day");

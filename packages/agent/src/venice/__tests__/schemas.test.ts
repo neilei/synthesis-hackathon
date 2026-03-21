@@ -1,7 +1,7 @@
 /**
  * Unit tests for Zod schema validation of LLM structured outputs.
  *
- * @module @veil/agent/venice/schemas.test
+ * @module @maw/agent/venice/schemas.test
  */
 import { describe, it, expect } from "vitest";
 import {

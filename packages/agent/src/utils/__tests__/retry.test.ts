@@ -1,5 +1,5 @@
 /**
- * @module @veil/agent/utils/retry.test
+ * @module @maw/agent/utils/retry.test
  */
 import { describe, it, expect, vi } from "vitest";
 import { withRetry } from "../retry.js";

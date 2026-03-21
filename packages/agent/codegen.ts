@@ -1,7 +1,7 @@
 /**
  * GraphQL Code Generator config for Uniswap V3 subgraph types and SDK.
  *
- * @module @veil/agent/codegen
+ * @module @maw/agent/codegen
  */
 import "dotenv/config";
 import type { CodegenConfig } from "@graphql-codegen/cli";

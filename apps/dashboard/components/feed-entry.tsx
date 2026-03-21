@@ -2,10 +2,10 @@
 
 import { memo, useState, useRef, useEffect, type ReactNode } from "react";
 import Image from "next/image";
-import type { AgentLogEntry } from "@veil/common";
+import type { AgentLogEntry } from "@maw/common";
 import { Badge } from "./ui/badge";
 import { SponsorChip } from "./sponsor-chip";
-import { truncateHash, formatCurrency, formatPercentage, formatAllocationSummary } from "@veil/common";
+import { truncateHash, formatCurrency, formatPercentage, formatAllocationSummary } from "@maw/common";
 import { getScoreColor } from "@/lib/score-color";
 import { PrivacyNotice } from "./privacy-notice";
 

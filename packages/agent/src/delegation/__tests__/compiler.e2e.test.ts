@@ -1,11 +1,11 @@
 /**
  * E2E tests for intent compilation against live Venice LLM.
  *
- * @module @veil/agent/delegation/compiler.e2e.test
+ * @module @maw/agent/delegation/compiler.e2e.test
  */
 import { describe, it, expect } from "vitest";
 import { compileIntent } from "../compiler.js";
-import { detectAdversarialIntent } from "@veil/common";
+import { detectAdversarialIntent } from "@maw/common";
 import { IntentParseSchema } from "../../venice/schemas.js";
 
 describe("compileIntent (e2e)", () => {

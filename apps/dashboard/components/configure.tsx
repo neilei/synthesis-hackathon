@@ -5,7 +5,7 @@
  * 3. Review audit report inline
  * 4. Request ERC-7715 permissions via MetaMask Flask + submit (calls POST /api/intents)
  *
- * @module @veil/dashboard/components/configure
+ * @module @maw/dashboard/components/configure
  */
 "use client";
 
@@ -25,7 +25,7 @@ import { AuditReportSection } from "./audit-report-section";
 import { Spinner } from "./ui/icons";
 import { SponsorChip } from "./sponsor-chip";
 import { AuthPrompt } from "./auth-prompt";
-import type { ParsedIntent, AuditReport } from "@veil/common";
+import type { ParsedIntent, AuditReport } from "@maw/common";
 
 type Step = "input" | "parsing" | "preview" | "signing" | "submitting";
 
@@ -137,7 +137,7 @@ export function Configure({ onSuccess }: ConfigureProps) {
         {/* Wordmark */}
         <div className="mb-12 text-center">
           <h1 className="text-5xl font-bold tracking-[0.3em] text-accent-positive sm:text-6xl">
-            VEIL
+            MAW
           </h1>
           <p className="mt-3 text-sm uppercase tracking-widest text-text-secondary">
             Describe your portfolio. The agent handles the rest.

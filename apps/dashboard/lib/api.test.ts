@@ -1,7 +1,7 @@
 /**
  * Unit tests for client-side API fetch wrappers.
  *
- * @module @veil/dashboard/lib/api.test
+ * @module @maw/dashboard/lib/api.test
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {

@@ -6,7 +6,7 @@
  * These tests cover the Preview step (parse intent via Venice) which doesn't
  * require wallet connection.
  *
- * @module @veil/dashboard/tests/configure.spec
+ * @module @maw/dashboard/tests/configure.spec
  */
 import { test, expect } from "@playwright/test";
 
@@ -38,8 +38,8 @@ test.describe("Configure Screen", () => {
     await expect(configureTab).toHaveAttribute("aria-selected", "true");
   });
 
-  test("shows VEIL wordmark", async ({ page }) => {
-    await expect(page.getByRole("heading", { name: "VEIL" })).toBeVisible();
+  test("shows MAW wordmark", async ({ page }) => {
+    await expect(page.getByRole("heading", { name: "MAW" })).toBeVisible();
   });
 
   test("textarea accepts input", async ({ page }) => {

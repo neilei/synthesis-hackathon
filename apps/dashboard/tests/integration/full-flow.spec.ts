@@ -1,15 +1,15 @@
 /**
  * Integration test: full parse-intent flow against a live agent server.
- * Run: INTEGRATION=1 pnpm --filter @veil/dashboard test:e2e --project integration
+ * Run: INTEGRATION=1 pnpm --filter @maw/dashboard test:e2e --project integration
  *
- * @module @veil/dashboard/tests/integration/full-flow.spec
+ * @module @maw/dashboard/tests/integration/full-flow.spec
  */
 import { test, expect } from "@playwright/test";
 
 test.describe("Full Stack Integration", () => {
   test("dashboard loads and shows configure screen", async ({ page }) => {
     await page.goto("/");
-    await expect(page).toHaveTitle(/Veil/);
+    await expect(page).toHaveTitle(/Maw/);
     await expect(
       page.getByRole("tab", { name: /configure/i }),
     ).toBeVisible();

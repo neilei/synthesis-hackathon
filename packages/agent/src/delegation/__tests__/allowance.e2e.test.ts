@@ -10,7 +10,7 @@
  * Optional: TEST_PERMISSION_CONTEXT_ERC20 and TEST_PERMISSION_CONTEXT_NATIVE
  *           for testing against a real granted delegation
  *
- * @module @veil/agent/delegation/allowance.e2e.test
+ * @module @maw/agent/delegation/allowance.e2e.test
  */
 import { describe, it, expect } from "vitest";
 import { getSmartAccountsEnvironment } from "@metamask/smart-accounts-kit";

@@ -10,7 +10,7 @@
  * 5. Delete intent (verify cancellation)
  * 6. Re-list (verify intent removed from active)
  *
- * @module @veil/agent/multi-intent.e2e.test
+ * @module @maw/agent/multi-intent.e2e.test
  */
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { spawn, type ChildProcess } from "child_process";
@@ -28,7 +28,7 @@ const BASE = `http://localhost:${PORT}`;
 let serverProcess: ChildProcess;
 
 // Isolated temp DB so we don't conflict with other e2e test servers
-const tmpDir = mkdtempSync(join(tmpdir(), "veil-e2e-"));
+const tmpDir = mkdtempSync(join(tmpdir(), "maw-e2e-"));
 const DB_PATH = join(tmpDir, "test.db");
 
 // Test wallet — Anvil account #0 (well-known test key, no real funds)
@@ -82,7 +82,7 @@ async function authenticate(
   const { nonce } = await nonceRes.json();
 
   // 2. Sign nonce message
-  const message = `Sign this message to authenticate with Veil.\n\nNonce: ${nonce}`;
+  const message = `Sign this message to authenticate with Maw.\n\nNonce: ${nonce}`;
   const signature = await account.signMessage({ message });
 
   // 3. Verify signature → get token
@@ -176,7 +176,7 @@ describe("Multi-Intent E2E", () => {
       const { nonce } = await nonceRes.json();
 
       // Sign with wrong account
-      const message = `Sign this message to authenticate with Veil.\n\nNonce: ${nonce}`;
+      const message = `Sign this message to authenticate with Maw.\n\nNonce: ${nonce}`;
       const wrongSignature = await testAccount2.signMessage({ message });
 
       const verifyRes = await fetch(`${BASE}/api/auth/verify`, {

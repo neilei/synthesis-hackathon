@@ -1,7 +1,7 @@
 /**
  * Unit tests for Uniswap Trading API Zod validation schemas.
  *
- * @module @veil/agent/uniswap/schemas.test
+ * @module @maw/agent/uniswap/schemas.test
  */
 import { describe, it, expect } from "vitest";
 import {

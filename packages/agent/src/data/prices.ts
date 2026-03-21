@@ -4,7 +4,7 @@
  *
  * Requires CMC_PRO_API_KEY in environment.
  *
- * @module @veil/agent/data/prices
+ * @module @maw/agent/data/prices
  */
 import { env } from "../config.js";
 import { logger } from "../logging/logger.js";

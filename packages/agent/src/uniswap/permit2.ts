@@ -2,7 +2,7 @@
  * Permit2 EIP-712 signing utilities for Uniswap swaps.
  * Signs permit data returned from the Uniswap Trading API quote flow.
  *
- * @module @veil/agent/uniswap/permit2
+ * @module @maw/agent/uniswap/permit2
  */
 import {
   type Address,

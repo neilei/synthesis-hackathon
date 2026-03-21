@@ -1,7 +1,7 @@
 /**
  * Unit tests for token price lookup via CoinMarketCap and caching behavior.
  *
- * @module @veil/agent/data/prices.test
+ * @module @maw/agent/data/prices.test
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 

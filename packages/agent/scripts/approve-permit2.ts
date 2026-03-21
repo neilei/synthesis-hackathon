@@ -2,7 +2,7 @@
  * One-time script: approve USDC for Permit2 on Sepolia.
  * Run: npx tsx packages/agent/scripts/approve-permit2.ts
  *
- * @module @veil/agent/scripts/approve-permit2
+ * @module @maw/agent/scripts/approve-permit2
  */
 import { createWalletClient, createPublicClient, http, parseAbi, maxUint256 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";

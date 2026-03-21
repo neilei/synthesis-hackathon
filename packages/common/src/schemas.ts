@@ -1,5 +1,5 @@
 /**
- * @file Shared Zod schemas for API request/response validation across the Veil monorepo.
+ * @file Shared Zod schemas for API request/response validation across the Maw monorepo.
  *
  * These schemas are the single source of truth for data shapes exchanged between
  * the agent backend and the dashboard frontend.

@@ -2,7 +2,7 @@
  * Venice AI image generation for per-agent avatars.
  * Two-step: LLM generates a creative prompt, then Venice image API renders it.
  *
- * @module @veil/agent/venice/image
+ * @module @maw/agent/venice/image
  */
 import { writeFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";

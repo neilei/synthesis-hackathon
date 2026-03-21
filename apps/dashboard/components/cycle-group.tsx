@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { CycleGroup as CycleGroupData } from "@/lib/group-feed";
 import { FeedEntry } from "./feed-entry";
-import { formatCurrency, formatPercentage, formatAllocationSummary } from "@veil/common";
+import { formatCurrency, formatPercentage, formatAllocationSummary } from "@maw/common";
 import { Spinner } from "./ui/icons";
 
 interface CycleGroupProps {

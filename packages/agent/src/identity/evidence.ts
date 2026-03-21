@@ -5,14 +5,14 @@
  * agent reasoning. The document is stored as JSON, hashed with keccak256,
  * and referenced on-chain via the Validation Registry.
  *
- * @module @veil/agent/identity/evidence
+ * @module @maw/agent/identity/evidence
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { keccak256, toHex, type Hex } from "viem";
 
 const EVIDENCE_BASE_DIR = "data/evidence";
-const EVIDENCE_BASE_URL = "https://api.veil.moe/api/evidence";
+const EVIDENCE_BASE_URL = "https://api.maw.finance/api/evidence";
 
 export interface SwapEvidenceInput {
   agentId: bigint;

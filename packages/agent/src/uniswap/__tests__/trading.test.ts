@@ -1,7 +1,7 @@
 /**
  * Unit tests for Uniswap Trading API client: quote, approval, swap creation.
  *
- * @module @veil/agent/uniswap/trading.test
+ * @module @maw/agent/uniswap/trading.test
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Address, Hex } from "viem";

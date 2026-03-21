@@ -2,10 +2,10 @@
  * JSONL event logger. Appends structured AgentLogEntry records to agent_log.jsonl.
  * Read by the server for the dashboard activity feed.
  *
- * @module @veil/agent/logging/agent-log
+ * @module @maw/agent/logging/agent-log
  */
-import type { AgentLogEntry } from "@veil/common";
-export type { AgentLogEntry } from "@veil/common";
+import type { AgentLogEntry } from "@maw/common";
+export type { AgentLogEntry } from "@maw/common";
 import { appendFileSync, writeFileSync } from "fs";
 import { join } from "path";
 

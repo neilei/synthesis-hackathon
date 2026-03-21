@@ -11,7 +11,7 @@
  * via ?intent=ID will show the "Back to intents" button in both success and
  * error states, but intent data only renders if the wallet matches.
  *
- * @module @veil/dashboard/tests/integration/browser-lifecycle.spec
+ * @module @maw/dashboard/tests/integration/browser-lifecycle.spec
  */
 import { test, expect, gotoAuthenticated } from "../fixtures/auth";
 

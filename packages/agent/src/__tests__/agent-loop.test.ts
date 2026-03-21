@@ -1,7 +1,7 @@
 /**
  * Unit tests for the agent loop: drift calculation and token resolution.
  *
- * @module @veil/agent/agent-loop.test
+ * @module @maw/agent/agent-loop.test
  */
 import { describe, it, expect, vi } from "vitest";
 

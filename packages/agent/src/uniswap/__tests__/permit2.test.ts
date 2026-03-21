@@ -1,7 +1,7 @@
 /**
  * Unit tests for Permit2 EIP-712 signing utilities.
  *
- * @module @veil/agent/uniswap/permit2.test
+ * @module @maw/agent/uniswap/permit2.test
  */
 import { describe, it, expect, vi } from "vitest";
 import type { Address, Hex } from "viem";

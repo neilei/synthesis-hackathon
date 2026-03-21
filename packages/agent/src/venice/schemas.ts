@@ -3,10 +3,10 @@
  * rebalance decisions, market analysis, and price responses.
  * Types derived via z.infer to prevent schema/type drift.
  *
- * @module @veil/agent/venice/schemas
+ * @module @maw/agent/venice/schemas
  */
 import { z } from "zod";
-import { ParsedIntentSchema, type ParsedIntent } from "@veil/common";
+import { ParsedIntentSchema, type ParsedIntent } from "@maw/common";
 
 // Re-export base schema for type derivation
 export { ParsedIntentSchema };
@@ -14,7 +14,7 @@ export type { ParsedIntent };
 export type IntentParse = ParsedIntent;
 
 // Agent-specific validation: wraps the shared schema with allocation sum check.
-// This lives here (not in @veil/common) because it's agent business logic.
+// This lives here (not in @maw/common) because it's agent business logic.
 export const IntentParseSchema = ParsedIntentSchema.refine(
   (data) => {
     const sum = Object.values(data.targetAllocation).reduce((a, b) => a + b, 0);

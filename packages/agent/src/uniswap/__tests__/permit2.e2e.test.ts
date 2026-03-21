@@ -1,7 +1,7 @@
 /**
  * E2E tests for Permit2 approval against live Sepolia contracts.
  *
- * @module @veil/agent/uniswap/permit2.e2e.test
+ * @module @maw/agent/uniswap/permit2.e2e.test
  */
 import { describe, it, expect } from "vitest";
 import { createPublicClient, createWalletClient } from "viem";

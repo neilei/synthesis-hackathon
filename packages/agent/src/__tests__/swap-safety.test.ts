@@ -1,7 +1,7 @@
 /**
  * Unit tests for executeSwap safety checks: budget, per-trade limit, trade count.
  *
- * @module @veil/agent/swap-safety.test
+ * @module @maw/agent/swap-safety.test
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 

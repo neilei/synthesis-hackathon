@@ -3,7 +3,7 @@
  * Pure functions with no external dependencies — usable in both
  * browser (dashboard) and server (agent) contexts.
  *
- * @module @veil/common/delegation
+ * @module @maw/common/delegation
  */
 import type { ParsedIntent, AuditReport } from "./schemas.js";
 import { SECONDS_PER_DAY } from "./constants.js";
