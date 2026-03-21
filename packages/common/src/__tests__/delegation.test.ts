@@ -3,6 +3,7 @@ import {
   computeMaxValueWei,
   computeExpiryTimestamp,
   computeMaxCalls,
+  computePeriodAmount,
   detectAdversarialIntent,
   generateAuditReport,
 } from "../delegation.js";
@@ -62,6 +63,37 @@ describe("computeMaxCalls", () => {
 
   it("works with 1 trade per day", () => {
     expect(computeMaxCalls(1, 30)).toBe(30);
+  });
+});
+
+describe("computePeriodAmount", () => {
+  it("converts daily budget USD to ETH wei per period at conservative price", () => {
+    // $200/day at $500/ETH = 0.4 ETH = 400000000000000000 wei
+    const result = computePeriodAmount(200, "ETH");
+    expect(result).toBe(400000000000000000n);
+  });
+
+  it("converts daily budget USD to USDC units per period (6 decimals)", () => {
+    // $200/day in USDC = 200 USDC = 200_000_000 (6 decimals)
+    const result = computePeriodAmount(200, "USDC");
+    expect(result).toBe(200_000_000n);
+  });
+
+  it("returns 0 for zero budget", () => {
+    expect(computePeriodAmount(0, "ETH")).toBe(0n);
+    expect(computePeriodAmount(0, "USDC")).toBe(0n);
+  });
+
+  it("accepts custom ETH price override", () => {
+    // $100/day at $1000/ETH = 0.1 ETH = 100000000000000000 wei
+    const result = computePeriodAmount(100, "ETH", 1000);
+    expect(result).toBe(100000000000000000n);
+  });
+
+  it("rounds up to avoid underestimating amounts", () => {
+    // $1/day at $500/ETH = 0.002 ETH = 2000000000000000 wei
+    const result = computePeriodAmount(1, "ETH");
+    expect(result).toBe(2000000000000000n);
   });
 });
 

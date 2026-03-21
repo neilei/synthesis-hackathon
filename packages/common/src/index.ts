@@ -49,6 +49,7 @@ export {
   computeMaxValueWei,
   computeExpiryTimestamp,
   computeMaxCalls,
+  computePeriodAmount,
   detectAdversarialIntent,
   generateAuditReport,
   type AdversarialWarning,

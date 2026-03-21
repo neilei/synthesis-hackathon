@@ -44,6 +44,25 @@ export function computeMaxCalls(
   return maxTradesPerDay * timeWindowDays;
 }
 
+/**
+ * Compute the token amount per period for an ERC-7715 periodic permission.
+ * For ETH: converts daily USD budget to wei using conservative ETH price.
+ * For USDC: converts daily USD budget to USDC units (6 decimals).
+ */
+export function computePeriodAmount(
+  dailyBudgetUsd: number,
+  token: "ETH" | "USDC",
+  conservativeEthPrice = CONSERVATIVE_ETH_PRICE_USD,
+): bigint {
+  if (dailyBudgetUsd === 0) return 0n;
+  if (token === "USDC") {
+    return BigInt(Math.ceil(dailyBudgetUsd * 1e6));
+  }
+  // ETH: convert USD to ETH at conservative price, then to wei
+  const ethAmount = dailyBudgetUsd / conservativeEthPrice;
+  return BigInt(Math.ceil(ethAmount * 1e18));
+}
+
 // ---------------------------------------------------------------------------
 // Adversarial intent detection
 // ---------------------------------------------------------------------------
