@@ -173,20 +173,16 @@ export async function runAgentLoop(config: AgentConfig): Promise<AgentState> {
         tool: "venice-image",
         result: { intentId: config.intentId, model: "nano-banana-2" },
       });
-      try {
-        await generateAgentAvatar(config.intentId, config.intent);
-        logger.info({ intentId: config.intentId }, "Agent avatar generated");
-        config.intentLogger?.log("avatar_generated", {
-          tool: "venice-image",
-          result: { intentId: config.intentId, model: "nano-banana-2" },
-        });
-      } catch (err) {
-        logger.warn({ err, intentId: config.intentId }, "Avatar generation failed — continuing with fallback SVG");
-        config.intentLogger?.log("avatar_generation_failed", {
-          tool: "venice-image",
-          error: err instanceof Error ? err.message : String(err),
-        });
-      }
+      const iid = config.intentId;
+      await withRetry(
+        () => generateAgentAvatar(iid, config.intent),
+        { maxRetries: 3, baseDelayMs: 2_000, label: `avatar-${iid}` },
+      );
+      logger.info({ intentId: iid }, "Agent avatar generated");
+      config.intentLogger?.log("avatar_generated", {
+        tool: "venice-image",
+        result: { intentId: iid, model: "nano-banana-2" },
+      });
     }
   }
 

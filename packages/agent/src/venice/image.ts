@@ -14,7 +14,7 @@ import type { IntentParse } from "./schemas.js";
 const IMAGE_DIR = join("data", "images");
 const IMAGE_MODEL = "nano-banana-2";
 const IMAGE_SIZE = "1024x1024";
-const AVATAR_TIMEOUT_MS = 30_000; // 30s total budget for avatar generation
+const AVATAR_TIMEOUT_MS = 60_000; // 60s per-step budget for avatar generation
 
 const SYSTEM_PROMPT = `You are creating a portrait of a sentient DeFi trading agent. This is not a robot. This is not a dashboard. This is a CREATURE — born from the intent of a human who wanted their money to move autonomously through decentralized markets while they slept.
 
@@ -111,74 +111,66 @@ export async function generateImagePrompt(
 
 /**
  * Generate an avatar image via Venice image API and save to disk.
- * Returns the file path on success, null on failure.
+ * Throws on failure so the caller can retry.
  */
 export async function generateAgentAvatar(
   intentId: string,
   intent: IntentParse,
-): Promise<string | null> {
-  try {
-    // Step 1: Generate creative prompt via LLM
-    logger.info({ intentId }, "Generating avatar prompt via Venice LLM");
-    const imagePrompt = await generateImagePrompt(intent);
-    logger.info({ intentId, imagePrompt }, "Avatar prompt generated");
+): Promise<string> {
+  // Step 1: Generate creative prompt via LLM
+  logger.info({ intentId }, "Generating avatar prompt via Venice LLM");
+  const imagePrompt = await generateImagePrompt(intent);
+  logger.info({ intentId, imagePrompt }, "Avatar prompt generated");
 
-    // Step 2: Call Venice image generation API
-    logger.info({ intentId, model: IMAGE_MODEL }, "Generating avatar image");
-    const response = await fetch(
-      `${env.VENICE_BASE_URL}images/generations`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${env.VENICE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: IMAGE_MODEL,
-          prompt: imagePrompt,
-          n: 1,
-          size: IMAGE_SIZE,
-          response_format: "url",
-        }),
-        signal: AbortSignal.timeout(AVATAR_TIMEOUT_MS),
+  // Step 2: Call Venice image generation API
+  logger.info({ intentId, model: IMAGE_MODEL }, "Generating avatar image");
+  const response = await fetch(
+    `${env.VENICE_BASE_URL}images/generations`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${env.VENICE_API_KEY}`,
+        "Content-Type": "application/json",
       },
-    );
-
-    if (!response.ok) {
-      const text = await response.text();
-      throw new Error(`Venice image API ${response.status}: ${text}`);
-    }
-
-    const data = (await response.json()) as {
-      data: Array<{ url?: string }>;
-    };
-    const imageUrl = data.data[0]?.url;
-    if (!imageUrl) {
-      throw new Error("Venice image API returned no URL");
-    }
-
-    // Step 3: Download and save
-    const imageResponse = await fetch(imageUrl, {
+      body: JSON.stringify({
+        model: IMAGE_MODEL,
+        prompt: imagePrompt,
+        n: 1,
+        size: IMAGE_SIZE,
+        response_format: "url",
+      }),
       signal: AbortSignal.timeout(AVATAR_TIMEOUT_MS),
-    });
-    if (!imageResponse.ok) {
-      throw new Error(`Failed to download image: ${imageResponse.status}`);
-    }
-    const buffer = Buffer.from(await imageResponse.arrayBuffer());
+    },
+  );
 
-    await mkdir(IMAGE_DIR, { recursive: true });
-    const filePath = join(IMAGE_DIR, `${intentId}.webp`);
-    await writeFile(filePath, buffer);
-
-    logger.info({ intentId, filePath, bytes: buffer.length }, "Avatar saved");
-    return filePath;
-  } catch (err) {
-    logger.error(
-      { err, intentId },
-      "Avatar generation failed — using fallback SVG",
-    );
-    return null;
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Venice image API ${response.status}: ${text}`);
   }
+
+  const data = (await response.json()) as {
+    data: Array<{ url?: string }>;
+  };
+  const imageUrl = data.data[0]?.url;
+  if (!imageUrl) {
+    throw new Error("Venice image API returned no URL");
+  }
+
+  // Step 3: Download and save
+  const imageResponse = await fetch(imageUrl, {
+    signal: AbortSignal.timeout(AVATAR_TIMEOUT_MS),
+  });
+  if (!imageResponse.ok) {
+    throw new Error(`Failed to download image: ${imageResponse.status}`);
+  }
+  const buffer = Buffer.from(await imageResponse.arrayBuffer());
+
+  await mkdir(IMAGE_DIR, { recursive: true });
+  const filePath = join(IMAGE_DIR, `${intentId}.webp`);
+  await writeFile(filePath, buffer);
+
+  logger.info({ intentId, filePath, bytes: buffer.length }, "Avatar saved");
+  return filePath;
 }
 
 /** Returns the expected file path for an intent's avatar. */

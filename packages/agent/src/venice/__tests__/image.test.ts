@@ -100,7 +100,7 @@ describe("generateAgentAvatar", () => {
     expect(existsSync(testPath)).toBe(true);
   });
 
-  it("returns null on API failure", async () => {
+  it("throws on API failure", async () => {
     mockFetch.mockImplementation(() =>
       Promise.resolve({
         ok: false,
@@ -109,17 +109,17 @@ describe("generateAgentAvatar", () => {
       }),
     );
 
-    const result = await generateAgentAvatar(testIntentId, {
-      targetAllocation: { ETH: 0.5, USDC: 0.5 },
-      dailyBudgetUsd: 100,
-      timeWindowDays: 3,
-      driftThreshold: 0.05,
-      maxSlippage: 0.01,
-      maxTradesPerDay: 3,
-      maxPerTradeUsd: 50,
-    });
-
-    expect(result).toBeNull();
+    await expect(
+      generateAgentAvatar(testIntentId, {
+        targetAllocation: { ETH: 0.5, USDC: 0.5 },
+        dailyBudgetUsd: 100,
+        timeWindowDays: 3,
+        driftThreshold: 0.05,
+        maxSlippage: 0.01,
+        maxTradesPerDay: 3,
+        maxPerTradeUsd: 50,
+      }),
+    ).rejects.toThrow("Venice image API 500");
   });
 });
 
