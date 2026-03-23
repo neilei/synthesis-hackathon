@@ -68,9 +68,11 @@ sequenceDiagram
     end
 ```
 
+The key architectural choice is two-step pull+swap: ERC-7710 pulls tokens from the user's smart account to the agent's EOA, then the agent swaps directly on Uniswap. This separation exists because `native-token-periodic` permissions restrict delegated calls to plain transfers — the agent can't call Uniswap through the delegation. Venice reasoning runs with no-data-retention and E2EE so the LLM never learns your portfolio strategy. After the initial MetaMask approval, the loop runs autonomously — no further user signatures needed.
+
 ### Post-Swap Evaluation
 
-After every successful swap, an independent judge pipeline evaluates the agent's performance and records the results on-chain:
+After every swap, a separate judge pipeline scores the agent's performance and writes the results on-chain:
 
 ```mermaid
 sequenceDiagram
@@ -102,9 +104,7 @@ sequenceDiagram
     JudgeWallet->>RepReg: giveFeedback(agentId, compositeScore, feedbackURI, feedbackHash)
 ```
 
-The agent wallet and judge wallet are cryptographically separate — the reputation registry's on-chain `giveFeedback` rejects self-feedback from the agent's own address, enforcing wallet-level separation. The architecture supports delegating the judge role to an external party; in the current deployment, the operator runs both wallets with an LLM judge prompt designed for calibrated evaluation. Evidence documents are content-addressed with keccak256 — the on-chain hash must match the hosted JSON, making tampering detectable.
-
-**Crucially, the judge pipeline is not just scoring — it's a feedback loop.** After each evaluation, scores and reasoning are persisted to the database. On the next cycle, the agent's reasoning prompt includes the last 5 judge evaluations as a "PAST PERFORMANCE FEEDBACK" section. If execution quality is consistently low, the LLM is guided to prefer smaller trade sizes. If goal progress is low, it reconsiders trade direction. This creates a self-improving agent that learns from its own on-chain track record.
+This isn't just scoring — it's a closed loop. Scores feed back into the next cycle's reasoning prompt as "PAST PERFORMANCE FEEDBACK," so the agent self-corrects: low execution quality steers toward smaller trades, low goal progress triggers reconsidered direction. All evidence is content-addressed with keccak256 (on-chain hash must match hosted JSON), and the judge wallet is architecturally separate from the agent wallet — designed to support external judges, currently operated by the same party with an LLM prompt tuned for calibrated evaluation.
 
 ---
 
