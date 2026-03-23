@@ -60,9 +60,8 @@ export const getVeniceLlm = (options: ChatOpenAIFields) => {
   });
 };
 
-/** Shared params: E2EE on, no Venice system prompt */
+/** Shared params: no Venice system prompt (real E2EE handled by e2ee.ts for reasoning tier) */
 const baseVeniceParams = {
-  enable_e2ee: true,
   include_venice_system_prompt: false,
 };
 

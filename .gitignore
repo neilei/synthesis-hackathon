@@ -14,7 +14,6 @@ playwright-report/
 .vercel/
 
 # Internal working files (not for public repo)
-.claude/
 reference/
 HACKATHON_INTEL.md
 PRIZE_CATALOG_RAW.md
